@@ -674,6 +674,49 @@ Seeds ALIASES with the literal text promoted."
       :aliases (unless (equal canonical variant) (list variant))))
     (message "Promoted %S as entity %S" variant canonical)))
 
+;;;; Sources
+
+(declare-function org-reading-list-entries "org-reading-list" ())
+
+(defun org-chronicle--source-link (id description &optional locator)
+  "Return an Org id link to a source: [[id:ID][DESCRIPTION]] optional LOCATOR."
+  (concat (format "[[id:%s][%s]]" id description)
+          (when (and locator (not (string-blank-p locator)))
+            (concat " " locator))))
+
+(defun org-chronicle--read-source (&optional free-text)
+  "Return a source string.
+If `org-reading-list' is loaded, offer to pick an entry and build an id
+link with an optional locator; otherwise (or on blank pick) return
+FREE-TEXT or a prompted free-text citation."
+  (if (and (featurep 'org-reading-list)
+           (fboundp 'org-reading-list-entries))
+      (let* ((entries (org-reading-list-entries))
+             (pick (completing-read "Source (blank for free text): "
+                                    (mapcar #'car entries) nil nil)))
+        (if (string-blank-p pick)
+            (or free-text (read-string "Free-text source: "))
+          (let ((id (cdr (assoc pick entries)))
+                (loc (read-string "Locator (e.g. p.412, blank to skip): ")))
+            (org-chronicle--source-link id pick loc))))
+    (or free-text (read-string "Free-text source: "))))
+
+;;;###autoload
+(defun org-chronicle-add-source ()
+  "Append a source to the SOURCES property of the event heading at point."
+  (interactive)
+  (org-back-to-heading t)
+  (let* ((existing (org-entry-get nil "SOURCES"))
+         (new (org-chronicle--read-source))
+         (combined (if (and existing (not (string-blank-p existing)))
+                       (concat existing org-chronicle-multi-value-separator new)
+                     new)))
+    (org-set-property "SOURCES" combined)))
+
+
+
+
+
 
 
 

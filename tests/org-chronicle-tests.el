@@ -302,6 +302,21 @@
     (should (string-match-p ":ALIASES: Grant; U.S. Grant" s))
     (should (string-match-p ":BORN:    <1822-04-27>" s))))
 
+;;;; Sources
+
+(ert-deftest org-chronicle-test-source-link-format ()
+  (should (equal (org-chronicle--source-link "abc123" "Foote, Civil War" "p.412")
+                 "[[id:abc123][Foote, Civil War]] p.412"))
+  (should (equal (org-chronicle--source-link "abc123" "Foote" nil)
+                 "[[id:abc123][Foote]]")))
+
+(ert-deftest org-chronicle-test-add-source-free-text-when-no-reading-list ()
+  (cl-letf (((symbol-function 'featurep)
+             (lambda (f &rest _) (unless (eq f 'org-reading-list) t))))
+    (should (equal (org-chronicle--read-source "NY Herald 1863") "NY Herald 1863"))))
+
+
+
 
 
 
