@@ -856,6 +856,48 @@ duplicate of an existing entity without confirmation."
       :aliases (unless (equal canonical variant) (list variant))))
     (message "Promoted %S as entity %S" variant canonical)))
 
+;;;; Life events
+;;
+;; Life events (birth, death, marriage, name-change) are ordinary timeline
+;; events tagged with LIFE-EVENT and SUBJECT.  A person's existence span,
+;; places, and spouses are derived from them, with entity properties as a
+;; fallback.
+
+(defun org-chronicle--life-index (events idx)
+  "Build a hash from a canonical subject name to its derived life facts.
+EVENTS is the event list; IDX the alias index.  Each value is a plist
+\(:birth (DATE . PLACE) :death (DATE . PLACE) :spouses (NAME ...)), where
+DATE is a date plist and PLACE a location string."
+  (let ((index (make-hash-table :test #'equal)))
+    (dolist (e events index)
+      (let ((kind (plist-get e :life-event))
+            (subjects (mapcar (lambda (s) (org-chronicle--canonical s idx))
+                              (plist-get e :subject))))
+        (pcase kind
+          ("birth"
+           (let ((name (car subjects)))
+             (when name
+               (puthash name
+                        (plist-put (gethash name index) :birth
+                                   (cons (plist-get e :date) (plist-get e :location)))
+                        index))))
+          ("death"
+           (let ((name (car subjects)))
+             (when name
+               (puthash name
+                        (plist-put (gethash name index) :death
+                                   (cons (plist-get e :date) (plist-get e :location)))
+                        index))))
+          ("marriage"
+           (dolist (s subjects)
+             (let ((cell (gethash s index)))
+               (puthash s
+                        (plist-put cell :spouses
+                                   (append (plist-get cell :spouses)
+                                           (remove s subjects)))
+                        index)))))))))
+
+
 ;;;; Sources
 
 (declare-function org-reading-list-entries "org-reading-list" ())

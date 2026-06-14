@@ -371,6 +371,44 @@
     (should (null (org-chronicle--group-id-for-name "Ulysses S. Grant" entities idx)))
     (should (null (org-chronicle--group-id-for-name "Nope" entities idx)))))
 
+(defconst org-chronicle-test--life "\
+* Birth of Grant
+:PROPERTIES:
+:LIFE-EVENT: birth
+:DATE: <1822-04-27>
+:SUBJECT: Ulysses S. Grant
+:LOCATION: Point Pleasant, Ohio
+:END:
+* Death of Grant
+:PROPERTIES:
+:LIFE-EVENT: death
+:DATE: <1885-07-23>
+:SUBJECT: Ulysses S. Grant
+:LOCATION: Mount McGregor, New York
+:END:
+* Marriage
+:PROPERTIES:
+:LIFE-EVENT: marriage
+:DATE: <1848-08-22>
+:SUBJECT: Ulysses S. Grant; Julia Dent
+:END:
+")
+
+(ert-deftest org-chronicle-test-life-index ()
+  (org-chronicle-test--with-org org-chronicle-test--life
+    (let* ((events (org-chronicle--buffer-events))
+           (idx (make-hash-table :test #'equal))
+           (index (org-chronicle--life-index events idx))
+           (grant (gethash "Ulysses S. Grant" index)))
+      (should (equal (plist-get (car (plist-get grant :birth)) :year) 1822))
+      (should (equal (cdr (plist-get grant :birth)) "Point Pleasant, Ohio"))
+      (should (equal (plist-get (car (plist-get grant :death)) :year) 1885))
+      (should (equal (plist-get grant :spouses) '("Julia Dent")))
+      (should (equal (plist-get (gethash "Julia Dent" index) :spouses)
+                     '("Ulysses S. Grant"))))))
+
+
+
 
 
 ;;;; Sources
