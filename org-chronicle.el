@@ -238,6 +238,73 @@ ENTITIES is a list of entity plists; canonical name is `:name'."
            when (member person-id (plist-get e :parents))
            collect (plist-get e :name)))
 
+;;;; Query
+
+(cl-defun org-chronicle--filter-events (events _idx &key truth from until)
+  "Filter EVENTS (resolving names via alias index IDX).
+TRUTH is a list of allowed truth strings (nil = all).  FROM and UNTIL are
+date plists bounding `:date' inclusively (nil = open).  Returns events
+sorted ascending by date."
+  (let ((out (cl-remove-if-not
+              (lambda (e)
+                (and (plist-get e :date)
+                     (or (null truth) (member (plist-get e :truth) truth))
+                     (org-chronicle--date-in-span-p (plist-get e :date) from until)))
+              events)))
+    (sort out (lambda (a b)
+                (org-chronicle--date-lessp (plist-get a :date) (plist-get b :date))))))
+
+(defun org-chronicle--lane-names-for (name domain entities)
+  "Return the set of canonical names an entity NAME contributes to a lane.
+For a group, that is its members; for a parent place, its descendants;
+otherwise the entity's own canonical name.  DOMAIN selects which kinds of
+expansion apply (`people' expands groups, `location' expands places)."
+  (let* ((idx (org-chronicle--alias-index entities))
+         (canon (org-chronicle--canonical name idx))
+         (ent (cl-find canon entities
+                       :key (lambda (e) (plist-get e :name)) :test #'equal)))
+    (cond
+     ((and (eq domain 'people) ent (eq (plist-get ent :kind) 'group))
+      (org-chronicle--group-member-names (plist-get ent :id) entities))
+     ((and (eq domain 'location) ent (eq (plist-get ent :kind) 'place))
+      (org-chronicle--place-descendant-names (plist-get ent :id) entities))
+     (t (list canon)))))
+
+(defun org-chronicle--build-lane (name domain entities _mode)
+  "Build a single collapsed lane plist for NAME in DOMAIN over ENTITIES."
+  (let* ((idx (org-chronicle--alias-index entities))
+         (canon (org-chronicle--canonical name idx)))
+    (list :label canon
+          :domain domain
+          :names (org-chronicle--lane-names-for name domain entities))))
+
+(defun org-chronicle--build-lanes-for (name domain entities mode)
+  "Build a list of lane plists for NAME.
+With MODE `:expand', a group/parent-place yields one lane per resolved
+member/descendant; with `:collapse' it yields a single lane (see
+`org-chronicle--build-lane')."
+  (if (eq mode :expand)
+      (mapcar (lambda (n) (list :label n :domain domain :names (list n)))
+              (org-chronicle--lane-names-for name domain entities))
+    (list (org-chronicle--build-lane name domain entities mode))))
+
+(defun org-chronicle--event-in-lane-p (event lane idx)
+  "Non-nil if EVENT belongs in LANE, resolving names via alias index IDX."
+  (let ((names (plist-get lane :names)))
+    (pcase (plist-get lane :domain)
+      ('people
+       (cl-some (lambda (p) (member (org-chronicle--canonical p idx) names))
+                (plist-get event :people)))
+      ('location
+       (and (plist-get event :location)
+            (member (org-chronicle--canonical (plist-get event :location) idx)
+                    names))))))
+
+
+
+
+
+
 
 
 

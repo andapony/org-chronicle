@@ -191,6 +191,43 @@
     (let ((ents (org-chronicle--buffer-entities)))
       (should (equal (org-chronicle--children-names "p1" ents) '("Kid"))))))
 
+(ert-deftest org-chronicle-test-filter-truth-and-range ()
+  (org-chronicle-test--with-org org-chronicle-test--timeline
+    (let* ((events (org-chronicle--buffer-events))
+           (idx (make-hash-table :test #'equal))
+           (out (org-chronicle--filter-events
+                 events idx
+                 :truth '("historical")
+                 :from (org-chronicle--date-parse "1863-01-01")
+                 :until (org-chronicle--date-parse "1863-12-31"))))
+      (should (= (length out) 1))
+      (should (equal (plist-get (car out) :title) "Vicksburg falls")))))
+
+(ert-deftest org-chronicle-test-build-person-lane ()
+  (org-chronicle-test--with-org org-chronicle-test--entities
+    (let* ((ents (org-chronicle--buffer-entities))
+           (lane (org-chronicle--build-lane "Grant" 'people ents :collapse)))
+      (should (equal (plist-get lane :label) "Ulysses S. Grant"))
+      (should (member "Ulysses S. Grant" (plist-get lane :names))))))
+
+(ert-deftest org-chronicle-test-build-group-lane-collapse-vs-expand ()
+  (org-chronicle-test--with-org org-chronicle-test--entities
+    (let* ((ents (org-chronicle--buffer-entities))
+           (collapsed (org-chronicle--build-lane "Pinkerton Agency" 'people ents :collapse))
+           (expanded (org-chronicle--build-lanes-for "Pinkerton Agency" 'people ents :expand)))
+      (should (member "Ulysses S. Grant" (plist-get collapsed :names)))
+      (should (= (length expanded) 1))
+      (should (equal (plist-get (car expanded) :label) "Ulysses S. Grant")))))
+
+(ert-deftest org-chronicle-test-event-in-lane ()
+  (let ((lane (list :label "Grant" :domain 'people :names '("Ulysses S. Grant")))
+        (event (list :people '("Ulysses S. Grant") :location nil)))
+    (should (org-chronicle--event-in-lane-p event lane (make-hash-table :test #'equal)))))
+
+
+
+
+
 
 
 
