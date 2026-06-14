@@ -64,6 +64,21 @@
      (goto-char (point-min))
      ,@body))
 
+(defmacro org-chronicle-test--with-root (files &rest body)
+  "Run BODY with `org-chronicle-root' set to a temp dir populated with FILES.
+FILES evaluates to a list of (RELPATH . CONTENT) conses; intermediate
+directories are created.  The temp dir is removed afterward."
+  (declare (indent 1))
+  `(let ((org-chronicle-root (make-temp-file "octest" t)))
+     (unwind-protect
+         (progn
+           (dolist (f ,files)
+             (let ((path (expand-file-name (car f) org-chronicle-root)))
+               (make-directory (file-name-directory path) t)
+               (with-temp-file path (insert (cdr f)))))
+           ,@body)
+       (delete-directory org-chronicle-root t))))
+
 (defconst org-chronicle-test--timeline "\
 * Vicksburg falls
 :PROPERTIES:
@@ -147,8 +162,6 @@
     (let ((ent (car (org-chronicle--buffer-entities))))
       (should (equal (plist-get ent :deathplace) "Mount McGregor, New York")))))
 
-
-
 (defconst org-chronicle-test--entities "\
 * Pinkerton Agency
 :PROPERTIES:
@@ -177,6 +190,31 @@
 :PART-OF: ent-ms
 :END:
 ")
+
+(ert-deftest org-chronicle-test-source-files ()
+  "Source files are *.org under the root, recursively, minus excluded paths."
+  (org-chronicle-test--with-root
+      '(("timeline.org" . "* e\n")
+        ("chapters/ch1.org" . "* e\n")
+        ("notes.txt" . "x")
+        ("drafts/d1.org" . "* e\n"))
+    (let* ((org-chronicle-exclude '("/drafts/"))
+           (rels (mapcar (lambda (f) (file-relative-name f org-chronicle-root))
+                         (org-chronicle--source-files))))
+      (should (member "timeline.org" rels))
+      (should (member "chapters/ch1.org" rels))
+      (should-not (member "notes.txt" rels))
+      (should-not (member "drafts/d1.org" rels)))))
+
+(ert-deftest org-chronicle-test-source-files-missing-root ()
+  "A nonexistent root yields nil, not an error."
+  (let ((org-chronicle-root "/no/such/dir/xyzzy"))
+    (should (null (org-chronicle--source-files)))))
+
+(ert-deftest org-chronicle-test-root-exclude-safe-local ()
+  "Root and exclude are marked safe-local-variable for dir-locals."
+  (should (eq (get 'org-chronicle-root 'safe-local-variable) #'stringp))
+  (should (functionp (get 'org-chronicle-exclude 'safe-local-variable))))
 
 (ert-deftest org-chronicle-test-buffer-entities ()
   (org-chronicle-test--with-org org-chronicle-test--entities

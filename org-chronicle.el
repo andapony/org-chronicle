@@ -121,6 +121,24 @@ All arguments are date plists (or nil for FROM/UNTIL)."
   :type '(repeat file)
   :group 'org-chronicle)
 
+(defcustom org-chronicle-root "~/org/chronicle/"
+  "Root directory of the chronicle project.
+Every *.org file under this directory (recursively) is scanned for events
+and entities, except files matching `org-chronicle-exclude' or carrying a
+`#+CHRONICLE: ignore' keyword."
+  :type 'directory
+  :group 'org-chronicle
+  :safe #'stringp)
+
+(defcustom org-chronicle-exclude nil
+  "List of regexps of paths to exclude from the chronicle scan.
+Each candidate file path, taken relative to `org-chronicle-root', is tested
+against these regexps; a match drops the file before it is opened.  Example:
+\\='(\"/drafts/\" \"\\\\.draft\\\\.org\\\\='\")."
+  :type '(repeat regexp)
+  :group 'org-chronicle
+  :safe (lambda (v) (and (listp v) (cl-every #'stringp v))))
+
 (defcustom org-chronicle-multi-value-separator "; "
   "Separator written between multiple values in a property."
   :type 'string
@@ -179,6 +197,20 @@ otherwise drop into Org's \"non-existent agenda file\" prompt."
 (defun org-chronicle--all-events ()
   "Return event plists from `org-chronicle-timeline-file'."
   (org-chronicle--file-events org-chronicle-timeline-file))
+
+(defun org-chronicle--source-files ()
+  "Return the Org files to gather from under `org-chronicle-root'.
+Lists *.org recursively under the root (symlinks not followed), dropping any
+whose path relative to the root matches a regexp in `org-chronicle-exclude'."
+  (let ((root (expand-file-name org-chronicle-root)))
+    (when (file-directory-p root)
+      (cl-remove-if
+       (lambda (f)
+         ;; Match against a leading-slash-prefixed relative path so a pattern
+         ;; like "/drafts/" anchors a top-level subtree.
+         (let ((rel (concat "/" (file-relative-name f root))))
+           (cl-some (lambda (re) (string-match-p re rel)) org-chronicle-exclude)))
+       (directory-files-recursively root "\\.org\\'")))))
 
 ;;;; Entities
 
