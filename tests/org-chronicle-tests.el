@@ -265,6 +265,33 @@
       (org-chronicle-dblock-write '(:people ("Grant")))
       (should (string-match-p "Vicksburg \\[H\\]" (buffer-string))))))
 
+;;;; Capture
+
+(ert-deftest org-chronicle-test-event-string ()
+  (let ((s (org-chronicle--event-string
+            :title "Vicksburg falls" :truth "historical"
+            :date "1863-07-04" :people '("Grant" "Pemberton")
+            :location "Vicksburg")))
+    (should (string-match-p "^\\* Vicksburg falls" s))
+    (should (string-match-p ":TRUTH:    historical" s))
+    (should (string-match-p ":DATE:     <1863-07-04>" s))
+    (should (string-match-p ":PEOPLE:   Grant; Pemberton" s))
+    (should (string-match-p ":LOCATION: Vicksburg" s))))
+
+(ert-deftest org-chronicle-test-normalize-mirrors-tag ()
+  (org-chronicle-test--with-org "\
+* Some event
+:PROPERTIES:
+:TRUTH: fictional
+:DATE:  <1864-07-12>
+:END:
+"
+    (goto-char (point-min))
+    (org-chronicle-normalize)
+    (should (member "fictional" (org-get-tags)))))
+
+
+
 
 
 

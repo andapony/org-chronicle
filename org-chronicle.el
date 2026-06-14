@@ -469,6 +469,122 @@ PARAMS keys mirror `org-chronicle-timeline' (:people :locations :truth
 ;; Test-facing alias for the dynamic-block writer.
 (defalias 'org-chronicle-dblock-write 'org-dblock-write:chronicle)
 
+;;;; Capture
+
+(defconst org-chronicle--truth-values '("historical" "fictionalized" "fictional"))
+
+(defun org-chronicle--ts (date-string)
+  "Wrap DATE-STRING in Org active-timestamp brackets if not already bracketed."
+  (if (string-match-p "\\`[<\\[]" date-string)
+      date-string
+    (format "<%s>" date-string)))
+
+(cl-defun org-chronicle--event-string (&key title truth date date-end
+                                            people location sources)
+  "Return the Org heading text for a new event with the given fields.
+PEOPLE is a list; the rest are strings (DATE-END/LOCATION/SOURCES optional)."
+  (concat
+   (format "* %s\n" title)
+   ":PROPERTIES:\n"
+   (format ":TRUTH:    %s\n" (or truth "historical"))
+   (format ":DATE:     %s\n" (org-chronicle--ts date))
+   (when (and date-end (not (string-blank-p date-end)))
+     (format ":DATE-END: %s\n" (org-chronicle--ts date-end)))
+   (when people (format ":PEOPLE:   %s\n" (org-chronicle--join people)))
+   (when (and location (not (string-blank-p location)))
+     (format ":LOCATION: %s\n" location))
+   (when (and sources (not (string-blank-p sources)))
+     (format ":SOURCES:  %s\n" sources))
+   ":END:\n"))
+
+(defun org-chronicle--known-people ()
+  "Return a sorted, de-duplicated list of names seen in events and entities."
+  (let ((names (make-hash-table :test #'equal)))
+    (dolist (e (ignore-errors (org-chronicle--all-events)))
+      (dolist (p (plist-get e :people)) (puthash p t names)))
+    (dolist (e (ignore-errors (org-chronicle--all-entities)))
+      (puthash (plist-get e :name) t names)
+      (dolist (a (plist-get e :aliases)) (puthash a t names)))
+    (sort (hash-table-keys names) #'string<)))
+
+(defun org-chronicle--read-people ()
+  "Prompt for people with completion against known names; return a list."
+  (completing-read-multiple "People (TAB to complete, blank to skip): "
+                            (org-chronicle--known-people)))
+
+;;;###autoload
+(defun org-chronicle-add-event ()
+  "Interactively capture a new event into `org-chronicle-timeline-file'."
+  (interactive)
+  (let* ((title (read-string "Event title: "))
+         (date (read-string "Date (YYYY-MM-DD): "))
+         (date-end (read-string "End date (blank for none): "))
+         (truth (completing-read "Truth: " org-chronicle--truth-values nil t
+                                 nil nil "historical"))
+         (people (org-chronicle--read-people))
+         (location (read-string "Location (blank to skip): "))
+         (text (org-chronicle--event-string
+                :title title :truth truth :date date :date-end date-end
+                :people people :location location)))
+    (with-current-buffer (find-file-noselect org-chronicle-timeline-file)
+      (goto-char (point-max))
+      (unless (bolp) (insert "\n"))
+      (insert text)
+      (forward-line -1)
+      (org-back-to-heading t)
+      (org-id-get-create)
+      (org-chronicle-normalize)
+      (save-buffer))
+    (message "Captured: %s" title)))
+
+;;;###autoload
+(defun org-chronicle-capture ()
+  "Return a new event heading string for use in `org-capture' templates.
+Prompts for the same fields as `org-chronicle-add-event'."
+  (let ((title (read-string "Event title: "))
+        (date (read-string "Date (YYYY-MM-DD): "))
+        (truth (completing-read "Truth: " org-chronicle--truth-values nil t
+                                nil nil "historical"))
+        (people (org-chronicle--read-people))
+        (location (read-string "Location (blank to skip): ")))
+    (org-chronicle--event-string :title title :truth truth :date date
+                                 :people people :location location)))
+
+;;;###autoload
+(defun org-chronicle-normalize ()
+  "Validate and tidy the event heading at point.
+Mirrors TRUTH to a tag, canonicalizes people/location names via aliases,
+and warns if DATE does not parse."
+  (interactive)
+  (org-back-to-heading t)
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities))
+         (truth (org-entry-get nil "TRUTH"))
+         (date (org-entry-get nil "DATE")))
+    (when (and date (null (org-chronicle--date-parse date)))
+      (message "org-chronicle: DATE %S does not parse" date))
+    (let ((people (org-chronicle--split (org-entry-get nil "PEOPLE"))))
+      (when people
+        (org-set-property
+         "PEOPLE"
+         (org-chronicle--join
+          (mapcar (lambda (p) (org-chronicle--canonical p idx)) people)))))
+    (let ((loc (org-entry-get nil "LOCATION")))
+      (when loc
+        (org-set-property "LOCATION" (org-chronicle--canonical loc idx))))
+    (when (member truth org-chronicle--truth-values)
+      (let ((tags (cl-remove-if (lambda (tg) (member tg org-chronicle--truth-values))
+                                (org-get-tags nil t))))
+        (org-set-tags (cons truth tags))))))
+
+
+
+
+
+
+
+
+
 
 
 
