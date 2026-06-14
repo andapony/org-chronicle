@@ -373,7 +373,7 @@ date.  EVENTS are assumed already filtered and sorted ascending."
                          (mapconcat (lambda (l) (org-chronicle--pad
                                                  (upcase (plist-get l :label)) col-width))
                                     lanes "")))
-         (rule (make-string (length header) ?-))
+         (rule (make-string (string-width header) ?-))
          (lines (list rule header)))
     (let ((by-date '()))
       (dolist (e events)
@@ -382,7 +382,7 @@ date.  EVENTS are assumed already filtered and sorted ascending."
       (setq by-date (nreverse by-date))
       (dolist (cell by-date)
         (let* ((date (car cell))
-               (day-events (nreverse (cdr cell)))
+               (day-events (reverse (cdr cell)))
                (row (org-chronicle--pad date dcw)))
           (dolist (lane lanes)
             (let* ((hits (cl-remove-if-not
@@ -720,9 +720,11 @@ FREE-TEXT or a prompted free-text citation."
                                     (mapcar #'car entries) nil nil)))
         (if (string-blank-p pick)
             (or free-text (read-string "Free-text source: "))
-          (let ((id (cdr (assoc pick entries)))
-                (loc (read-string "Locator (e.g. p.412, blank to skip): ")))
-            (org-chronicle--source-link id pick loc))))
+          (let ((id (cdr (assoc pick entries))))
+            (if id
+                (org-chronicle--source-link
+                 id pick (read-string "Locator (e.g. p.412, blank to skip): "))
+              pick))))
     (or free-text (read-string "Free-text source: "))))
 
 ;;;###autoload
@@ -763,7 +765,8 @@ Empty list means clean."
             (when (and span
                        (not (org-chronicle--date-in-span-p date (car span) (cdr span))))
               (push (format "%s outside existence span of %s"
-                            (org-chronicle--date-format date) name)
+                            (org-chronicle--date-format date)
+                            (org-chronicle--canonical name idx))
                     msgs))))))
     (nreverse msgs)))
 

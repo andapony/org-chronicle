@@ -354,5 +354,12 @@
 
 
 
+(ert-deftest org-chronicle-test-read-source-unmatched-is-free-text ()
+  "An unlisted pick is returned as free text, not a [[id:nil]] link."
+  (cl-letf (((symbol-function 'featurep) (lambda (f &rest _) (eq f 'org-reading-list)))
+            ((symbol-function 'org-reading-list-entries) (lambda () '(("Foote" . "id1"))))
+            ((symbol-function 'completing-read) (lambda (&rest _) "Unlisted clipping")))
+    (should (equal (org-chronicle--read-source) "Unlisted clipping"))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
