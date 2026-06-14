@@ -23,13 +23,16 @@ Emacs 27.1+ and Org 9.4+ are required.
 ** With use-package
 
 Since the package is not yet on a package archive, install it straight
-from the repository URL.  On Emacs 30+, =use-package= can do this with
-=:vc=.  The public commands are autoloaded, so =:commands= keeps startup
-cheap, and =:custom= sets the data-file locations:
+from the repository URL with =package-vc-install= (built in since Emacs
+29), then let =use-package= configure it.  The public commands are
+autoloaded, so =:commands= keeps startup cheap, and =:custom= sets the
+data-file locations:
 
 #+begin_src emacs-lisp
+(unless (package-installed-p 'org-chronicle)
+  (package-vc-install "https://github.com/andapony/org-chronicle"))
+
 (use-package org-chronicle
-  :vc (:url "https://github.com/andapony/org-chronicle" :rev :newest)
   :commands (org-chronicle-add-event
              org-chronicle-timeline
              org-chronicle-lint)
@@ -41,16 +44,20 @@ cheap, and =:custom= sets the data-file locations:
   (org-chronicle-lane-column-width 24))
 #+end_src
 
-On Emacs 29 or older, install from the URL with =package-vc-install=
-first, then the same =use-package= form without =:vc= picks it up:
+On *Emacs 30 or newer*, =use-package= understands the =:vc= keyword, so
+you can drop the =package-vc-install= line and fold the install into the
+declaration instead.  (Note: =:vc= is *not* recognized by the
+=use-package= bundled with Emacs 29 — it raises "Unrecognized keyword:
+:vc" — so use the =package-vc-install= form above there.)
 
 #+begin_src emacs-lisp
-(unless (package-installed-p 'org-chronicle)
-  (package-vc-install "https://github.com/andapony/org-chronicle"))
+(use-package org-chronicle
+  :vc (:url "https://github.com/andapony/org-chronicle" :rev :newest)
+  :commands (org-chronicle-add-event org-chronicle-timeline))
 #+end_src
 
-Or, if you prefer a manual clone, replace =:vc= with
-=:load-path "/path/to/org-chronicle"=.
+Or, if you prefer a manual clone, add =:load-path "/path/to/org-chronicle"=
+to the =use-package= form instead of installing from the URL.
 
 To explore the package before wiring up your own files, point
 =org-chronicle-timeline-file= at the bundled =examples/timeline.org= and
