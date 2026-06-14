@@ -917,6 +917,24 @@ of an existing entity without confirmation."
       (message "Added place: %s" name))))
 
 ;;;###autoload
+(defun org-chronicle-add-topic (name)
+  "Create a topic entity NAME in `org-chronicle-topics-file'.
+Prompts for optional aliases and a description.  Refuses to create a
+duplicate of an existing entity without confirmation."
+  (interactive "sTopic name: ")
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities)))
+    (org-chronicle--check-duplicate name entities idx)
+    (let ((aliases (completing-read-multiple "Aliases (blank to skip): " nil))
+          (description (read-string "Description (blank to skip): ")))
+      (org-chronicle--file-entity
+       org-chronicle-topics-file
+       (org-chronicle--entity-string
+        :name name :kind 'topic :aliases aliases
+        :props `(("DESCRIPTION" . ,(and (not (string-blank-p description)) description)))))
+      (message "Added topic: %s" name))))
+
+;;;###autoload
 (defun org-chronicle-add-group (name)
   "Create a group entity NAME in `org-chronicle-people-file'.
 Refuses to create a duplicate of an existing entity without confirmation."

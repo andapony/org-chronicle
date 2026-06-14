@@ -505,6 +505,23 @@
     (should (null (org-chronicle--group-id-for-name "Ulysses S. Grant" entities idx)))
     (should (null (org-chronicle--group-id-for-name "Nope" entities idx)))))
 
+(ert-deftest org-chronicle-test-add-topic ()
+  "`org-chronicle-add-topic' files a KIND: topic entity with aliases and description."
+  (let (filed-file filed-text)
+    (cl-letf (((symbol-function 'org-chronicle--all-entities) (lambda () '()))
+              ((symbol-function 'completing-read-multiple)
+               (lambda (&rest _) '("shipping")))
+              ((symbol-function 'read-string) (lambda (&rest _) "Trade and wrecks."))
+              ((symbol-function 'org-chronicle--file-entity)
+               (lambda (file text) (setq filed-file file filed-text text) "topic-id")))
+      (let ((org-chronicle-topics-file "/tmp/topics.org"))
+        (org-chronicle-add-topic "Maritime shipping"))
+      (should (equal filed-file "/tmp/topics.org"))
+      (should (string-match-p "^\\* Maritime shipping" filed-text))
+      (should (string-match-p ":KIND:    topic" filed-text))
+      (should (string-match-p ":ALIASES: shipping" filed-text))
+      (should (string-match-p ":DESCRIPTION: Trade and wrecks." filed-text)))))
+
 (defconst org-chronicle-test--life "\
 * Birth of Grant
 :PROPERTIES:
