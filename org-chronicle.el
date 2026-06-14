@@ -385,8 +385,47 @@ group or parent place; `:collapse' yields a single lane (see
   "Return the configured glyph for life-event KIND, or nil if KIND is unknown."
   (and kind (cdr (assoc kind org-chronicle-life-event-glyphs))))
 
+(defcustom org-chronicle-topic-glyphs nil
+  "Alist mapping a topic name to its glyph in the timeline view.
+Keys are canonical topic names; values are short display strings."
+  :type '(alist :key-type string :value-type string)
+  :group 'org-chronicle)
 
+(defcustom org-chronicle-topic-faces nil
+  "Alist mapping a topic name to a face for that topic's timeline column.
+When a topic has no entry, its cells fall back to the truth face."
+  :type '(alist :key-type string :value-type face)
+  :group 'org-chronicle)
 
+(defun org-chronicle--topic-glyph (topic)
+  "Return the configured glyph for TOPIC, or nil when none is set."
+  (and topic (cdr (assoc topic org-chronicle-topic-glyphs))))
+
+(defun org-chronicle--topic-face (topic)
+  "Return the configured face for TOPIC, or nil when none is set."
+  (and topic (cdr (assoc topic org-chronicle-topic-faces))))
+
+(defun org-chronicle--topic-cell-text (event topic)
+  "Return propertized cell text for EVENT in a TOPIC lane.
+Prefixes the topic glyph (when set) and uses the topic face, falling back
+to the event's truth face."
+  (let* ((glyph (org-chronicle--topic-glyph topic))
+         (face (or (org-chronicle--topic-face topic)
+                   (org-chronicle--truth-face (plist-get event :truth))))
+         (s (format "%s%s %s"
+                    (if glyph (concat glyph " ") "")
+                    (plist-get event :title)
+                    (org-chronicle--truth-marker (plist-get event :truth)))))
+    (propertize s 'face face
+                'org-chronicle-marker (plist-get event :marker))))
+
+(defun org-chronicle--cell-text-for-lane (event lane)
+  "Return cell text for EVENT as shown in LANE.
+Topic lanes use `org-chronicle--topic-cell-text'; all other domains use
+the default `org-chronicle--cell-text'."
+  (if (eq (plist-get lane :domain) 'topic)
+      (org-chronicle--topic-cell-text event (plist-get lane :label))
+    (org-chronicle--cell-text event)))
 
 (defun org-chronicle--cell-text (event)
   "Return propertized cell text (kind glyph, title, truth marker) for EVENT."
@@ -423,7 +462,7 @@ date.  EVENTS are assumed already filtered and sorted ascending."
             (let* ((hits (cl-remove-if-not
                           (lambda (e) (org-chronicle--event-in-lane-p e lane idx))
                           day-events))
-                   (txt (mapconcat #'org-chronicle--cell-text hits " / ")))
+                   (txt (mapconcat (lambda (e) (org-chronicle--cell-text-for-lane e lane)) hits " / ")))
               (setq row (concat row (org-chronicle--pad txt col-width)))))
           (push row lines))))
     (mapconcat #'identity (nreverse lines) "\n")))

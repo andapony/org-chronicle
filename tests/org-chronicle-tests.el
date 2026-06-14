@@ -298,6 +298,19 @@
     (should (string-prefix-p "⊕ Birth of Grant" (org-chronicle--cell-text birth)))
     (should (string-prefix-p "Vicksburg [H]" (org-chronicle--cell-text plain)))))
 
+(ert-deftest org-chronicle-test-topic-cell-text ()
+  "In a topic lane a cell shows the topic glyph and uses the topic face."
+  (let ((org-chronicle-topic-glyphs '(("shipping" . "⚓")))
+        (org-chronicle-topic-faces '(("shipping" . org-chronicle-fictional)))
+        (lane (list :label "shipping" :domain 'topic :names '("shipping")))
+        (people-lane (list :label "Grant" :domain 'people :names '("Grant")))
+        (event (list :title "Wreck" :truth "fictional" :marker nil)))
+    (let ((cell (org-chronicle--cell-text-for-lane event lane)))
+      (should (string-prefix-p "⚓ Wreck [F]" cell))
+      (should (eq (get-text-property 0 'face cell) 'org-chronicle-fictional)))
+    ;; A non-topic lane is unchanged: no glyph, truth face.
+    (should (string-prefix-p "Wreck [F]"
+                             (org-chronicle--cell-text-for-lane event people-lane)))))
 
 
 (ert-deftest org-chronicle-test-render-columns ()
