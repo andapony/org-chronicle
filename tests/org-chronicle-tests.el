@@ -316,6 +316,26 @@
     (should (equal (org-chronicle--read-source "NY Herald 1863") "NY Herald 1863"))))
 
 
+;;;; Lint
+
+(ert-deftest org-chronicle-test-lint-flags-out-of-span ()
+  (let* ((entities
+          (list (list :id "e1" :name "Sultana" :kind 'place
+                      :aliases nil :member-of nil :part-of nil
+                      :span-from (org-chronicle--date-parse "1863-01-03")
+                      :span-to (org-chronicle--date-parse "1865-04-27"))))
+         (idx (org-chronicle--alias-index entities))
+         (bad (list :title "Meeting aboard Sultana" :truth "fictional"
+                    :date (org-chronicle--date-parse "1866-01-01")
+                    :people nil :location "Sultana" :marker nil))
+         (ok (list :title "Earlier meeting" :truth "fictional"
+                   :date (org-chronicle--date-parse "1864-01-01")
+                   :people nil :location "Sultana" :marker nil)))
+    (should (org-chronicle--event-anachronisms bad entities idx))
+    (should-not (org-chronicle--event-anachronisms ok entities idx))))
+
+
+
 
 
 

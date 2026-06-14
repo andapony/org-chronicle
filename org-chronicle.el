@@ -714,6 +714,62 @@ FREE-TEXT or a prompted free-text citation."
     (org-set-property "SOURCES" combined)))
 
 
+;;;; Lint
+
+(defun org-chronicle--span-for-name (name entities idx)
+  "Return (FROM . TO) existence span for canonical NAME, or nil if unknown."
+  (let* ((canon (org-chronicle--canonical name idx))
+         (ent (cl-find canon entities
+                       :key (lambda (e) (plist-get e :name)) :test #'equal)))
+    (when (and ent (or (plist-get ent :span-from) (plist-get ent :span-to)))
+      (cons (plist-get ent :span-from) (plist-get ent :span-to)))))
+
+(defun org-chronicle--event-anachronisms (event entities idx)
+  "Return a list of human-readable anachronism messages for EVENT.
+An anachronism is a participant or location whose existence span does not
+contain the event's date.  Empty list means clean."
+  (let ((date (plist-get event :date))
+        (msgs '()))
+    (when date
+      (dolist (name (cons (plist-get event :location) (plist-get event :people)))
+        (when name
+          (let ((span (org-chronicle--span-for-name name entities idx)))
+            (when (and span
+                       (not (org-chronicle--date-in-span-p date (car span) (cdr span))))
+              (push (format "%s outside existence span of %s"
+                            (org-chronicle--date-format date) name)
+                    msgs))))))
+    (nreverse msgs)))
+
+;;;###autoload
+(defun org-chronicle-lint ()
+  "Report timeline events that fall outside a participant or place span."
+  (interactive)
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities))
+         (events (org-chronicle--all-events))
+         (findings '()))
+    (dolist (e events)
+      (dolist (m (org-chronicle--event-anachronisms e entities idx))
+        (push (cons e m) findings)))
+    (with-current-buffer (get-buffer-create "*org-chronicle-lint*")
+      (org-chronicle-view-mode)
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (if (null findings)
+            (insert "No anachronisms found.\n")
+          (insert (format "%d anachronism(s):\n\n" (length findings)))
+          (dolist (f (nreverse findings))
+            (insert (propertize (format "- %s: %s\n"
+                                        (plist-get (car f) :title) (cdr f))
+                                'org-chronicle-marker (plist-get (car f) :marker))))))
+      (goto-char (point-min))
+      (pop-to-buffer (current-buffer)))))
+
+
+
+
+
 
 
 
