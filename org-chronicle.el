@@ -802,8 +802,9 @@ alias index IDX), ask whether to create another; declining signals a
 ;;;###autoload
 (defun org-chronicle-add-person (name)
   "Create a person entity NAME in `org-chronicle-people-file'.
-Prompts for aliases, birth, death, and group membership.  Refuses to
-create a duplicate of an existing entity without confirmation."
+Prompts for aliases, birth, death, and group membership; refuses to
+create a duplicate of an existing entity without confirmation; and offers
+to capture a birth life event."
   (interactive "sPerson name: ")
   (let* ((entities (org-chronicle--all-entities))
          (idx (org-chronicle--alias-index entities)))
@@ -819,7 +820,9 @@ create a duplicate of an existing entity without confirmation."
         :props `(("BORN" . ,(and (not (string-blank-p born)) (org-chronicle--ts born)))
                  ("DIED" . ,(and (not (string-blank-p died)) (org-chronicle--ts died)))
                  ("MEMBER-OF" . ,(and groups (org-chronicle--join groups))))))
-      (message "Added person: %s" name))))
+      (message "Added person: %s" name))
+    (when (y-or-n-p "Create a birth event now? ")
+      (org-chronicle-add-life-event "birth" (list name)))))
 
 ;;;###autoload
 (defun org-chronicle-add-place (name)
