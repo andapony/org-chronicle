@@ -212,6 +212,11 @@ whose path relative to the root matches a regexp in `org-chronicle-exclude'."
            (cl-some (lambda (re) (string-match-p re rel)) org-chronicle-exclude)))
        (directory-files-recursively root "\\.org\\'")))))
 
+(defun org-chronicle--file-ignored-p ()
+  "Non-nil if the current buffer opts out of the scan via `#+CHRONICLE: ignore'."
+  (member "ignore"
+          (cdr (assoc "CHRONICLE" (org-collect-keywords '("CHRONICLE"))))))
+
 ;;;; Entities
 
 (defconst org-chronicle--span-props

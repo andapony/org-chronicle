@@ -216,6 +216,13 @@ directories are created.  The temp dir is removed afterward."
   (should (eq (get 'org-chronicle-root 'safe-local-variable) #'stringp))
   (should (functionp (get 'org-chronicle-exclude 'safe-local-variable))))
 
+(ert-deftest org-chronicle-test-file-ignored-p ()
+  "A buffer with `#+CHRONICLE: ignore' is ignored; otherwise it is not."
+  (org-chronicle-test--with-org "#+CHRONICLE: ignore\n* e\n"
+    (should (org-chronicle--file-ignored-p)))
+  (org-chronicle-test--with-org "#+TITLE: x\n* e\n"
+    (should-not (org-chronicle--file-ignored-p))))
+
 (ert-deftest org-chronicle-test-buffer-entities ()
   (org-chronicle-test--with-org org-chronicle-test--entities
     (let* ((ents (org-chronicle--buffer-entities))
