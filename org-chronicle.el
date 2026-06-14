@@ -150,6 +150,7 @@ Return nil for nil or blank input."
         :date (org-chronicle--date-parse (org-entry-get nil "DATE"))
         :date-end (org-chronicle--date-parse (org-entry-get nil "DATE-END"))
         :people (org-chronicle--split (org-entry-get nil "PEOPLE"))
+        :topics (org-chronicle--split (org-entry-get nil "TOPICS"))
         :location (org-entry-get nil "LOCATION")
         :sources (org-entry-get nil "SOURCES")
         :marker (point-marker)))

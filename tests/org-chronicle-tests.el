@@ -122,6 +122,19 @@
       (should (equal (plist-get e :subject) '("Ulysses S. Grant")))
       (should (null (plist-get e :new-name))))))
 
+(ert-deftest org-chronicle-test-event-reads-topics ()
+  "An event heading exposes its TOPICS as a list of topic strings."
+  (org-chronicle-test--with-org "\
+* Wreck of the Pegasus
+:PROPERTIES:
+:TRUTH: fictional
+:DATE: <1851-11-03>
+:TOPICS: shipping; crime
+:END:
+"
+				(let ((e (car (org-chronicle--buffer-events))))
+				  (should (equal (plist-get e :topics) '("shipping" "crime"))))))
+
 (ert-deftest org-chronicle-test-entity-reads-deathplace ()
   "A person entity exposes its DEATHPLACE property."
   (org-chronicle-test--with-org "\
