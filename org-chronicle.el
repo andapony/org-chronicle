@@ -577,6 +577,111 @@ and warns if DATE does not parse."
                                 (org-get-tags nil t))))
         (org-set-tags (cons truth tags))))))
 
+;;;; Entity creation
+
+(defcustom org-chronicle-people-file "~/org/people.org"
+  "File where new person and group entities are filed."
+  :type 'file
+  :group 'org-chronicle)
+
+(defcustom org-chronicle-places-file "~/org/places.org"
+  "File where new place entities are filed."
+  :type 'file
+  :group 'org-chronicle)
+
+(cl-defun org-chronicle--entity-string (&key name kind aliases props)
+  "Return the Org heading text for a new entity.
+KIND is a symbol; ALIASES a list; PROPS an alist of (PROP . VALUE) extra
+properties (only non-blank values are written)."
+  (concat
+   (format "* %s\n" name)
+   ":PROPERTIES:\n"
+   (format ":KIND:    %s\n" kind)
+   (when aliases (format ":ALIASES: %s\n" (org-chronicle--join aliases)))
+   (mapconcat (lambda (pv)
+                (if (and (cdr pv) (not (string-blank-p (cdr pv))))
+                    (format ":%s:%s%s\n" (car pv)
+                            (make-string (max 1 (- 8 (length (car pv)))) ?\s)
+                            (cdr pv))
+                  ""))
+              props "")
+   ":END:\n"))
+
+(defun org-chronicle--file-entity (file text)
+  "Append entity TEXT to FILE, create an ID, and save."
+  (with-current-buffer (find-file-noselect file)
+    (goto-char (point-max))
+    (unless (bolp) (insert "\n"))
+    (insert text)
+    (forward-line -1)
+    (org-back-to-heading t)
+    (org-id-get-create)
+    (save-buffer)
+    (org-id-get)))
+
+;;;###autoload
+(defun org-chronicle-add-person (name)
+  "Create a person entity NAME in `org-chronicle-people-file'.
+Prompts for aliases, birth, and death."
+  (interactive "sPerson name: ")
+  (let ((aliases (completing-read-multiple "Aliases (blank to skip): " nil))
+        (born (read-string "Born (YYYY-MM-DD, blank to skip): "))
+        (died (read-string "Died (YYYY-MM-DD, blank to skip): ")))
+    (org-chronicle--file-entity
+     org-chronicle-people-file
+     (org-chronicle--entity-string
+      :name name :kind 'person :aliases aliases
+      :props `(("BORN" . ,(and (not (string-blank-p born)) (org-chronicle--ts born)))
+               ("DIED" . ,(and (not (string-blank-p died)) (org-chronicle--ts died))))))
+    (message "Added person: %s" name)))
+
+;;;###autoload
+(defun org-chronicle-add-place (name)
+  "Create a place entity NAME in `org-chronicle-places-file'.
+Prompts for an optional build/raze span."
+  (interactive "sPlace name: ")
+  (let ((built (read-string "Built (blank to skip): "))
+        (razed (read-string "Razed (blank to skip): ")))
+    (org-chronicle--file-entity
+     org-chronicle-places-file
+     (org-chronicle--entity-string
+      :name name :kind 'place
+      :props `(("BUILT" . ,(and (not (string-blank-p built)) (org-chronicle--ts built)))
+               ("RAZED" . ,(and (not (string-blank-p razed)) (org-chronicle--ts razed))))))
+    (message "Added place: %s" name)))
+
+;;;###autoload
+(defun org-chronicle-add-group (name)
+  "Create a group entity NAME in `org-chronicle-people-file'."
+  (interactive "sGroup name: ")
+  (org-chronicle--file-entity
+   org-chronicle-people-file
+   (org-chronicle--entity-string :name name :kind 'group))
+  (message "Added group: %s" name))
+
+;;;###autoload
+(defun org-chronicle-promote ()
+  "Promote the symbol/name at point (or a prompted name) into a person entity.
+Seeds ALIASES with the literal text promoted."
+  (interactive)
+  (let* ((variant (or (thing-at-point 'symbol t)
+                      (read-string "Promote name: ")))
+         (canonical (read-string "Canonical name: " variant)))
+    (org-chronicle--file-entity
+     org-chronicle-people-file
+     (org-chronicle--entity-string
+      :name canonical :kind 'person
+      :aliases (unless (equal canonical variant) (list variant))))
+    (message "Promoted %S as entity %S" variant canonical)))
+
+
+
+
+
+
+
+
+
 
 
 

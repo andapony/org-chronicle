@@ -290,6 +290,19 @@
     (org-chronicle-normalize)
     (should (member "fictional" (org-get-tags)))))
 
+;;;; Entity creation
+
+(ert-deftest org-chronicle-test-entity-string ()
+  (let ((s (org-chronicle--entity-string
+            :name "Ulysses S. Grant" :kind 'person
+            :aliases '("Grant" "U.S. Grant")
+            :props '(("BORN" . "<1822-04-27>") ("DIED" . "<1885-07-23>")))))
+    (should (string-match-p "^\\* Ulysses S. Grant" s))
+    (should (string-match-p ":KIND:    person" s))
+    (should (string-match-p ":ALIASES: Grant; U.S. Grant" s))
+    (should (string-match-p ":BORN:    <1822-04-27>" s))))
+
+
 
 
 
