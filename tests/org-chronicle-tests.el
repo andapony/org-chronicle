@@ -582,6 +582,21 @@
       (should (member "the Sultana" locs))
       (should-not (member "Grant" locs)))))
 
+(ert-deftest org-chronicle-test-known-topics ()
+  "Known topics come from event TOPICS values and topic entities, not people."
+  (cl-letf (((symbol-function 'org-chronicle--all-events)
+             (lambda () (list (list :topics '("crime" "shipping")))))
+            ((symbol-function 'org-chronicle--all-entities)
+             (lambda () (list (list :name "Maritime shipping" :kind 'topic
+                                    :aliases '("shipping"))
+                              (list :name "Grant" :kind 'person :aliases nil)))))
+    (let ((topics (org-chronicle--known-topics)))
+      (should (member "crime" topics))
+      (should (member "shipping" topics))
+      (should (member "Maritime shipping" topics))
+      (should-not (member "Grant" topics)))))
+
+
 (ert-deftest org-chronicle-test-file-events-missing-is-nil ()
   "Reading events from a non-existent file returns nil without prompting."
   (should (null (org-chronicle--file-events "/tmp/org-chronicle-nonexistent-xyz.org"))))

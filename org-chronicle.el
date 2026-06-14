@@ -115,7 +115,8 @@ All arguments are date plists (or nil for FROM/UNTIL)."
   :type 'file
   :group 'org-chronicle)
 
-(defcustom org-chronicle-entities-files '("~/org/people.org" "~/org/places.org")
+(defcustom org-chronicle-entities-files
+  '("~/org/people.org" "~/org/places.org" "~/org/topics.org")
   "Org files holding promoted person, place, and group entities."
   :type '(repeat file)
   :group 'org-chronicle)
@@ -627,6 +628,10 @@ ENTITY-KINDS."
   "Return known location names from event locations and place entities."
   (org-chronicle--collect-names :location '(place)))
 
+(defun org-chronicle--known-topics ()
+  "Return known topic names from event topics and topic entities."
+  (org-chronicle--collect-names :topics '(topic)))
+
 (defun org-chronicle--completion-table (candidates category)
   "Return a completion table over CANDIDATES tagged with completion CATEGORY.
 Tagging the table with a category lets the user's completion framework
@@ -680,6 +685,13 @@ in CANDIDATES are still accepted."
    (concat "People (" (string-trim org-chronicle-multi-value-separator)
            "-separated, blank to skip): ")
    (org-chronicle--known-people) 'org-chronicle-person))
+
+(defun org-chronicle--read-topics (&optional prompt)
+  "Prompt for topics with completion against known topics; return a list.
+PROMPT defaults to \"Topics (blank to skip): \"."
+  (org-chronicle--read-names
+   (or prompt "Topics (blank to skip): ")
+   (org-chronicle--known-topics) 'org-chronicle-topic))
 
 (defun org-chronicle--append-event (text)
   "Append event heading TEXT to the timeline file; add an id, normalize, save."
@@ -773,6 +785,12 @@ warn if DATE does not parse."
   "File where new place entities are filed."
   :type 'file
   :group 'org-chronicle)
+
+(defcustom org-chronicle-topics-file "~/org/topics.org"
+  "File where new topic entities are filed."
+  :type 'file
+  :group 'org-chronicle)
+
 
 (cl-defun org-chronicle--entity-string (&key name kind aliases props)
   "Return the Org heading text for a new entity named NAME.
