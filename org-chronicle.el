@@ -626,6 +626,19 @@ in CANDIDATES are still accepted."
            "-separated, blank to skip): ")
    (org-chronicle--known-people) 'org-chronicle-person))
 
+(defun org-chronicle--append-event (text)
+  "Append event heading TEXT to the timeline file; add an id, normalize, save."
+  (with-current-buffer (find-file-noselect org-chronicle-timeline-file)
+    (goto-char (point-max))
+    (unless (bolp) (insert "\n"))
+    (insert text)
+    (forward-line -1)
+    (org-back-to-heading t)
+    (org-id-get-create)
+    (org-chronicle-normalize)
+    (save-buffer)))
+
+
 ;;;###autoload
 (defun org-chronicle-add-event ()
   "Interactively capture a new event into `org-chronicle-timeline-file'."
@@ -640,15 +653,7 @@ in CANDIDATES are still accepted."
          (text (org-chronicle--event-string
                 :title title :truth truth :date date :date-end date-end
                 :people people :location location)))
-    (with-current-buffer (find-file-noselect org-chronicle-timeline-file)
-      (goto-char (point-max))
-      (unless (bolp) (insert "\n"))
-      (insert text)
-      (forward-line -1)
-      (org-back-to-heading t)
-      (org-id-get-create)
-      (org-chronicle-normalize)
-      (save-buffer))
+    (org-chronicle--append-event text)
     (message "Captured: %s" title)))
 
 ;;;###autoload
@@ -947,6 +952,85 @@ Does nothing but message when SUBJECT is not a promoted entity."
                            (org-chronicle--split (org-entry-get nil "ALIASES"))
                            new-name canon)))
                         (save-buffer))))))))))
+
+(defun org-chronicle--life-event-title (kind subjects new-name)
+  "Suggest a title for a life event of KIND with SUBJECTS and optional NEW-NAME."
+  (pcase kind
+    ("birth" (format "Birth of %s" (car subjects)))
+    ("death" (format "Death of %s" (car subjects)))
+    ("marriage" (format "Marriage of %s" (string-join subjects " and ")))
+    ("name-change" (format "%s becomes %s" (car subjects) new-name))
+    (_ (or (car subjects) "Life event"))))
+
+(cl-defun org-chronicle--life-event-string (&key title kind truth date subject
+                                                 people location sources new-name)
+  "Return the Org heading text for a life event.
+KIND is the LIFE-EVENT value; SUBJECT and PEOPLE are name lists; TITLE,
+DATE, LOCATION, SOURCES, NEW-NAME, and TRUTH are strings (some optional)."
+  (concat
+   (format "* %s\n" title)
+   ":PROPERTIES:\n"
+   (format ":TRUTH:      %s\n" (or truth "historical"))
+   (format ":LIFE-EVENT: %s\n" kind)
+   (format ":DATE:       %s\n" (org-chronicle--ts date))
+   (format ":SUBJECT:    %s\n" (org-chronicle--join subject))
+   (when (and new-name (not (string-blank-p new-name)))
+     (format ":NEW-NAME:   %s\n" new-name))
+   (when people (format ":PEOPLE:     %s\n" (org-chronicle--join people)))
+   (when (and location (not (string-blank-p location)))
+     (format ":LOCATION:   %s\n" location))
+   (when (and sources (not (string-blank-p sources)))
+     (format ":SOURCES:    %s\n" sources))
+   ":END:\n"))
+
+;;;###autoload
+(cl-defun org-chronicle-add-life-event (&optional kind subjects)
+  "Capture a birth, death, marriage, or name-change as a timeline event.
+KIND and SUBJECTS may be supplied non-interactively (used by
+`org-chronicle-add-person'); otherwise they are prompted for."
+  (interactive)
+  (let* ((kind (or kind (completing-read "Life event kind: "
+                                         org-chronicle--life-event-kinds nil t)))
+         (count (if (equal kind "marriage") 2 1))
+         (subjects (or subjects
+                       (let (acc)
+                         (dotimes (i count)
+                           (push (car (org-chronicle--read-names
+                                       (format "Subject %d: " (1+ i))
+                                       (org-chronicle--known-people)
+                                       'org-chronicle-person))
+                                 acc))
+                         (nreverse acc))))
+         (new-name (and (equal kind "name-change") (read-string "New name: ")))
+         (date (read-string "Date (YYYY-MM-DD): "))
+         (truth (completing-read "Truth: " org-chronicle--truth-values nil t
+                                 nil nil "historical"))
+         (parents (and (equal kind "birth")
+                       (org-chronicle--read-names "Parents (blank to skip): "
+                                                  (org-chronicle--known-people)
+                                                  'org-chronicle-person)))
+         (location (org-chronicle--read-location))
+         (sources (read-string "Sources (blank to skip): "))
+         (people (delete-dups (append subjects parents)))
+         (title (read-string "Title: "
+                             (org-chronicle--life-event-title kind subjects new-name))))
+    (org-chronicle--append-event
+     (org-chronicle--life-event-string
+      :title title :kind kind :truth truth :date date :subject subjects
+      :people people :location location :sources sources :new-name new-name))
+    (when (and (equal kind "marriage")
+               (y-or-n-p "Did a spouse take a new name? "))
+      (let ((who (completing-read "Who changed name: " subjects nil t))
+            (nn (read-string "New name: ")))
+        (org-chronicle--append-event
+         (org-chronicle--life-event-string
+          :title (org-chronicle--life-event-title "name-change" (list who) nn)
+          :kind "name-change" :truth truth :date date :subject (list who)
+          :people (list who) :location location :new-name nn))))
+    (message "Added %s life event" kind)))
+
+
+
 
 
 

@@ -325,6 +325,29 @@
     (should (string-match-p ":PEOPLE:   Grant; Pemberton" s))
     (should (string-match-p ":LOCATION: Vicksburg" s))))
 
+(ert-deftest org-chronicle-test-life-event-title ()
+  (should (equal (org-chronicle--life-event-title "birth" '("Grant") nil) "Birth of Grant"))
+  (should (equal (org-chronicle--life-event-title "death" '("Grant") nil) "Death of Grant"))
+  (should (equal (org-chronicle--life-event-title "marriage" '("Grant" "Julia Dent") nil)
+                 "Marriage of Grant and Julia Dent"))
+  (should (equal (org-chronicle--life-event-title "name-change" '("Mary Smith") "Mary Doe")
+                 "Mary Smith becomes Mary Doe")))
+
+(ert-deftest org-chronicle-test-life-event-string ()
+  (let ((s (org-chronicle--life-event-string
+            :title "Birth of Grant" :kind "birth" :truth "historical"
+            :date "1822-04-27" :subject '("Ulysses S. Grant")
+            :people '("Ulysses S. Grant" "Jesse Root Grant")
+            :location "Point Pleasant, Ohio")))
+    (should (string-match-p "^\\* Birth of Grant" s))
+    (should (string-match-p ":LIFE-EVENT: birth" s))
+    (should (string-match-p ":DATE:       <1822-04-27>" s))
+    (should (string-match-p ":SUBJECT:    Ulysses S. Grant" s))
+    (should (string-match-p ":PEOPLE:     Ulysses S. Grant; Jesse Root Grant" s))
+    (should (string-match-p ":LOCATION:   Point Pleasant, Ohio" s))))
+
+
+
 (ert-deftest org-chronicle-test-normalize-mirrors-tag ()
   (org-chronicle-test--with-org "\
 * Some event
