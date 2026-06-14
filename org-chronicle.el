@@ -536,8 +536,8 @@ truth strings; FROM/UNTIL date strings; MODE `:collapse' or `:expand'."
 FROM, UNTIL.
 PEOPLE, LOCATIONS, and TOPICS are lists of names that become lanes.  MODE is
 `:collapse' (default) or `:expand' for groups/parent places.  Interactively,
-prompts for people, locations, and a truth subset, completing against the
-names used in events and promoted entities."
+prompts for people, locations, topics, and a truth subset, completing against
+the names used in events and promoted entities."
   (interactive
    (list :people (org-chronicle--read-names
                   "People/groups (lanes): "
@@ -545,6 +545,9 @@ names used in events and promoted entities."
          :locations (org-chronicle--read-names
                      "Places (lanes): "
                      (org-chronicle--known-locations) 'org-chronicle-place)
+         :topics (org-chronicle--read-names
+                  "Topics (lanes): "
+                  (org-chronicle--known-topics) 'org-chronicle-topic)
          :truth (let ((v (completing-read-multiple
                           "Truth (blank=all): "
                           '("historical" "fictionalized" "fictional"))))
@@ -717,9 +720,10 @@ PROMPT defaults to \"Topics (blank to skip): \"."
                                  nil nil "historical"))
          (people (org-chronicle--read-people))
          (location (org-chronicle--read-location))
+         (topics (org-chronicle--read-topics))
          (text (org-chronicle--event-string
                 :title title :truth truth :date date :date-end date-end
-                :people people :location location)))
+                :people people :location location :topics topics)))
     (org-chronicle--append-event text)
     (message "Captured: %s" title)))
 
@@ -732,9 +736,10 @@ Prompts for the same fields as `org-chronicle-add-event'."
         (truth (completing-read "Truth: " org-chronicle--truth-values nil t
                                 nil nil "historical"))
         (people (org-chronicle--read-people))
-        (location (org-chronicle--read-location)))
+        (location (org-chronicle--read-location))
+        (topics (org-chronicle--read-topics)))
     (org-chronicle--event-string :title title :truth truth :date date
-                                 :people people :location location)))
+                                 :people people :location location :topics topics)))
 
 ;;;###autoload
 (defun org-chronicle-normalize ()

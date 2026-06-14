@@ -394,6 +394,20 @@
     (should (string-match-p ":TOPICS:   shipping; crime" with))
     (should-not (string-match-p ":TOPICS:" without))))
 
+(ert-deftest org-chronicle-test-add-event-includes-topics ()
+  "`org-chronicle-add-event' threads read topics into the appended heading."
+  (let (appended)
+    (cl-letf (((symbol-function 'read-string) (lambda (&rest _) ""))
+              ((symbol-function 'org-chronicle--read-date) (lambda (&rest _) "1851-11-03"))
+              ((symbol-function 'completing-read) (lambda (&rest _) "fictional"))
+              ((symbol-function 'org-chronicle--read-people) (lambda () nil))
+              ((symbol-function 'org-chronicle--read-location) (lambda () nil))
+              ((symbol-function 'org-chronicle--read-topics) (lambda (&rest _) '("shipping")))
+              ((symbol-function 'org-chronicle--append-event)
+               (lambda (text) (setq appended text))))
+      (org-chronicle-add-event)
+      (should (string-match-p ":TOPICS:   shipping" appended)))))
+
 (ert-deftest org-chronicle-test-read-date-requires-value ()
   "A blank date prompt signals a `user-error'; a real value passes through."
   (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "")))
