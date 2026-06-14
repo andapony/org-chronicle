@@ -1,0 +1,62 @@
+#+TITLE: Sample chronicle timeline
+#+CATEGORY: chronicle
+
+# A small example mixing real and invented 19th-century U.S. events.
+# Point `org-chronicle-timeline-file' at a copy of this file, then try
+#   M-x org-chronicle-timeline   (e.g. people = Ulysses S. Grant, Eliza Harlan)
+#   M-x org-chronicle-lint
+# Each heading mirrors its TRUTH value as a tag, as org-chronicle-normalize
+# would set it.  See doc/chronicle-schema.org for the full schema.
+
+* Fort Donelson surrenders                                        :historical:
+:PROPERTIES:
+:ID:        evt-donelson
+:TRUTH:     historical
+:DATE:      <1862-02-16>
+:PEOPLE:    Ulysses S. Grant; Simon B. Buckner
+:LOCATION:  Fort Donelson, Tennessee
+:SOURCES:   Foote, The Civil War, vol. 1, pp. 204-215
+:END:
+Grant's "unconditional surrender" demand makes his reputation.
+
+* Vicksburg falls                                                 :historical:
+:PROPERTIES:
+:ID:        evt-vicksburg
+:TRUTH:     historical
+:DATE:      <1863-07-04>
+:PEOPLE:    Ulysses S. Grant; John C. Pemberton
+:LOCATION:  Vicksburg, Mississippi
+:SOURCES:   Foote, The Civil War, vol. 2, p. 412
+:END:
+
+* Gettysburg Address                                              :historical:
+:PROPERTIES:
+:ID:        evt-gettysburg-address
+:TRUTH:     historical
+:DATE:      <1863-11-19>
+:PEOPLE:    Abraham Lincoln
+:LOCATION:  Gettysburg, Pennsylvania
+:END:
+
+* A wager over the river road                                  :fictionalized:
+:PROPERTIES:
+:ID:        evt-wager
+:TRUTH:     fictionalized
+:DATE:      <1863-05-01>
+:DATE-END:  <1863-05-03>
+:PEOPLE:    Ulysses S. Grant; Eliza Harlan
+:LOCATION:  Grand Gulf, Mississippi
+:SOURCES:   Grant, Personal Memoirs, ch. 34 (the march inland)
+:END:
+Built on Grant's real push inland from Bruinsburg, but the wager and
+Eliza Harlan's presence at headquarters are invented.
+
+* Eliza Harlan intercepts a courier                               :fictional:
+:PROPERTIES:
+:ID:        evt-courier
+:TRUTH:     fictional
+:DATE:      <1863-06-12>
+:PEOPLE:    Eliza Harlan
+:LOCATION:  Vicksburg, Mississippi
+:END:
+Wholly invented: Harlan slips a forged dispatch into the Confederate post.

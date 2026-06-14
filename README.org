@@ -20,6 +20,40 @@ load the package:
 
 Emacs 27.1+ and Org 9.4+ are required.
 
+** With use-package
+
+Since the package is not yet on a package archive, point =use-package=
+at the clone with =:load-path=.  The public commands are autoloaded, so
+=:commands= (or simply deferring) keeps startup cheap, and =:custom=
+sets the data-file locations:
+
+#+begin_src emacs-lisp
+(use-package org-chronicle
+  :load-path "/path/to/org-chronicle"
+  :commands (org-chronicle-add-event
+             org-chronicle-timeline
+             org-chronicle-lint)
+  :custom
+  (org-chronicle-timeline-file "~/org/timeline.org")
+  (org-chronicle-entities-files '("~/org/people.org" "~/org/places.org"))
+  (org-chronicle-people-file "~/org/people.org")
+  (org-chronicle-places-file "~/org/places.org")
+  (org-chronicle-lane-column-width 24))
+#+end_src
+
+On Emacs 30+ you can install directly from Git with =:vc= instead of a
+local clone:
+
+#+begin_src emacs-lisp
+(use-package org-chronicle
+  :vc (:url "https://github.com/andapony/org-chronicle" :rev :newest)
+  :commands (org-chronicle-add-event org-chronicle-timeline))
+#+end_src
+
+To explore the package before wiring up your own files, point
+=org-chronicle-timeline-file= at the bundled =examples/timeline.org= and
+run =M-x org-chronicle-timeline=.
+
 * Configuration
 
 All paths and display options are customizable via =M-x customize-group
