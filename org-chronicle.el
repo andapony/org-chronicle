@@ -709,54 +709,122 @@ KIND is a symbol; ALIASES a list of strings; PROPS an alist of
     (save-buffer)
     (org-id-get)))
 
+(defun org-chronicle--find-entity-by-name (name entities idx)
+  "Return an existing entity in ENTITIES matching NAME by name or alias, else nil.
+IDX is the alias index for ENTITIES; matching is case-insensitive."
+  (let ((canon (org-chronicle--canonical name idx)))
+    (cl-find canon entities
+             :key (lambda (e) (plist-get e :name)) :test #'equal)))
+
+(defun org-chronicle--groups (entities)
+  "Return the entities in ENTITIES whose `:kind' is `group'."
+  (cl-remove-if-not (lambda (e) (eq (plist-get e :kind) 'group)) entities))
+
+(defun org-chronicle--group-id-for-name (name entities idx)
+  "Return the id of the group named NAME in ENTITIES, or nil if none.
+NAME, resolved through alias index IDX, must name an entity of kind
+`group'."
+  (let ((ent (org-chronicle--find-entity-by-name name entities idx)))
+    (and ent (eq (plist-get ent :kind) 'group) (plist-get ent :id))))
+
+(defun org-chronicle--read-groups (entities idx)
+  "Prompt for groups by name; return a list of their ids for `:MEMBER-OF'.
+Completes against the group names in ENTITIES (resolved via alias index
+IDX); entries that do not name a known group are skipped.  Returns nil
+without prompting when ENTITIES has no groups."
+  (let ((names (mapcar (lambda (e) (plist-get e :name))
+                       (org-chronicle--groups entities))))
+    (when names
+      (delq nil
+            (mapcar (lambda (n) (org-chronicle--group-id-for-name n entities idx))
+                    (org-chronicle--read-names
+                     "Member of groups (blank to skip): "
+                     names 'org-chronicle-group))))))
+
+(defun org-chronicle--check-duplicate (name entities idx)
+  "Guard against creating a duplicate entity for NAME.
+If an entity in ENTITIES already matches NAME (by name or alias, via the
+alias index IDX), ask whether to create another; declining signals a
+`user-error'.  Return t when it is safe to proceed."
+  (let ((dup (org-chronicle--find-entity-by-name name entities idx)))
+    (when (and dup
+               (not (yes-or-no-p
+                     (format "Entity \"%s\" already exists; create \"%s\" anyway? "
+                             (plist-get dup :name) name))))
+      (user-error "Not creating duplicate of \"%s\"" (plist-get dup :name))))
+  t)
+
+
+
+
+
+
 ;;;###autoload
 (defun org-chronicle-add-person (name)
   "Create a person entity NAME in `org-chronicle-people-file'.
-Prompts for aliases, birth, and death."
+Prompts for aliases, birth, death, and group membership.  Refuses to
+create a duplicate of an existing entity without confirmation."
   (interactive "sPerson name: ")
-  (let ((aliases (completing-read-multiple "Aliases (blank to skip): " nil))
-        (born (read-string "Born (YYYY-MM-DD, blank to skip): "))
-        (died (read-string "Died (YYYY-MM-DD, blank to skip): ")))
-    (org-chronicle--file-entity
-     org-chronicle-people-file
-     (org-chronicle--entity-string
-      :name name :kind 'person :aliases aliases
-      :props `(("BORN" . ,(and (not (string-blank-p born)) (org-chronicle--ts born)))
-               ("DIED" . ,(and (not (string-blank-p died)) (org-chronicle--ts died))))))
-    (message "Added person: %s" name)))
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities)))
+    (org-chronicle--check-duplicate name entities idx)
+    (let ((aliases (completing-read-multiple "Aliases (blank to skip): " nil))
+          (born (read-string "Born (YYYY-MM-DD, blank to skip): "))
+          (died (read-string "Died (YYYY-MM-DD, blank to skip): "))
+          (groups (org-chronicle--read-groups entities idx)))
+      (org-chronicle--file-entity
+       org-chronicle-people-file
+       (org-chronicle--entity-string
+        :name name :kind 'person :aliases aliases
+        :props `(("BORN" . ,(and (not (string-blank-p born)) (org-chronicle--ts born)))
+                 ("DIED" . ,(and (not (string-blank-p died)) (org-chronicle--ts died)))
+                 ("MEMBER-OF" . ,(and groups (org-chronicle--join groups))))))
+      (message "Added person: %s" name))))
 
 ;;;###autoload
 (defun org-chronicle-add-place (name)
   "Create a place entity NAME in `org-chronicle-places-file'.
-Prompts for an optional build/raze span."
+Prompts for an optional build/raze span.  Refuses to create a duplicate
+of an existing entity without confirmation."
   (interactive "sPlace name: ")
-  (let ((built (read-string "Built (blank to skip): "))
-        (razed (read-string "Razed (blank to skip): ")))
-    (org-chronicle--file-entity
-     org-chronicle-places-file
-     (org-chronicle--entity-string
-      :name name :kind 'place
-      :props `(("BUILT" . ,(and (not (string-blank-p built)) (org-chronicle--ts built)))
-               ("RAZED" . ,(and (not (string-blank-p razed)) (org-chronicle--ts razed))))))
-    (message "Added place: %s" name)))
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities)))
+    (org-chronicle--check-duplicate name entities idx)
+    (let ((built (read-string "Built (blank to skip): "))
+          (razed (read-string "Razed (blank to skip): ")))
+      (org-chronicle--file-entity
+       org-chronicle-places-file
+       (org-chronicle--entity-string
+        :name name :kind 'place
+        :props `(("BUILT" . ,(and (not (string-blank-p built)) (org-chronicle--ts built)))
+                 ("RAZED" . ,(and (not (string-blank-p razed)) (org-chronicle--ts razed))))))
+      (message "Added place: %s" name))))
 
 ;;;###autoload
 (defun org-chronicle-add-group (name)
-  "Create a group entity NAME in `org-chronicle-people-file'."
+  "Create a group entity NAME in `org-chronicle-people-file'.
+Refuses to create a duplicate of an existing entity without confirmation."
   (interactive "sGroup name: ")
-  (org-chronicle--file-entity
-   org-chronicle-people-file
-   (org-chronicle--entity-string :name name :kind 'group))
-  (message "Added group: %s" name))
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities)))
+    (org-chronicle--check-duplicate name entities idx)
+    (org-chronicle--file-entity
+     org-chronicle-people-file
+     (org-chronicle--entity-string :name name :kind 'group))
+    (message "Added group: %s" name)))
 
 ;;;###autoload
 (defun org-chronicle-promote ()
   "Promote the symbol/name at point (or a prompted name) into a person entity.
-Seeds ALIASES with the literal text promoted."
+Seeds ALIASES with the literal text promoted.  Refuses to create a
+duplicate of an existing entity without confirmation."
   (interactive)
   (let* ((variant (or (thing-at-point 'symbol t)
                       (read-string "Promote name: ")))
-         (canonical (read-string "Canonical name: " variant)))
+         (canonical (read-string "Canonical name: " variant))
+         (entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities)))
+    (org-chronicle--check-duplicate canonical entities idx)
     (org-chronicle--file-entity
      org-chronicle-people-file
      (org-chronicle--entity-string

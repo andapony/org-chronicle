@@ -302,6 +302,30 @@
     (should (string-match-p ":ALIASES: Grant; U.S. Grant" s))
     (should (string-match-p ":BORN:    <1822-04-27>" s))))
 
+(ert-deftest org-chronicle-test-find-entity-by-name ()
+  "Existing entities match by name or alias (case-insensitively); new names are nil."
+  (let* ((entities (list (list :id "g" :name "Ulysses S. Grant" :kind 'person
+                               :aliases '("Grant" "U.S. Grant"))))
+         (idx (org-chronicle--alias-index entities)))
+    (should (equal (plist-get (org-chronicle--find-entity-by-name "Ulysses S. Grant" entities idx) :id) "g"))
+    (should (equal (plist-get (org-chronicle--find-entity-by-name "grant" entities idx) :id) "g"))
+    (should (equal (plist-get (org-chronicle--find-entity-by-name "U.S. Grant" entities idx) :id) "g"))
+    (should (null (org-chronicle--find-entity-by-name "Abraham Lincoln" entities idx)))))
+
+(ert-deftest org-chronicle-test-group-id-for-name ()
+  "A group name or alias resolves to the group id; non-groups and unknowns are nil."
+  (let* ((entities (list (list :id "pink" :name "Pinkerton Agency" :kind 'group
+                               :aliases '("Pinkertons"))
+                         (list :id "grant" :name "Ulysses S. Grant" :kind 'person
+                               :aliases nil)))
+         (idx (org-chronicle--alias-index entities)))
+    (should (equal (org-chronicle--group-id-for-name "Pinkerton Agency" entities idx) "pink"))
+    (should (equal (org-chronicle--group-id-for-name "Pinkertons" entities idx) "pink"))
+    (should (null (org-chronicle--group-id-for-name "Ulysses S. Grant" entities idx)))
+    (should (null (org-chronicle--group-id-for-name "Nope" entities idx)))))
+
+
+
 ;;;; Sources
 
 (ert-deftest org-chronicle-test-source-link-format ()
