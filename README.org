@@ -1,0 +1,8 @@
+#+TITLE: org-chronicle
+
+Capture, maintain, and view an event timeline for historical fiction —
+real and invented events side by side, with people/place/group entities,
+bio and kinship, existence spans, a swimlane view, source links into
+=org-reading-list=, and an anachronism lint.
+
+Status: in development.  See =doc/chronicle-schema.org= for the schema.
