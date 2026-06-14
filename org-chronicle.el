@@ -83,6 +83,69 @@ All arguments are date plists (or nil for FROM/UNTIL)."
        (or (null from) (not (org-chronicle--date-lessp date from)))
        (or (null until) (not (org-chronicle--date-lessp until date)))))
 
+;;;; Customization
+
+(defcustom org-chronicle-timeline-file "~/org/timeline.org"
+  "Org file holding one heading per timeline event."
+  :type 'file
+  :group 'org-chronicle)
+
+(defcustom org-chronicle-entities-files '("~/org/people.org" "~/org/places.org")
+  "Org files holding promoted person, place, and group entities."
+  :type '(repeat file)
+  :group 'org-chronicle)
+
+(defcustom org-chronicle-multi-value-separator "; "
+  "Separator written between multiple values in a property."
+  :type 'string
+  :group 'org-chronicle)
+
+;;;; Value helpers
+
+(defun org-chronicle--split (s)
+  "Split `;'-separated property value S into a list of trimmed strings.
+Return nil for nil or blank input."
+  (when (and (stringp s) (not (string-blank-p s)))
+    (mapcar #'string-trim (split-string s ";" t))))
+
+(defun org-chronicle--join (values)
+  "Join VALUES with `org-chronicle-multi-value-separator'."
+  (mapconcat #'identity values org-chronicle-multi-value-separator))
+
+;;;; Store: reading events
+
+(defun org-chronicle--event-at-point ()
+  "Return the event plist for the Org heading at point."
+  (list :id (org-id-get)
+        :title (org-get-heading t t t t)
+        :truth (org-entry-get nil "TRUTH")
+        :date (org-chronicle--date-parse (org-entry-get nil "DATE"))
+        :date-end (org-chronicle--date-parse (org-entry-get nil "DATE-END"))
+        :people (org-chronicle--split (org-entry-get nil "PEOPLE"))
+        :location (org-entry-get nil "LOCATION")
+        :sources (org-entry-get nil "SOURCES")
+        :marker (point-marker)))
+
+(defun org-chronicle--buffer-events ()
+  "Return a list of event plists for every dated heading in this buffer.
+A heading is an event iff it has a non-empty DATE property."
+  (org-with-wide-buffer
+   (let (events)
+     (org-map-entries
+      (lambda ()
+        (when (org-entry-get nil "DATE")
+          (push (org-chronicle--event-at-point) events))))
+     (nreverse events))))
+
+(defun org-chronicle--file-events (file)
+  "Return event plists from FILE."
+  (with-current-buffer (find-file-noselect file)
+    (org-chronicle--buffer-events)))
+
+(defun org-chronicle--all-events ()
+  "Return event plists from `org-chronicle-timeline-file'."
+  (org-chronicle--file-events org-chronicle-timeline-file))
+
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)

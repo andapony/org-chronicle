@@ -53,5 +53,56 @@
     (should-not (org-chronicle--date-in-span-p (org-chronicle--date-parse "1870-01-01") from to))
     (should-not (org-chronicle--date-in-span-p (org-chronicle--date-parse "1860-01-01") from to))))
 
+;;;; Store
+
+(defmacro org-chronicle-test--with-org (text &rest body)
+  "Run BODY in a temp Org buffer containing TEXT."
+  (declare (indent 1))
+  `(with-temp-buffer
+     (insert ,text)
+     (org-mode)
+     (goto-char (point-min))
+     ,@body))
+
+(defconst org-chronicle-test--timeline "\
+* Vicksburg falls
+:PROPERTIES:
+:ID:       evt-vicksburg
+:TRUTH:    historical
+:DATE:     <1863-07-04>
+:PEOPLE:   Ulysses S. Grant; John C. Pemberton
+:LOCATION: Vicksburg, Mississippi
+:END:
+* Secret meeting
+:PROPERTIES:
+:ID:       evt-meeting
+:TRUTH:    fictional
+:DATE:     <1864-07-12>
+:DATE-END: <1864-07-13>
+:PEOPLE:   Ulysses S. Grant; Abraham Lincoln
+:END:
+* Not an event
+:PROPERTIES:
+:NOTE: skip me
+:END:
+")
+
+(ert-deftest org-chronicle-test-split ()
+  (should (equal (org-chronicle--split "a; b ;c") '("a" "b" "c")))
+  (should (null (org-chronicle--split "   ")))
+  (should (null (org-chronicle--split nil))))
+
+(ert-deftest org-chronicle-test-buffer-events ()
+  (org-chronicle-test--with-org org-chronicle-test--timeline
+    (let ((events (org-chronicle--buffer-events)))
+      (should (= (length events) 2))
+      (let ((e (car events)))
+        (should (equal (plist-get e :title) "Vicksburg falls"))
+        (should (equal (plist-get e :truth) "historical"))
+        (should (equal (plist-get e :people) '("Ulysses S. Grant" "John C. Pemberton")))
+        (should (eq (plist-get (plist-get e :date) :precision) 'day)))
+      (let ((m (nth 1 events)))
+        (should (plist-get m :date-end))))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
