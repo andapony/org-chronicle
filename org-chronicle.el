@@ -207,6 +207,38 @@ ENTITIES is a list of entity plists; canonical name is `:name'."
   "Resolve NAME to its canonical form via alias index IDX, else NAME itself."
   (or (and name (gethash (downcase name) idx)) name))
 
+;;;; Relations
+
+(defun org-chronicle--entity-by-id (id entities)
+  "Return the entity plist in ENTITIES whose `:id' is ID, or nil."
+  (cl-find id entities :key (lambda (e) (plist-get e :id)) :test #'equal))
+
+(defun org-chronicle--group-member-names (group-id entities)
+  "Return canonical names of ENTITIES that list GROUP-ID in `:member-of'."
+  (cl-loop for e in entities
+           when (member group-id (plist-get e :member-of))
+           collect (plist-get e :name)))
+
+(defun org-chronicle--place-descendant-names (place-id entities)
+  "Return names of the place PLACE-ID and all places PART-OF it, transitively."
+  (let ((acc '()) (frontier (list place-id)))
+    (while frontier
+      (let ((id (pop frontier)))
+        (let ((e (org-chronicle--entity-by-id id entities)))
+          (when (and e (not (member (plist-get e :name) acc)))
+            (push (plist-get e :name) acc)
+            (dolist (child entities)
+              (when (equal (plist-get child :part-of) id)
+                (push (plist-get child :id) frontier)))))))
+    acc))
+
+(defun org-chronicle--children-names (person-id entities)
+  "Return names of ENTITIES that list PERSON-ID in `:parents'."
+  (cl-loop for e in entities
+           when (member person-id (plist-get e :parents))
+           collect (plist-get e :name)))
+
+
 
 
 

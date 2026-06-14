@@ -159,6 +159,41 @@
       (should (equal (gethash "u.s. grant" idx) "Ulysses S. Grant"))
       (should (equal (gethash "ulysses s. grant" idx) "Ulysses S. Grant")))))
 
+;;;; Relations
+
+(ert-deftest org-chronicle-test-group-members ()
+  (org-chronicle-test--with-org org-chronicle-test--entities
+    (let ((ents (org-chronicle--buffer-entities)))
+      (should (equal (org-chronicle--group-member-names "ent-pinkerton" ents)
+                     '("Ulysses S. Grant"))))))
+
+(ert-deftest org-chronicle-test-place-descendants ()
+  (org-chronicle-test--with-org org-chronicle-test--entities
+    (let ((ents (org-chronicle--buffer-entities)))
+      (should (equal (sort (org-chronicle--place-descendant-names "ent-ms" ents)
+                           #'string<)
+                     '("Mississippi" "Vicksburg, Mississippi"))))))
+
+(ert-deftest org-chronicle-test-children ()
+  (org-chronicle-test--with-org "\
+* Parent
+:PROPERTIES:
+:ID: p1
+:KIND: person
+:END:
+* Kid
+:PROPERTIES:
+:ID: k1
+:KIND: person
+:PARENTS: p1
+:END:
+"
+    (let ((ents (org-chronicle--buffer-entities)))
+      (should (equal (org-chronicle--children-names "p1" ents) '("Kid"))))))
+
+
+
+
 
 
 
