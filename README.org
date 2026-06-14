@@ -22,14 +22,14 @@ Emacs 27.1+ and Org 9.4+ are required.
 
 ** With use-package
 
-Since the package is not yet on a package archive, point =use-package=
-at the clone with =:load-path=.  The public commands are autoloaded, so
-=:commands= (or simply deferring) keeps startup cheap, and =:custom=
-sets the data-file locations:
+Since the package is not yet on a package archive, install it straight
+from the repository URL.  On Emacs 30+, =use-package= can do this with
+=:vc=.  The public commands are autoloaded, so =:commands= keeps startup
+cheap, and =:custom= sets the data-file locations:
 
 #+begin_src emacs-lisp
 (use-package org-chronicle
-  :load-path "/path/to/org-chronicle"
+  :vc (:url "https://github.com/andapony/org-chronicle" :rev :newest)
   :commands (org-chronicle-add-event
              org-chronicle-timeline
              org-chronicle-lint)
@@ -41,14 +41,16 @@ sets the data-file locations:
   (org-chronicle-lane-column-width 24))
 #+end_src
 
-On Emacs 30+ you can install directly from Git with =:vc= instead of a
-local clone:
+On Emacs 29 or older, install from the URL with =package-vc-install=
+first, then the same =use-package= form without =:vc= picks it up:
 
 #+begin_src emacs-lisp
-(use-package org-chronicle
-  :vc (:url "https://github.com/andapony/org-chronicle" :rev :newest)
-  :commands (org-chronicle-add-event org-chronicle-timeline))
+(unless (package-installed-p 'org-chronicle)
+  (package-vc-install "https://github.com/andapony/org-chronicle"))
 #+end_src
+
+Or, if you prefer a manual clone, replace =:vc= with
+=:load-path "/path/to/org-chronicle"=.
 
 To explore the package before wiring up your own files, point
 =org-chronicle-timeline-file= at the bundled =examples/timeline.org= and
