@@ -1029,7 +1029,7 @@ KIND and SUBJECTS may be supplied non-interactively (used by
          (org-chronicle--life-event-string
           :title (org-chronicle--life-event-title "name-change" (list who) nn)
           :kind "name-change" :truth truth :date date :subject (list who)
-          :people (list who) :location location :new-name nn))))
+          :people (list who) :location location :new-name nn :sources sources))))
     (message "Added %s life event" kind)))
 
 
