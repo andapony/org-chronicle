@@ -60,3 +60,36 @@ Eliza Harlan's presence at headquarters are invented.
 :LOCATION:  Vicksburg, Mississippi
 :END:
 Wholly invented: Harlan slips a forged dispatch into the Confederate post.
+
+* Birth of U.S. Grant                                             :birth:historical:
+:PROPERTIES:
+:ID:         evt-grant-birth
+:TRUTH:      historical
+:LIFE-EVENT: birth
+:DATE:       <1822-04-27>
+:SUBJECT:    Ulysses S. Grant
+:PEOPLE:     Ulysses S. Grant; Jesse Root Grant; Hannah Simpson Grant
+:LOCATION:   Point Pleasant, Ohio
+:END:
+
+* Marriage of U.S. Grant and Julia Dent                        :marriage:historical:
+:PROPERTIES:
+:ID:         evt-grant-marriage
+:TRUTH:      historical
+:LIFE-EVENT: marriage
+:DATE:       <1848-08-22>
+:SUBJECT:    Ulysses S. Grant; Julia Dent
+:PEOPLE:     Ulysses S. Grant; Julia Dent
+:LOCATION:   St. Louis, Missouri
+:END:
+
+* Death of U.S. Grant                                             :death:historical:
+:PROPERTIES:
+:ID:         evt-grant-death
+:TRUTH:      historical
+:LIFE-EVENT: death
+:DATE:       <1885-07-23>
+:SUBJECT:    Ulysses S. Grant
+:PEOPLE:     Ulysses S. Grant
+:LOCATION:   Mount McGregor, New York
+:END:

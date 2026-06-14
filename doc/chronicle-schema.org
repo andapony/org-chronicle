@@ -24,6 +24,7 @@
   | PARENTS    | parent person ids                        |
   | SPOUSE     | spouse person ids                        |
   | BIRTHPLACE | place id                                 |
+  | DEATHPLACE | place id                                 |
 
 ** Existence spans (by kind)
    | Kind   | Start property | End property |
@@ -31,6 +32,22 @@
    | person | BORN           | DIED        |
    | place  | BUILT          | RAZED       |
    | group  | FOUNDED        | DISBANDED   |
+
+* Life events
+  Birth, death, marriage, and name-change are ordinary events carrying two
+  extra properties.  A person's existence span, places, and spouse are
+  derived from them, falling back to the entity properties below.
+  | Property   | Meaning                                            |
+  |------------+----------------------------------------------------|
+  | LIFE-EVENT | birth \vert death \vert marriage \vert name-change |
+  | SUBJECT    | principal name(s); two for marriage                |
+  | NEW-NAME   | the adopted name (name-change only)                |
+  LIFE-EVENT is mirrored to a tag (hyphens become underscores, so
+  =name-change= tags as =name_change=).  A name-change accrues its NEW-NAME
+  into the subject entity's ALIASES.  Capture with =M-x
+  org-chronicle-add-life-event=.  Glyphs in the view are configurable via
+  =org-chronicle-life-event-glyphs= (default: birth ⊕, death ⊗, marriage
+  ⚭, name-change ↦).
 
 * Timeline view
   =M-x org-chronicle-timeline=, or a dynamic block:

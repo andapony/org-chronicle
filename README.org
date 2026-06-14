@@ -97,6 +97,17 @@ template body:
     "%(org-chronicle-capture)" :empty-lines 1))
 #+end_src
 
+* Life events
+
+Births, deaths, marriages, and name changes are first-class timeline
+events.  Capture them with =M-x org-chronicle-add-life-event=, which asks
+the kind and adapts its prompts (one subject for birth/death/name-change,
+two for marriage; births also prompt for parents).  A person's lifespan,
+birthplace/deathplace, and spouse are derived from these events, falling
+back to the =:BORN:=/=:DIED:=/=:BIRTHPLACE:=/=:DEATHPLACE:=/=:SPOUSE:=
+properties when no event exists.  =org-chronicle-add-person= offers to
+create a birth event after filing the person.
+
 * Timeline view
 
 =M-x org-chronicle-timeline= prompts for lane names (people or places),
