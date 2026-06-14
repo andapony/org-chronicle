@@ -186,17 +186,29 @@ A heading is an event iff it has a non-empty DATE property."
      (nreverse events))))
 
 (defun org-chronicle--file-events (file)
-  "Return event plists from FILE, or nil if FILE does not exist.
+  "Return event plists from FILE, or nil if FILE is missing or ignored.
 A missing file yields nil rather than opening a fresh buffer, which would
 otherwise drop into Org's \"non-existent agenda file\" prompt."
   (let ((path (expand-file-name file)))
     (when (file-exists-p path)
       (with-current-buffer (find-file-noselect path)
-        (org-chronicle--buffer-events)))))
+        (unless (org-chronicle--file-ignored-p)
+          (org-chronicle--buffer-events))))))
+
+(defun org-chronicle--file-entities (file)
+  "Return entity plists from FILE, or nil if FILE is missing or ignored.
+A missing file yields nil rather than opening a fresh buffer, which would
+otherwise drop into Org's \"non-existent agenda file\" prompt."
+  (let ((path (expand-file-name file)))
+    (when (file-exists-p path)
+      (with-current-buffer (find-file-noselect path)
+        (unless (org-chronicle--file-ignored-p)
+          (org-chronicle--buffer-entities))))))
 
 (defun org-chronicle--all-events ()
-  "Return event plists from `org-chronicle-timeline-file'."
-  (org-chronicle--file-events org-chronicle-timeline-file))
+  "Return event plists from every source file under `org-chronicle-root'."
+  (cl-loop for file in (org-chronicle--source-files)
+           append (org-chronicle--file-events file)))
 
 (defun org-chronicle--source-files ()
   "Return the Org files to gather from under `org-chronicle-root'.
@@ -259,11 +271,9 @@ whose path relative to the root matches a regexp in `org-chronicle-exclude'."
      (nreverse ents))))
 
 (defun org-chronicle--all-entities ()
-  "Return entity plists from every file in `org-chronicle-entities-files'."
-  (cl-loop for file in org-chronicle-entities-files
-           when (file-exists-p (expand-file-name file))
-           append (with-current-buffer (find-file-noselect file)
-                    (org-chronicle--buffer-entities))))
+  "Return entity plists from every source file under `org-chronicle-root'."
+  (cl-loop for file in (org-chronicle--source-files)
+           append (org-chronicle--file-entities file)))
 
 (defun org-chronicle--alias-index (entities)
   "Return a hash mapping each downcased name/alias to its canonical name.

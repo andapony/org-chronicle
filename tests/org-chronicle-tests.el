@@ -485,16 +485,17 @@ directories are created.  The temp dir is removed afterward."
 
 
 (ert-deftest org-chronicle-test-normalize-mirrors-tag ()
-  (org-chronicle-test--with-org "\
+  (cl-letf (((symbol-function 'org-chronicle--all-entities) (lambda () '())))
+    (org-chronicle-test--with-org "\
 * Some event
 :PROPERTIES:
 :TRUTH: fictional
 :DATE:  <1864-07-12>
 :END:
 "
-    (goto-char (point-min))
-    (org-chronicle-normalize)
-    (should (member "fictional" (org-get-tags)))))
+				  (goto-char (point-min))
+				  (org-chronicle-normalize)
+				  (should (member "fictional" (org-get-tags))))))
 
 (ert-deftest org-chronicle-test-life-event-tag ()
   (should (equal (org-chronicle--life-event-tag "birth") "birth"))
@@ -511,7 +512,7 @@ directories are created.  The temp dir is removed afterward."
   (should (equal (org-chronicle--alias-list-with nil "" "X") nil)))
 
 (ert-deftest org-chronicle-test-normalize-mirrors-life-event-tag ()
-  (let ((org-chronicle-entities-files nil))
+  (cl-letf (((symbol-function 'org-chronicle--all-entities) (lambda () '())))
     (org-chronicle-test--with-org "\
 * Mary becomes Mary Doe
 :PROPERTIES:
@@ -522,10 +523,10 @@ directories are created.  The temp dir is removed afterward."
 :NEW-NAME: Mary Doe
 :END:
 "
-      (goto-char (point-min))
-      (org-chronicle-normalize)
-      (should (member "fictional" (org-get-tags)))
-      (should (member "name_change" (org-get-tags))))))
+				  (goto-char (point-min))
+				  (org-chronicle-normalize)
+				  (should (member "fictional" (org-get-tags)))
+				  (should (member "name_change" (org-get-tags))))))
 
 (ert-deftest org-chronicle-test-normalize-canonicalizes-topics ()
   "Normalize rewrites TOPICS to canonical names via the alias index."
@@ -693,6 +694,30 @@ directories are created.  The temp dir is removed afterward."
 (ert-deftest org-chronicle-test-file-events-missing-is-nil ()
   "Reading events from a non-existent file returns nil without prompting."
   (should (null (org-chronicle--file-events "/tmp/org-chronicle-nonexistent-xyz.org"))))
+
+(ert-deftest org-chronicle-test-all-events-from-root ()
+  "Events are gathered from every source file, including subdirectories."
+  (org-chronicle-test--with-root
+      '(("timeline.org" . "* Vicksburg\n:PROPERTIES:\n:DATE: <1863-07-04>\n:END:\n")
+        ("chapters/ch1.org" . "* Scene\n:PROPERTIES:\n:DATE: <1863-11-19>\n:END:\n")
+        ("ignored.org" . "#+CHRONICLE: ignore\n* Nope\n:PROPERTIES:\n:DATE: <1900-01-01>\n:END:\n"))
+    (let ((titles (mapcar (lambda (e) (plist-get e :title))
+                          (org-chronicle--all-events))))
+      (should (member "Vicksburg" titles))
+      (should (member "Scene" titles))
+      (should-not (member "Nope" titles)))))
+
+(ert-deftest org-chronicle-test-all-entities-from-root ()
+  "Entities are gathered from every source file under the root."
+  (org-chronicle-test--with-root
+   '(("people.org" . "* Grant\n:PROPERTIES:\n:KIND: person\n:END:\n")
+     ("places/p.org" . "* Vicksburg\n:PROPERTIES:\n:KIND: place\n:END:\n")
+     ("ignored.org" . "#+CHRONICLE: ignore\n* Ghost\n:PROPERTIES:\n:KIND: person\n:END:\n"))
+   (let ((names (mapcar (lambda (e) (plist-get e :name))
+                        (org-chronicle--all-entities))))
+     (should (member "Grant" names))
+     (should (member "Vicksburg" names))
+     (should-not (member "Ghost" names)))))
 
 (ert-deftest org-chronicle-test-completion-table-metadata ()
   "The completion table reports its category and completes candidates."
