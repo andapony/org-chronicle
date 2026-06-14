@@ -337,6 +337,40 @@
     (org-chronicle-normalize)
     (should (member "fictional" (org-get-tags)))))
 
+(ert-deftest org-chronicle-test-life-event-tag ()
+  (should (equal (org-chronicle--life-event-tag "birth") "birth"))
+  (should (equal (org-chronicle--life-event-tag "name-change") "name_change"))
+  (should (null (org-chronicle--life-event-tag nil))))
+
+(ert-deftest org-chronicle-test-alias-list-with ()
+  (should (equal (org-chronicle--alias-list-with '("Grant") "U.S. Grant" "Ulysses S. Grant")
+                 '("Grant" "U.S. Grant")))
+  (should (equal (org-chronicle--alias-list-with '("Grant") "Grant" "Ulysses S. Grant")
+                 '("Grant")))
+  (should (equal (org-chronicle--alias-list-with '("Grant") "Ulysses S. Grant" "Ulysses S. Grant")
+                 '("Grant")))
+  (should (equal (org-chronicle--alias-list-with nil "" "X") nil)))
+
+(ert-deftest org-chronicle-test-normalize-mirrors-life-event-tag ()
+  (let ((org-chronicle-entities-files nil))
+    (org-chronicle-test--with-org "\
+* Mary becomes Mary Doe
+:PROPERTIES:
+:TRUTH: fictional
+:LIFE-EVENT: name-change
+:DATE: <1850-06-01>
+:SUBJECT: Mary Smith
+:NEW-NAME: Mary Doe
+:END:
+"
+      (goto-char (point-min))
+      (org-chronicle-normalize)
+      (should (member "fictional" (org-get-tags)))
+      (should (member "name_change" (org-get-tags))))))
+
+
+
+
 ;;;; Entity creation
 
 (ert-deftest org-chronicle-test-entity-string ()

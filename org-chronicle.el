@@ -667,29 +667,40 @@ Prompts for the same fields as `org-chronicle-add-event'."
 ;;;###autoload
 (defun org-chronicle-normalize ()
   "Validate and tidy the event heading at point.
-Mirrors TRUTH to a tag, canonicalizes people/location names via aliases,
-and warns if DATE does not parse."
+Mirror TRUTH and LIFE-EVENT to tags, canonicalize PEOPLE/SUBJECT/LOCATION
+names via aliases, accrue a name-change's NEW-NAME as a subject alias, and
+warn if DATE does not parse."
   (interactive)
   (org-back-to-heading t)
   (let* ((entities (org-chronicle--all-entities))
          (idx (org-chronicle--alias-index entities))
          (truth (org-entry-get nil "TRUTH"))
+         (life (org-entry-get nil "LIFE-EVENT"))
          (date (org-entry-get nil "DATE")))
     (when (and date (null (org-chronicle--date-parse date)))
       (message "org-chronicle: DATE %S does not parse" date))
-    (let ((people (org-chronicle--split (org-entry-get nil "PEOPLE"))))
-      (when people
-        (org-set-property
-         "PEOPLE"
-         (org-chronicle--join
-          (mapcar (lambda (p) (org-chronicle--canonical p idx)) people)))))
+    (dolist (prop '("PEOPLE" "SUBJECT"))
+      (let ((vals (org-chronicle--split (org-entry-get nil prop))))
+        (when vals
+          (org-set-property
+           prop (org-chronicle--join
+                 (mapcar (lambda (p) (org-chronicle--canonical p idx)) vals))))))
     (let ((loc (org-entry-get nil "LOCATION")))
       (when loc
         (org-set-property "LOCATION" (org-chronicle--canonical loc idx))))
-    (when (member truth org-chronicle--truth-values)
-      (let ((tags (cl-remove-if (lambda (tg) (member tg org-chronicle--truth-values))
-                                (org-get-tags nil t))))
-        (org-set-tags (cons truth tags))))))
+    (let* ((managed (append org-chronicle--truth-values
+                            (mapcar #'org-chronicle--life-event-tag
+                                    org-chronicle--life-event-kinds)))
+           (kept (cl-remove-if (lambda (tg) (member tg managed)) (org-get-tags nil t)))
+           (added (append (and (member truth org-chronicle--truth-values) (list truth))
+                          (and (member life org-chronicle--life-event-kinds)
+                               (list (org-chronicle--life-event-tag life))))))
+      (org-set-tags (append added kept)))
+    (when (equal life "name-change")
+      (let ((subject (car (org-chronicle--split (org-entry-get nil "SUBJECT"))))
+            (new-name (org-entry-get nil "NEW-NAME")))
+        (when (and subject new-name)
+          (org-chronicle--accrue-alias subject new-name))))))
 
 ;;;; Entity creation
 
@@ -896,6 +907,49 @@ DATE is a date plist and PLACE a location string."
                                    (append (plist-get cell :spouses)
                                            (remove s subjects)))
                         index)))))))))
+
+(defun org-chronicle--life-event-tag (kind)
+  "Return an Org-tag-safe form of life-event KIND, or nil.
+Org tags disallow hyphens, so they are replaced with underscores."
+  (and kind (replace-regexp-in-string "-" "_" kind)))
+
+(defun org-chronicle--alias-list-with (aliases new-name canonical)
+  "Return ALIASES extended with NEW-NAME.
+NEW-NAME is dropped when blank, equal to CANONICAL, or already in ALIASES."
+  (if (or (null new-name) (string-blank-p new-name)
+          (equal new-name canonical)
+          (member new-name aliases))
+      aliases
+    (append aliases (list new-name))))
+
+(defun org-chronicle--accrue-alias (subject new-name)
+  "Add NEW-NAME to the ALIASES of the promoted entity named SUBJECT.
+Does nothing but message when SUBJECT is not a promoted entity."
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities))
+         (ent (org-chronicle--find-entity-by-name subject entities idx)))
+    (if (null ent)
+        (message "org-chronicle: %S is not a promoted entity; alias %S not accrued"
+                 subject new-name)
+      (let ((id (plist-get ent :id))
+            (canon (plist-get ent :name)))
+        (cl-loop for file in org-chronicle-entities-files
+                 when (file-exists-p (expand-file-name file)) do
+                 (with-current-buffer (find-file-noselect file)
+                   (org-with-wide-buffer
+                    (let ((pos (org-find-property "ID" id)))
+                      (when pos
+                        (goto-char pos)
+                        (org-set-property
+                         "ALIASES"
+                         (org-chronicle--join
+                          (org-chronicle--alias-list-with
+                           (org-chronicle--split (org-entry-get nil "ALIASES"))
+                           new-name canon)))
+                        (save-buffer))))))))))
+
+
+
 
 
 ;;;; Sources
