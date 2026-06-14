@@ -146,6 +146,70 @@ A heading is an event iff it has a non-empty DATE property."
   "Return event plists from `org-chronicle-timeline-file'."
   (org-chronicle--file-events org-chronicle-timeline-file))
 
+;;;; Entities
+
+(defconst org-chronicle--span-props
+  '((person "BORN" . "DIED")
+    (place  "BUILT" . "RAZED")
+    (group  "FOUNDED" . "DISBANDED"))
+  "Map of entity KIND to its (START-PROPERTY . END-PROPERTY) span names.")
+
+(defun org-chronicle--entity-at-point ()
+  "Return the entity plist for the Org heading at point, or nil if no KIND."
+  (let ((kind-s (org-entry-get nil "KIND")))
+    (when kind-s
+      (let* ((kind (intern kind-s))
+             (span (alist-get kind org-chronicle--span-props))
+             (from (and span (org-chronicle--date-parse
+                              (org-entry-get nil (car span)))))
+             (to (and span (org-chronicle--date-parse
+                            (org-entry-get nil (cdr span))))))
+        (list :id (org-id-get)
+              :name (org-get-heading t t t t)
+              :kind kind
+              :aliases (org-chronicle--split (org-entry-get nil "ALIASES"))
+              :member-of (org-chronicle--split (org-entry-get nil "MEMBER-OF"))
+              :part-of (org-entry-get nil "PART-OF")
+              :parents (org-chronicle--split (org-entry-get nil "PARENTS"))
+              :spouse (org-chronicle--split (org-entry-get nil "SPOUSE"))
+              :birthplace (org-entry-get nil "BIRTHPLACE")
+              :span-from from
+              :span-to to)))))
+
+(defun org-chronicle--buffer-entities ()
+  "Return entity plists for every KIND-bearing heading in this buffer."
+  (org-with-wide-buffer
+   (let (ents)
+     (org-map-entries
+      (lambda ()
+        (when (org-entry-get nil "KIND")
+          (push (org-chronicle--entity-at-point) ents))))
+     (nreverse ents))))
+
+(defun org-chronicle--all-entities ()
+  "Return entity plists from every file in `org-chronicle-entities-files'."
+  (cl-loop for file in org-chronicle-entities-files
+           when (file-exists-p (expand-file-name file))
+           append (with-current-buffer (find-file-noselect file)
+                    (org-chronicle--buffer-entities))))
+
+(defun org-chronicle--alias-index (entities)
+  "Return a hash mapping each downcased name/alias to its canonical name.
+ENTITIES is a list of entity plists; canonical name is `:name'."
+  (let ((idx (make-hash-table :test #'equal)))
+    (dolist (e entities idx)
+      (let ((name (plist-get e :name)))
+        (puthash (downcase name) name idx)
+        (dolist (a (plist-get e :aliases))
+          (puthash (downcase a) name idx))))))
+
+(defun org-chronicle--canonical (name idx)
+  "Resolve NAME to its canonical form via alias index IDX, else NAME itself."
+  (or (and name (gethash (downcase name) idx)) name))
+
+
+
+
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)

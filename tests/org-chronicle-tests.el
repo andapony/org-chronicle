@@ -104,5 +104,64 @@
       (let ((m (nth 1 events)))
         (should (plist-get m :date-end))))))
 
+(defconst org-chronicle-test--entities "\
+* Pinkerton Agency
+:PROPERTIES:
+:ID:       ent-pinkerton
+:KIND:     group
+:FOUNDED:  <1850-01-01>
+:END:
+* Ulysses S. Grant
+:PROPERTIES:
+:ID:        ent-grant
+:KIND:      person
+:ALIASES:   Grant; U.S. Grant
+:MEMBER-OF: ent-pinkerton
+:BORN:      <1822-04-27>
+:DIED:      <1885-07-23>
+:END:
+* Mississippi
+:PROPERTIES:
+:ID:   ent-ms
+:KIND: place
+:END:
+* Vicksburg, Mississippi
+:PROPERTIES:
+:ID:      ent-vicksburg
+:KIND:    place
+:PART-OF: ent-ms
+:END:
+")
+
+(ert-deftest org-chronicle-test-buffer-entities ()
+  (org-chronicle-test--with-org org-chronicle-test--entities
+    (let* ((ents (org-chronicle--buffer-entities))
+           (grant (cl-find "ent-grant" ents
+                           :key (lambda (e) (plist-get e :id)) :test #'equal)))
+      (should (= (length ents) 4))
+      (should (eq (plist-get grant :kind) 'person))
+      (should (equal (plist-get grant :aliases) '("Grant" "U.S. Grant")))
+      (should (equal (plist-get grant :member-of) '("ent-pinkerton")))
+      (should (eq (plist-get (plist-get grant :span-from) :precision) 'day)))))
+
+(ert-deftest org-chronicle-test-span-by-kind ()
+  (org-chronicle-test--with-org org-chronicle-test--entities
+    (let* ((ents (org-chronicle--buffer-entities))
+           (pink (cl-find "ent-pinkerton" ents
+                          :key (lambda (e) (plist-get e :id)) :test #'equal)))
+      (should (plist-get pink :span-from))
+      (should (null (plist-get pink :span-to))))))
+
+(ert-deftest org-chronicle-test-alias-index ()
+  (org-chronicle-test--with-org org-chronicle-test--entities
+    (let ((idx (org-chronicle--alias-index (org-chronicle--buffer-entities))))
+      (should (equal (gethash "grant" idx) "Ulysses S. Grant"))
+      (should (equal (gethash "u.s. grant" idx) "Ulysses S. Grant"))
+      (should (equal (gethash "ulysses s. grant" idx) "Ulysses S. Grant")))))
+
+
+
+
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
