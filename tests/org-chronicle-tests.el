@@ -478,14 +478,32 @@
                       :span-from (org-chronicle--date-parse "1863-01-03")
                       :span-to (org-chronicle--date-parse "1865-04-27"))))
          (idx (org-chronicle--alias-index entities))
+         (index (make-hash-table :test #'equal))
          (bad (list :title "Meeting aboard Sultana" :truth "fictional"
                     :date (org-chronicle--date-parse "1866-01-01")
                     :people nil :location "Sultana" :marker nil))
          (ok (list :title "Earlier meeting" :truth "fictional"
                    :date (org-chronicle--date-parse "1864-01-01")
                    :people nil :location "Sultana" :marker nil)))
-    (should (org-chronicle--event-anachronisms bad entities idx))
-    (should-not (org-chronicle--event-anachronisms ok entities idx))))
+    (should (org-chronicle--event-anachronisms bad entities idx index))
+    (should-not (org-chronicle--event-anachronisms ok entities idx index))))
+
+(ert-deftest org-chronicle-test-span-prefers-life-events ()
+  "Span comes from birth/death events when present, else from BORN/DIED."
+  (let* ((entities (list (list :name "Grant" :kind 'person :aliases nil
+                               :span-from (org-chronicle--date-parse "1800-01-01")
+                               :span-to (org-chronicle--date-parse "1900-01-01"))))
+         (idx (org-chronicle--alias-index entities))
+         (index (make-hash-table :test #'equal)))
+    (should (equal (plist-get (car (org-chronicle--span-for-name "Grant" entities idx index)) :year)
+                   1800))
+    (puthash "Grant" (list :birth (cons (org-chronicle--date-parse "1822-04-27") "Ohio")
+                           :death (cons (org-chronicle--date-parse "1885-07-23") "New York"))
+             index)
+    (let ((span (org-chronicle--span-for-name "Grant" entities idx index)))
+      (should (equal (plist-get (car span) :year) 1822))
+      (should (equal (plist-get (cdr span) :year) 1885)))))
+
 
 
 

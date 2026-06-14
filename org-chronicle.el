@@ -942,26 +942,32 @@ FREE-TEXT or a prompted free-text citation."
 
 ;;;; Lint
 
-(defun org-chronicle--span-for-name (name entities idx)
+(defun org-chronicle--span-for-name (name entities idx index)
   "Return (FROM . TO) existence span for canonical NAME, or nil if unknown.
-ENTITIES is the entity list to search; IDX is the alias index."
+Prefer birth/death dates from the life-event INDEX; fall back to the
+entity's BORN/DIED span in ENTITIES.  IDX is the alias index."
   (let* ((canon (org-chronicle--canonical name idx))
+         (facts (gethash canon index))
          (ent (cl-find canon entities
-                       :key (lambda (e) (plist-get e :name)) :test #'equal)))
-    (when (and ent (or (plist-get ent :span-from) (plist-get ent :span-to)))
-      (cons (plist-get ent :span-from) (plist-get ent :span-to)))))
+                       :key (lambda (e) (plist-get e :name)) :test #'equal))
+         (from (or (car (plist-get facts :birth))
+                   (and ent (plist-get ent :span-from))))
+         (to (or (car (plist-get facts :death))
+                 (and ent (plist-get ent :span-to)))))
+    (when (or from to)
+      (cons from to))))
 
-(defun org-chronicle--event-anachronisms (event entities idx)
+(defun org-chronicle--event-anachronisms (event entities idx index)
   "Return a list of human-readable anachronism messages for EVENT.
 An anachronism is a participant or location in ENTITIES whose existence
-span does not contain the event's date.  IDX is the alias index.
-Empty list means clean."
+span (from the life-event INDEX, else entity properties) does not contain
+the event's date.  IDX is the alias index.  Empty list means clean."
   (let ((date (plist-get event :date))
         (msgs '()))
     (when date
       (dolist (name (cons (plist-get event :location) (plist-get event :people)))
         (when name
-          (let ((span (org-chronicle--span-for-name name entities idx)))
+          (let ((span (org-chronicle--span-for-name name entities idx index)))
             (when (and span
                        (not (org-chronicle--date-in-span-p date (car span) (cdr span))))
               (push (format "%s outside existence span of %s"
@@ -977,9 +983,10 @@ Empty list means clean."
   (let* ((entities (org-chronicle--all-entities))
          (idx (org-chronicle--alias-index entities))
          (events (org-chronicle--all-events))
+         (index (org-chronicle--life-index events idx))
          (findings '()))
     (dolist (e events)
-      (dolist (m (org-chronicle--event-anachronisms e entities idx))
+      (dolist (m (org-chronicle--event-anachronisms e entities idx index))
         (push (cons e m) findings)))
     (with-current-buffer (get-buffer-create "*org-chronicle-lint*")
       (org-chronicle-view-mode)
