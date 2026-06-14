@@ -338,6 +338,16 @@
     (should (string-match-p ":PEOPLE:   Grant; Pemberton" s))
     (should (string-match-p ":LOCATION: Vicksburg" s))))
 
+(ert-deftest org-chronicle-test-event-string-topics ()
+  "Topics are emitted as a semicolon-joined TOPICS property, omitted when empty."
+  (let ((with (org-chronicle--event-string
+               :title "Wreck" :truth "fictional" :date "1851-11-03"
+               :topics '("shipping" "crime")))
+        (without (org-chronicle--event-string
+                  :title "Plain" :truth "historical" :date "1851-11-03")))
+    (should (string-match-p ":TOPICS:   shipping; crime" with))
+    (should-not (string-match-p ":TOPICS:" without))))
+
 (ert-deftest org-chronicle-test-read-date-requires-value ()
   "A blank date prompt signals a `user-error'; a real value passes through."
   (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "")))

@@ -538,9 +538,9 @@ PARAMS keys mirror `org-chronicle-timeline' (:people :locations :truth
     (format "<%s>" date-string)))
 
 (cl-defun org-chronicle--event-string (&key title truth date date-end
-                                            people location sources)
+                                            people topics location sources)
   "Return the Org heading text for a new event with the given fields.
-TITLE, TRUTH, DATE are strings; PEOPLE is a list of strings.
+TITLE, TRUTH, DATE are strings; PEOPLE and TOPICS are optional lists of strings.
 DATE-END, LOCATION, and SOURCES are optional strings."
   (concat
    (format "* %s\n" title)
@@ -550,6 +550,7 @@ DATE-END, LOCATION, and SOURCES are optional strings."
    (when (and date-end (not (string-blank-p date-end)))
      (format ":DATE-END: %s\n" (org-chronicle--ts date-end)))
    (when people (format ":PEOPLE:   %s\n" (org-chronicle--join people)))
+   (when topics (format ":TOPICS:   %s\n" (org-chronicle--join topics)))
    (when (and location (not (string-blank-p location)))
      (format ":LOCATION: %s\n" location))
    (when (and sources (not (string-blank-p sources)))
