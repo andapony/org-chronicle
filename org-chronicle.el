@@ -29,6 +29,28 @@
 ;; with property drawers in a timeline file; people, places, and groups can
 ;; be promoted to entity headings with aliases, existence spans, and kinship.
 ;; See doc/chronicle-schema.org for the full schema.
+;;
+;; Entry points:
+;;
+;;   `org-chronicle-add-event'    Capture a new event interactively into
+;;                                the timeline file.
+;;   `org-chronicle-capture'      Return an event heading string for an
+;;                                org-capture template.
+;;   `org-chronicle-normalize'    Tidy the event at point: mirror TRUTH to
+;;                                a tag, canonicalize names, check the date.
+;;   `org-chronicle-timeline'     Show the swimlane timeline filtered by
+;;                                people, places, truth, and date range.
+;;   `org-chronicle-add-person'   Create a person entity with aliases and
+;;                                birth/death.
+;;   `org-chronicle-add-place'    Create a place entity with an optional
+;;                                build/raze span.
+;;   `org-chronicle-add-group'    Create a group entity.
+;;   `org-chronicle-promote'      Promote a recurring name into a person
+;;                                entity.
+;;   `org-chronicle-add-source'   Add a source (reading-list link or free
+;;                                text) to the event at point.
+;;   `org-chronicle-lint'         Report events that fall outside a
+;;                                participant or place existence span.
 
 ;;; Code:
 
@@ -65,7 +87,7 @@ S may be an Org timestamp with brackets and trailing tokens
       (list :year y :month mo :day d :precision precision :sortkey sortkey))))
 
 (defun org-chronicle--date-lessp (a b)
-  "Non-nil if date plist A sorts strictly before date plist B."
+  "Non-nil if date plist A sort strictly before date plist B."
   (time-less-p (plist-get a :sortkey) (plist-get b :sortkey)))
 
 (defun org-chronicle--date-format (d)
@@ -220,7 +242,8 @@ ENTITIES is a list of entity plists; canonical name is `:name'."
            collect (plist-get e :name)))
 
 (defun org-chronicle--place-descendant-names (place-id entities)
-  "Return names of the place PLACE-ID and all places PART-OF it, transitively."
+  "Return names of PLACE-ID and all places that are PART-OF it, transitively.
+ENTITIES is the full entity list to search."
   (let ((acc '()) (frontier (list place-id)))
     (while frontier
       (let ((id (pop frontier)))
@@ -241,10 +264,10 @@ ENTITIES is a list of entity plists; canonical name is `:name'."
 ;;;; Query
 
 (cl-defun org-chronicle--filter-events (events _idx &key truth from until)
-  "Filter EVENTS (resolving names via alias index IDX).
+  "Filter EVENTS by TRUTH and date range; sorted ascending by date.
 TRUTH is a list of allowed truth strings (nil = all).  FROM and UNTIL are
-date plists bounding `:date' inclusively (nil = open).  Returns events
-sorted ascending by date."
+date plists bounding `:date' inclusively (nil = open).  The IDX argument
+\(an alias index) is accepted for call-site symmetry but unused here."
   (let ((out (cl-remove-if-not
               (lambda (e)
                 (and (plist-get e :date)
@@ -255,10 +278,10 @@ sorted ascending by date."
                 (org-chronicle--date-lessp (plist-get a :date) (plist-get b :date))))))
 
 (defun org-chronicle--lane-names-for (name domain entities)
-  "Return the set of canonical names an entity NAME contributes to a lane.
-For a group, that is its members; for a parent place, its descendants;
-otherwise the entity's own canonical name.  DOMAIN selects which kinds of
-expansion apply (`people' expands groups, `location' expands places)."
+  "Return canonical names that entity NAME contributes to a lane.
+DOMAIN selects expansion: `people' expands groups to their members;
+`location' expands places to their descendants.  ENTITIES is the full
+entity list."
   (let* ((idx (org-chronicle--alias-index entities))
          (canon (org-chronicle--canonical name idx))
          (ent (cl-find canon entities
@@ -279,9 +302,9 @@ expansion apply (`people' expands groups, `location' expands places)."
           :names (org-chronicle--lane-names-for name domain entities))))
 
 (defun org-chronicle--build-lanes-for (name domain entities mode)
-  "Build a list of lane plists for NAME.
-With MODE `:expand', a group/parent-place yields one lane per resolved
-member/descendant; with `:collapse' it yields a single lane (see
+  "Build a list of lane plists for NAME in DOMAIN over ENTITIES.
+MODE `:expand' yields one lane per resolved member/descendant of a
+group or parent place; `:collapse' yields a single lane (see
 `org-chronicle--build-lane')."
   (if (eq mode :expand)
       (mapcar (lambda (n) (list :label n :domain domain :names (list n)))
@@ -482,7 +505,8 @@ PARAMS keys mirror `org-chronicle-timeline' (:people :locations :truth
 (cl-defun org-chronicle--event-string (&key title truth date date-end
                                             people location sources)
   "Return the Org heading text for a new event with the given fields.
-PEOPLE is a list; the rest are strings (DATE-END/LOCATION/SOURCES optional)."
+TITLE, TRUTH, DATE are strings; PEOPLE is a list of strings.
+DATE-END, LOCATION, and SOURCES are optional strings."
   (concat
    (format "* %s\n" title)
    ":PROPERTIES:\n"
@@ -590,9 +614,9 @@ and warns if DATE does not parse."
   :group 'org-chronicle)
 
 (cl-defun org-chronicle--entity-string (&key name kind aliases props)
-  "Return the Org heading text for a new entity.
-KIND is a symbol; ALIASES a list; PROPS an alist of (PROP . VALUE) extra
-properties (only non-blank values are written)."
+  "Return the Org heading text for a new entity named NAME.
+KIND is a symbol; ALIASES a list of strings; PROPS an alist of
+\(PROP . VALUE) extra properties (only non-blank values are written)."
   (concat
    (format "* %s\n" name)
    ":PROPERTIES:\n"
@@ -717,7 +741,8 @@ FREE-TEXT or a prompted free-text citation."
 ;;;; Lint
 
 (defun org-chronicle--span-for-name (name entities idx)
-  "Return (FROM . TO) existence span for canonical NAME, or nil if unknown."
+  "Return (FROM . TO) existence span for canonical NAME, or nil if unknown.
+ENTITIES is the entity list to search; IDX is the alias index."
   (let* ((canon (org-chronicle--canonical name idx))
          (ent (cl-find canon entities
                        :key (lambda (e) (plist-get e :name)) :test #'equal)))
@@ -726,8 +751,9 @@ FREE-TEXT or a prompted free-text citation."
 
 (defun org-chronicle--event-anachronisms (event entities idx)
   "Return a list of human-readable anachronism messages for EVENT.
-An anachronism is a participant or location whose existence span does not
-contain the event's date.  Empty list means clean."
+An anachronism is a participant or location in ENTITIES whose existence
+span does not contain the event's date.  IDX is the alias index.
+Empty list means clean."
   (let ((date (plist-get event :date))
         (msgs '()))
     (when date

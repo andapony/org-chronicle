@@ -1,0 +1,40 @@
+#+TITLE: org-chronicle schema
+
+* Events (timeline file)
+  One heading per event; identified by a non-empty =DATE= property.
+  | Property  | Meaning                                            |
+  |-----------+----------------------------------------------------|
+  | ID        | org-id, stable link target                         |
+  | TRUTH     | historical \vert fictionalized \vert fictional     |
+  | DATE      | start, Org timestamp                               |
+  | DATE-END  | optional end (durations)                           |
+  | PEOPLE    | =; =-separated participant names                   |
+  | LOCATION  | place name                                         |
+  | SOURCES   | =; =-separated id links and/or free text           |
+  TRUTH is mirrored to a tag of the same name by =org-chronicle-normalize=.
+
+* Entities (people/places files)
+  One heading per entity; identified by a =KIND= property.
+  | Property   | Meaning                                  |
+  |------------+------------------------------------------|
+  | KIND       | person \vert place \vert group           |
+  | ALIASES    | =; =-separated name variants             |
+  | MEMBER-OF  | group ids (people)                       |
+  | PART-OF    | parent place id (places)                 |
+  | PARENTS    | parent person ids                        |
+  | SPOUSE     | spouse person ids                        |
+  | BIRTHPLACE | place id                                 |
+
+** Existence spans (by kind)
+   | Kind   | Start property | End property |
+   |--------+----------------+-------------|
+   | person | BORN           | DIED        |
+   | place  | BUILT          | RAZED       |
+   | group  | FOUNDED        | DISBANDED   |
+
+* Timeline view
+  =M-x org-chronicle-timeline=, or a dynamic block:
+  : #+BEGIN: chronicle :people ("Grant" "Lincoln") :from "1862" :until "1865" :mode :collapse
+  : #+END:
+  Parameters: =:people= =:locations= (lane names), =:truth= (subset),
+  =:from= =:until= (date strings), =:mode= (=:collapse= or =:expand=).

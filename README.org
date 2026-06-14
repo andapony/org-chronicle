@@ -1,8 +1,86 @@
 #+TITLE: org-chronicle
 
-Capture, maintain, and view an event timeline for historical fiction —
-real and invented events side by side, with people/place/group entities,
-bio and kinship, existence spans, a swimlane view, source links into
-=org-reading-list=, and an anachronism lint.
+=org-chronicle= is an Emacs package for capturing, maintaining, and
+viewing a timeline of events for a historical-fiction project.  Events
+are Org headings with property drawers (truth flag, date, participants,
+location, sources) in a single timeline file; people, places, and groups
+can be promoted to entity headings that carry aliases, existence spans,
+and kinship — then the package's swimlane view and anachronism lint
+cross-reference them automatically.
 
-Status: in development.  See =doc/chronicle-schema.org= for the schema.
+* Installation
+
+Clone the repository and add its directory to your =load-path=, then
+load the package:
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/org-chronicle")
+(require 'org-chronicle)
+#+end_src
+
+Emacs 27.1+ and Org 9.4+ are required.
+
+* Configuration
+
+All paths and display options are customizable via =M-x customize-group
+RET org-chronicle RET=.  The key variables are:
+
+- =org-chronicle-timeline-file= :: Org file holding one heading per
+  timeline event (default =~/org/timeline.org=).
+- =org-chronicle-entities-files= :: List of Org files holding promoted
+  person, place, and group entities (default =("~/org/people.org"
+  "~/org/places.org")=).
+- =org-chronicle-people-file= :: File where new person and group
+  entities are filed (default =~/org/people.org=).
+- =org-chronicle-places-file= :: File where new place entities are
+  filed (default =~/org/places.org=).
+- =org-chronicle-lane-column-width= :: Width in columns of each lane in
+  the timeline view (default =22=).
+
+* Capturing events
+
+Use =M-x org-chronicle-add-event= to interactively capture a new event
+into the timeline file.  It prompts for title, date, truth level
+(=historical= / =fictionalized= / =fictional=), participants, and
+location, then appends the heading and runs =org-chronicle-normalize=.
+
+For integration with =org-capture=, use =org-chronicle-capture= as the
+template body:
+
+#+begin_src emacs-lisp
+(add-to-list 'org-capture-templates
+  '("ce" "Chronicle event" entry
+    (file org-chronicle-timeline-file)
+    "%(org-chronicle-capture)" :empty-lines 1))
+#+end_src
+
+* Timeline view
+
+=M-x org-chronicle-timeline= prompts for lane names (people or places),
+a truth subset, and expand/collapse mode, then opens a read-only
+swimlane buffer.  Press =RET= on a cell to jump to the source heading,
+=g= to refresh, and =q= to quit.
+
+The same view is available as an Org dynamic block:
+
+#+begin_example
+#+BEGIN: chronicle :people ("Grant" "Lincoln") :from "1862" :until "1865" :mode :collapse
+#+END:
+#+end_example
+
+Parameters: =:people= and =:locations= (lists of lane names), =:truth=
+(list of allowed truth strings), =:from= and =:until= (date strings),
+=:mode= (=:collapse= or =:expand= for groups/parent places).
+
+* Sources
+
+=M-x org-chronicle-add-source= appends a source to the =SOURCES=
+property of the event at point.  When =org-reading-list= is loaded,
+it offers completion over that reading list and builds an =id:= link
+with an optional locator (e.g. page number); otherwise it falls back
+to free-text input.  There is no hard dependency on =org-reading-list=.
+
+* Schema reference
+
+See =doc/chronicle-schema.org= for the full property schema for both
+events and entities.
