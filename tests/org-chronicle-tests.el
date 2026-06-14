@@ -104,6 +104,38 @@
       (let ((m (nth 1 events)))
         (should (plist-get m :date-end))))))
 
+(ert-deftest org-chronicle-test-event-reads-life-fields ()
+  "An event heading exposes its life-event, subject, and new-name fields."
+  (org-chronicle-test--with-org "\
+* Birth of Grant
+:PROPERTIES:
+:TRUTH: historical
+:LIFE-EVENT: birth
+:DATE: <1822-04-27>
+:SUBJECT: Ulysses S. Grant
+:PEOPLE: Ulysses S. Grant; Jesse Root Grant
+:LOCATION: Point Pleasant, Ohio
+:END:
+"
+    (let ((e (car (org-chronicle--buffer-events))))
+      (should (equal (plist-get e :life-event) "birth"))
+      (should (equal (plist-get e :subject) '("Ulysses S. Grant")))
+      (should (null (plist-get e :new-name))))))
+
+(ert-deftest org-chronicle-test-entity-reads-deathplace ()
+  "A person entity exposes its DEATHPLACE property."
+  (org-chronicle-test--with-org "\
+* Grant
+:PROPERTIES:
+:KIND: person
+:DEATHPLACE: Mount McGregor, New York
+:END:
+"
+    (let ((ent (car (org-chronicle--buffer-entities))))
+      (should (equal (plist-get ent :deathplace) "Mount McGregor, New York")))))
+
+
+
 (defconst org-chronicle-test--entities "\
 * Pinkerton Agency
 :PROPERTIES:

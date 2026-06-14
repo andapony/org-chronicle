@@ -144,6 +144,9 @@ Return nil for nil or blank input."
   (list :id (org-id-get)
         :title (org-get-heading t t t t)
         :truth (org-entry-get nil "TRUTH")
+        :life-event (org-entry-get nil "LIFE-EVENT")
+        :subject (org-chronicle--split (org-entry-get nil "SUBJECT"))
+        :new-name (org-entry-get nil "NEW-NAME")
         :date (org-chronicle--date-parse (org-entry-get nil "DATE"))
         :date-end (org-chronicle--date-parse (org-entry-get nil "DATE-END"))
         :people (org-chronicle--split (org-entry-get nil "PEOPLE"))
@@ -202,6 +205,7 @@ otherwise drop into Org's \"non-existent agenda file\" prompt."
               :parents (org-chronicle--split (org-entry-get nil "PARENTS"))
               :spouse (org-chronicle--split (org-entry-get nil "SPOUSE"))
               :birthplace (org-entry-get nil "BIRTHPLACE")
+              :deathplace (org-entry-get nil "DEATHPLACE")
               :span-from from
               :span-to to)))))
 
