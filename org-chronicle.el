@@ -367,10 +367,30 @@ group or parent place; `:collapse' yields a single lane (see
   "Pad or truncate string S to exactly WIDTH columns."
   (truncate-string-to-width (concat s (make-string width ?\s)) width))
 
+(defconst org-chronicle--life-event-kinds
+  '("birth" "death" "marriage" "name-change")
+  "Recognized values of the LIFE-EVENT property.")
+
+(defcustom org-chronicle-life-event-glyphs
+  '(("birth" . "⊕") ("death" . "⊗") ("marriage" . "⚭") ("name-change" . "↦"))
+  "Alist mapping a life-event kind to its glyph in the timeline view."
+  :type '(alist :key-type string :value-type string)
+  :group 'org-chronicle)
+
+(defun org-chronicle--life-event-glyph (kind)
+  "Return the configured glyph for life-event KIND, or nil if KIND is unknown."
+  (and kind (cdr (assoc kind org-chronicle-life-event-glyphs))))
+
+
+
+
 (defun org-chronicle--cell-text (event)
-  "Return the propertized cell text (title + truth marker) for EVENT."
-  (let ((s (format "%s %s" (plist-get event :title)
-                   (org-chronicle--truth-marker (plist-get event :truth)))))
+  "Return propertized cell text (kind glyph, title, truth marker) for EVENT."
+  (let* ((glyph (org-chronicle--life-event-glyph (plist-get event :life-event)))
+         (s (format "%s%s %s"
+                    (if glyph (concat glyph " ") "")
+                    (plist-get event :title)
+                    (org-chronicle--truth-marker (plist-get event :truth)))))
     (propertize s 'face (org-chronicle--truth-face (plist-get event :truth))
                 'org-chronicle-marker (plist-get event :marker))))
 

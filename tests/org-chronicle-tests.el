@@ -264,6 +264,21 @@
   (should (equal (org-chronicle--truth-marker "fictional") "[F]"))
   (should (equal (org-chronicle--truth-marker nil) "[?]")))
 
+(ert-deftest org-chronicle-test-life-event-glyph ()
+  (should (equal (org-chronicle--life-event-glyph "birth") "⊕"))
+  (should (equal (org-chronicle--life-event-glyph "name-change") "↦"))
+  (should (null (org-chronicle--life-event-glyph nil)))
+  (should (null (org-chronicle--life-event-glyph "unknown"))))
+
+(ert-deftest org-chronicle-test-cell-text-prepends-glyph ()
+  (let ((birth (list :title "Birth of Grant" :truth "historical"
+                     :life-event "birth" :marker nil))
+        (plain (list :title "Vicksburg" :truth "historical" :marker nil)))
+    (should (string-prefix-p "⊕ Birth of Grant" (org-chronicle--cell-text birth)))
+    (should (string-prefix-p "Vicksburg [H]" (org-chronicle--cell-text plain)))))
+
+
+
 (ert-deftest org-chronicle-test-render-columns ()
   (let* ((events
           (list (list :title "Vicksburg" :truth "historical"
