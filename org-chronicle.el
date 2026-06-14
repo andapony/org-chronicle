@@ -300,16 +300,79 @@ member/descendant; with `:collapse' it yields a single lane (see
             (member (org-chronicle--canonical (plist-get event :location) idx)
                     names))))))
 
+;;;; Render
+;;
+;; Pure: turns EVENTS + LANES into a swimlane string (time vertical, lanes
+;; as columns).  No buffer side effects; the view command (Task 8) wraps it.
 
+(defface org-chronicle-historical '((t :inherit default))
+  "Face for historical events in the timeline view.")
+(defface org-chronicle-fictionalized '((t :inherit warning))
+  "Face for fictionalized events in the timeline view.")
+(defface org-chronicle-fictional '((t :inherit font-lock-keyword-face))
+  "Face for fictional events in the timeline view.")
 
+(defconst org-chronicle--date-col-width 12)
 
+(defun org-chronicle--truth-marker (truth)
+  "Return the short marker string for TRUTH."
+  (pcase truth
+    ("historical" "[H]")
+    ("fictionalized" "[~]")
+    ("fictional" "[F]")
+    (_ "[?]")))
 
+(defun org-chronicle--truth-face (truth)
+  "Return the face symbol for TRUTH."
+  (pcase truth
+    ("fictionalized" 'org-chronicle-fictionalized)
+    ("fictional" 'org-chronicle-fictional)
+    (_ 'org-chronicle-historical)))
 
+(defun org-chronicle--pad (s width)
+  "Pad or truncate string S to exactly WIDTH columns."
+  (truncate-string-to-width (concat s (make-string width ?\s)) width))
 
+(defun org-chronicle--cell-text (event)
+  "Return the propertized cell text (title + truth marker) for EVENT."
+  (let ((s (format "%s %s" (plist-get event :title)
+                   (org-chronicle--truth-marker (plist-get event :truth)))))
+    (propertize s 'face (org-chronicle--truth-face (plist-get event :truth))
+                'org-chronicle-marker (plist-get event :marker))))
 
-
+(defun org-chronicle--render (events lanes idx col-width)
+  "Render EVENTS into a swimlane string across LANES.
+IDX is an alias index; COL-WIDTH is the width of each lane column.  Rows
+are dates (ascending); each lane column shows that lane's events on that
+date.  EVENTS are assumed already filtered and sorted ascending."
+  (let* ((dcw org-chronicle--date-col-width)
+         (header (concat (org-chronicle--pad "DATE" dcw)
+                         (mapconcat (lambda (l) (org-chronicle--pad
+                                                 (upcase (plist-get l :label)) col-width))
+                                    lanes "")))
+         (rule (make-string (length header) ?-))
+         (lines (list rule header)))
+    (let ((by-date '()))
+      (dolist (e events)
+        (let ((key (org-chronicle--date-format (plist-get e :date))))
+          (push e (alist-get key by-date nil nil #'equal))))
+      (setq by-date (nreverse by-date))
+      (dolist (cell by-date)
+        (let* ((date (car cell))
+               (day-events (nreverse (cdr cell)))
+               (row (org-chronicle--pad date dcw)))
+          (dolist (lane lanes)
+            (let* ((hits (cl-remove-if-not
+                          (lambda (e) (org-chronicle--event-in-lane-p e lane idx))
+                          day-events))
+                   (txt (mapconcat #'org-chronicle--cell-text hits " / ")))
+              (setq row (concat row (org-chronicle--pad txt col-width)))))
+          (push row lines))))
+    (mapconcat #'identity (nreverse lines) "\n")))
 
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)
+
+
 ;;; org-chronicle.el ends here

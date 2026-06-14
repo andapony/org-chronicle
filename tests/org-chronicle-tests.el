@@ -224,6 +224,34 @@
         (event (list :people '("Ulysses S. Grant") :location nil)))
     (should (org-chronicle--event-in-lane-p event lane (make-hash-table :test #'equal)))))
 
+;;;; Render
+
+(ert-deftest org-chronicle-test-truth-marker ()
+  (should (equal (org-chronicle--truth-marker "historical") "[H]"))
+  (should (equal (org-chronicle--truth-marker "fictionalized") "[~]"))
+  (should (equal (org-chronicle--truth-marker "fictional") "[F]"))
+  (should (equal (org-chronicle--truth-marker nil) "[?]")))
+
+(ert-deftest org-chronicle-test-render-columns ()
+  (let* ((events
+          (list (list :title "Vicksburg" :truth "historical"
+                      :date (org-chronicle--date-parse "1863-07-04")
+                      :people '("Grant") :location nil :marker nil)
+                (list :title "Address" :truth "historical"
+                      :date (org-chronicle--date-parse "1863-11-19")
+                      :people '("Lincoln") :location nil :marker nil)))
+         (lanes (list (list :label "Grant" :domain 'people :names '("Grant"))
+                      (list :label "Lincoln" :domain 'people :names '("Lincoln"))))
+         (idx (make-hash-table :test #'equal))
+         (text (org-chronicle--render events lanes idx 20)))
+    (should (string-match-p "Grant" text))
+    (should (string-match-p "Lincoln" text))
+    (should (string-match-p "1863-07-04" text))
+    (should (string-match-p "Vicksburg \\[H\\]" text))
+    (should (string-match-p "Address \\[H\\]" text))))
+
+
+
 
 
 
