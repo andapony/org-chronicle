@@ -333,7 +333,10 @@ group or parent place; `:collapse' yields a single lane (see
       ('location
        (and (plist-get event :location)
             (member (org-chronicle--canonical (plist-get event :location) idx)
-                    names))))))
+                    names)))
+      ('topic
+       (cl-some (lambda (tp) (member (org-chronicle--canonical tp idx) names))
+                (plist-get event :topics))))))
 
 ;;;; Render
 ;;

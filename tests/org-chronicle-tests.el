@@ -269,6 +269,14 @@
         (event (list :people '("Ulysses S. Grant") :location nil)))
     (should (org-chronicle--event-in-lane-p event lane (make-hash-table :test #'equal)))))
 
+(ert-deftest org-chronicle-test-event-in-topic-lane ()
+  "An event lands in a topic lane when one of its topics matches the lane names."
+  (let ((lane (list :label "shipping" :domain 'topic :names '("shipping")))
+        (hit (list :topics '("crime" "shipping")))
+        (miss (list :topics '("census"))))
+    (should (org-chronicle--event-in-lane-p hit lane (make-hash-table :test #'equal)))
+    (should-not (org-chronicle--event-in-lane-p miss lane (make-hash-table :test #'equal)))))
+
 ;;;; Render
 
 (ert-deftest org-chronicle-test-truth-marker ()
