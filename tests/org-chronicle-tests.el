@@ -310,6 +310,50 @@
   (should (equal (org-chronicle--source-link "abc123" "Foote" nil)
                  "[[id:abc123][Foote]]")))
 
+(ert-deftest org-chronicle-test-known-people ()
+  "Known people come from event participants and person/group entities, not places."
+  (cl-letf (((symbol-function 'org-chronicle--all-events)
+             (lambda () (list (list :people '("Abraham Lincoln" "U.S. Grant")))))
+            ((symbol-function 'org-chronicle--all-entities)
+             (lambda () (list (list :name "Ulysses S. Grant" :kind 'person :aliases '("Grant"))
+                              (list :name "Pinkerton Agency" :kind 'group :aliases nil)
+                              (list :name "Vicksburg" :kind 'place :aliases nil)))))
+    (let ((people (org-chronicle--known-people)))
+      (should (member "Abraham Lincoln" people))
+      (should (member "U.S. Grant" people))
+      (should (member "Ulysses S. Grant" people))
+      (should (member "Grant" people))
+      (should (member "Pinkerton Agency" people))
+      (should-not (member "Vicksburg" people)))))
+
+(ert-deftest org-chronicle-test-known-locations ()
+  "Known locations come from event locations and place entities, not people."
+  (cl-letf (((symbol-function 'org-chronicle--all-events)
+             (lambda () (list (list :location "Vicksburg, Mississippi"))))
+            ((symbol-function 'org-chronicle--all-entities)
+             (lambda () (list (list :name "Sultana" :kind 'place :aliases '("the Sultana"))
+                              (list :name "Grant" :kind 'person :aliases nil)))))
+    (let ((locs (org-chronicle--known-locations)))
+      (should (member "Vicksburg, Mississippi" locs))
+      (should (member "Sultana" locs))
+      (should (member "the Sultana" locs))
+      (should-not (member "Grant" locs)))))
+
+(ert-deftest org-chronicle-test-file-events-missing-is-nil ()
+  "Reading events from a non-existent file returns nil without prompting."
+  (should (null (org-chronicle--file-events "/tmp/org-chronicle-nonexistent-xyz.org"))))
+
+(ert-deftest org-chronicle-test-completion-table-metadata ()
+  "The completion table reports its category and completes candidates."
+  (let ((table (org-chronicle--completion-table '("alpha" "beta") 'org-chronicle-person)))
+    (should (equal (funcall table "" nil 'metadata)
+                   '(metadata (category . org-chronicle-person))))
+    (should (member "alpha" (funcall table "" nil t)))))
+
+
+
+
+
 (ert-deftest org-chronicle-test-add-source-free-text-when-no-reading-list ()
   (cl-letf (((symbol-function 'featurep)
              (lambda (f &rest _) (unless (eq f 'org-reading-list) t))))

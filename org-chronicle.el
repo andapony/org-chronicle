@@ -59,6 +59,9 @@
 (require 'cl-lib)
 (require 'subr-x)
 
+(require 'crm)
+
+
 (defgroup org-chronicle nil
   "Event timeline for historical fiction."
   :group 'org
@@ -160,9 +163,13 @@ A heading is an event iff it has a non-empty DATE property."
      (nreverse events))))
 
 (defun org-chronicle--file-events (file)
-  "Return event plists from FILE."
-  (with-current-buffer (find-file-noselect file)
-    (org-chronicle--buffer-events)))
+  "Return event plists from FILE, or nil if FILE does not exist.
+A missing file yields nil rather than opening a fresh buffer, which would
+otherwise drop into Org's \"non-existent agenda file\" prompt."
+  (let ((path (expand-file-name file)))
+    (when (file-exists-p path)
+      (with-current-buffer (find-file-noselect path)
+        (org-chronicle--buffer-events)))))
 
 (defun org-chronicle--all-events ()
   "Return event plists from `org-chronicle-timeline-file'."
@@ -458,17 +465,20 @@ truth strings; FROM/UNTIL date strings; MODE `:collapse' or `:expand'."
   "Display a swimlane timeline filtered by PEOPLE, LOCATIONS, TRUTH, FROM, UNTIL.
 PEOPLE and LOCATIONS are lists of names that become lanes.  MODE is
 `:collapse' (default) or `:expand' for groups/parent places.  Interactively,
-prompts for people, locations, and a truth subset."
+prompts for people, locations, and a truth subset, completing against the
+names used in events and promoted entities."
   (interactive
-   (let* ((entities (org-chronicle--all-entities))
-          (names (mapcar (lambda (e) (plist-get e :name)) entities)))
-     (list :people (completing-read-multiple "People/groups (lanes): " names)
-           :locations (completing-read-multiple "Places (lanes): " names)
-           :truth (let ((v (completing-read-multiple
-                            "Truth (blank=all): "
-                            '("historical" "fictionalized" "fictional"))))
-                    (and v (delete "" v)))
-           :mode (if (y-or-n-p "Expand groups into member lanes? ") :expand :collapse))))
+   (list :people (org-chronicle--read-names
+                  "People/groups (lanes): "
+                  (org-chronicle--known-people) 'org-chronicle-person)
+         :locations (org-chronicle--read-names
+                     "Places (lanes): "
+                     (org-chronicle--known-locations) 'org-chronicle-place)
+         :truth (let ((v (completing-read-multiple
+                          "Truth (blank=all): "
+                          '("historical" "fictionalized" "fictional"))))
+                  (and v (delete "" v)))
+         :mode (if (y-or-n-p "Expand groups into member lanes? ") :expand :collapse)))
   (let ((args (list :people people :locations locations :truth truth
                     :from from :until until :mode mode))
         (text (org-chronicle--compose :people people :locations locations
@@ -521,20 +531,76 @@ DATE-END, LOCATION, and SOURCES are optional strings."
      (format ":SOURCES:  %s\n" sources))
    ":END:\n"))
 
-(defun org-chronicle--known-people ()
-  "Return a sorted, de-duplicated list of names seen in events and entities."
+(defun org-chronicle--collect-names (event-key entity-kinds)
+  "Return a sorted, de-duplicated list of names for completion.
+Gathers the EVENT-KEY value of every event (a string, or a list of
+strings) and the name plus aliases of every entity whose `:kind' is in
+ENTITY-KINDS."
   (let ((names (make-hash-table :test #'equal)))
     (dolist (e (ignore-errors (org-chronicle--all-events)))
-      (dolist (p (plist-get e :people)) (puthash p t names)))
+      (let ((v (plist-get e event-key)))
+        (cond ((listp v) (dolist (x v) (when x (puthash x t names))))
+              (v (puthash v t names)))))
     (dolist (e (ignore-errors (org-chronicle--all-entities)))
-      (puthash (plist-get e :name) t names)
-      (dolist (a (plist-get e :aliases)) (puthash a t names)))
+      (when (memq (plist-get e :kind) entity-kinds)
+        (puthash (plist-get e :name) t names)
+        (dolist (a (plist-get e :aliases)) (puthash a t names))))
     (sort (hash-table-keys names) #'string<)))
 
+
+(defun org-chronicle--known-people ()
+  "Return known person and group names from events and entities."
+  (org-chronicle--collect-names :people '(person group)))
+
+(defun org-chronicle--known-locations ()
+  "Return known location names from event locations and place entities."
+  (org-chronicle--collect-names :location '(place)))
+
+(defun org-chronicle--completion-table (candidates category)
+  "Return a completion table over CANDIDATES tagged with completion CATEGORY.
+Tagging the table with a category lets the user's completion framework
+annotate and configure it via `completion-category-overrides', keeping
+all behaviour inside the standard `completing-read' machinery."
+  (lambda (string predicate action)
+    (if (eq action 'metadata)
+        `(metadata (category . ,category))
+      (complete-with-action action candidates string predicate))))
+
+(defun org-chronicle--read-names (prompt candidates category)
+  "Read multiple names with completion; return a list (nil when blank).
+PROMPT is the minibuffer prompt, CANDIDATES the completion set, CATEGORY
+the completion category.  Entries are separated by
+`org-chronicle-multi-value-separator', so names that themselves contain a
+comma (e.g. \"Vicksburg, Mississippi\") are not split, and new names not
+in CANDIDATES are still accepted."
+  (let ((crm-separator
+         (concat "[ \t]*"
+                 (regexp-quote (string-trim org-chronicle-multi-value-separator))
+                 "[ \t]*")))
+    (delete "" (completing-read-multiple
+                prompt
+                (org-chronicle--completion-table candidates category)
+                nil nil))))
+
+(defun org-chronicle--read-location ()
+  "Read a single location with completion; return nil when blank."
+  (let ((loc (completing-read
+              "Location (blank to skip): "
+              (org-chronicle--completion-table
+               (org-chronicle--known-locations) 'org-chronicle-place)
+              nil nil)))
+    (and (not (string-blank-p loc)) loc)))
+
+
+
+
+
 (defun org-chronicle--read-people ()
-  "Prompt for people with completion against known names; return a list."
-  (completing-read-multiple "People (TAB to complete, blank to skip): "
-                            (org-chronicle--known-people)))
+  "Prompt for participants with completion against known people; return a list."
+  (org-chronicle--read-names
+   (concat "People (" (string-trim org-chronicle-multi-value-separator)
+           "-separated, blank to skip): ")
+   (org-chronicle--known-people) 'org-chronicle-person))
 
 ;;;###autoload
 (defun org-chronicle-add-event ()
@@ -546,7 +612,7 @@ DATE-END, LOCATION, and SOURCES are optional strings."
          (truth (completing-read "Truth: " org-chronicle--truth-values nil t
                                  nil nil "historical"))
          (people (org-chronicle--read-people))
-         (location (read-string "Location (blank to skip): "))
+         (location (org-chronicle--read-location))
          (text (org-chronicle--event-string
                 :title title :truth truth :date date :date-end date-end
                 :people people :location location)))
@@ -570,7 +636,7 @@ Prompts for the same fields as `org-chronicle-add-event'."
         (truth (completing-read "Truth: " org-chronicle--truth-values nil t
                                 nil nil "historical"))
         (people (org-chronicle--read-people))
-        (location (read-string "Location (blank to skip): ")))
+        (location (org-chronicle--read-location)))
     (org-chronicle--event-string :title title :truth truth :date date
                                  :people people :location location)))
 
