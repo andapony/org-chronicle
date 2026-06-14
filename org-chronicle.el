@@ -739,7 +739,7 @@ Prompts for the same fields as `org-chronicle-add-event'."
 ;;;###autoload
 (defun org-chronicle-normalize ()
   "Validate and tidy the event heading at point.
-Mirror TRUTH and LIFE-EVENT to tags, canonicalize PEOPLE/SUBJECT/LOCATION
+Mirror TRUTH and LIFE-EVENT to tags, canonicalize PEOPLE/SUBJECT/TOPICS/LOCATION
 names via aliases, accrue a name-change's NEW-NAME as a subject alias, and
 warn if DATE does not parse."
   (interactive)
@@ -751,7 +751,7 @@ warn if DATE does not parse."
          (date (org-entry-get nil "DATE")))
     (when (and date (null (org-chronicle--date-parse date)))
       (message "org-chronicle: DATE %S does not parse" date))
-    (dolist (prop '("PEOPLE" "SUBJECT"))
+    (dolist (prop '("PEOPLE" "SUBJECT" "TOPICS"))
       (let ((vals (org-chronicle--split (org-entry-get nil prop))))
         (when vals
           (org-set-property

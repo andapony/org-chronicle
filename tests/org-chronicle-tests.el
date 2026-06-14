@@ -468,8 +468,25 @@
       (should (member "fictional" (org-get-tags)))
       (should (member "name_change" (org-get-tags))))))
 
-
-
+(ert-deftest org-chronicle-test-normalize-canonicalizes-topics ()
+  "Normalize rewrites TOPICS to canonical names via the alias index."
+  (cl-letf (((symbol-function 'org-chronicle--all-entities)
+             (lambda () (list (list :id "t-ship" :name "Maritime shipping" :kind 'topic
+                                    :aliases '("shipping"))))))
+    (org-chronicle-test--with-org "\
+* Wreck
+:PROPERTIES:
+:TRUTH: fictional
+:DATE: <1851-11-03>
+:TOPICS: shipping
+:END:
+"
+      (goto-char (point-min))
+      (org-chronicle-normalize)
+      (should (equal (org-entry-get nil "TOPICS") "Maritime shipping"))
+      ;; Topics are NOT mirrored to an Org tag.
+      (should-not (member "shipping" (org-get-tags)))
+      (should-not (member "Maritime_shipping" (org-get-tags))))))
 
 ;;;; Entity creation
 
