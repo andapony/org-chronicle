@@ -615,6 +615,14 @@ in CANDIDATES are still accepted."
               nil nil)))
     (and (not (string-blank-p loc)) loc)))
 
+(defun org-chronicle--read-date (prompt)
+  "Read a required date string with PROMPT; signal a `user-error' if blank."
+  (let ((date (read-string prompt)))
+    (if (string-blank-p date)
+        (user-error "A date is required")
+      date)))
+
+
 
 
 
@@ -644,7 +652,7 @@ in CANDIDATES are still accepted."
   "Interactively capture a new event into `org-chronicle-timeline-file'."
   (interactive)
   (let* ((title (read-string "Event title: "))
-         (date (read-string "Date (YYYY-MM-DD): "))
+         (date (org-chronicle--read-date "Date (YYYY-MM-DD): "))
          (date-end (read-string "End date (blank for none): "))
          (truth (completing-read "Truth: " org-chronicle--truth-values nil t
                                  nil nil "historical"))
@@ -661,7 +669,7 @@ in CANDIDATES are still accepted."
   "Return a new event heading string for use in `org-capture' templates.
 Prompts for the same fields as `org-chronicle-add-event'."
   (let ((title (read-string "Event title: "))
-        (date (read-string "Date (YYYY-MM-DD): "))
+        (date (org-chronicle--read-date "Date (YYYY-MM-DD): "))
         (truth (completing-read "Truth: " org-chronicle--truth-values nil t
                                 nil nil "historical"))
         (people (org-chronicle--read-people))
@@ -1005,7 +1013,7 @@ KIND and SUBJECTS may be supplied non-interactively (used by
                                  acc))
                          (nreverse acc))))
          (new-name (and (equal kind "name-change") (read-string "New name: ")))
-         (date (read-string "Date (YYYY-MM-DD): "))
+         (date (org-chronicle--read-date "Date (YYYY-MM-DD): "))
          (truth (completing-read "Truth: " org-chronicle--truth-values nil t
                                  nil nil "historical"))
          (parents (and (equal kind "birth")

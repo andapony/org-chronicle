@@ -325,6 +325,14 @@
     (should (string-match-p ":PEOPLE:   Grant; Pemberton" s))
     (should (string-match-p ":LOCATION: Vicksburg" s))))
 
+(ert-deftest org-chronicle-test-read-date-requires-value ()
+  "A blank date prompt signals a `user-error'; a real value passes through."
+  (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "")))
+    (should-error (org-chronicle--read-date "Date: ") :type 'user-error))
+  (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "1863-07-04")))
+    (should (equal (org-chronicle--read-date "Date: ") "1863-07-04"))))
+
+
 (ert-deftest org-chronicle-test-life-event-title ()
   (should (equal (org-chronicle--life-event-title "birth" '("Grant") nil) "Birth of Grant"))
   (should (equal (org-chronicle--life-event-title "death" '("Grant") nil) "Death of Grant"))
