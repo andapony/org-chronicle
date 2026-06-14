@@ -474,22 +474,24 @@ date.  EVENTS are assumed already filtered and sorted ascending."
   :type 'integer
   :group 'org-chronicle)
 
-(defun org-chronicle--lanes-from-params (people locations entities mode)
-  "Build the list of lane plists from PEOPLE and LOCATIONS name lists.
+(defun org-chronicle--lanes-from-params (people locations topics entities mode)
+  "Build the list of lane plists from PEOPLE, LOCATIONS, and TOPICS name lists.
 MODE is `:collapse' or `:expand'; ENTITIES is the entity list."
   (append
    (cl-loop for n in people
             append (org-chronicle--build-lanes-for n 'people entities mode))
    (cl-loop for n in locations
-            append (org-chronicle--build-lanes-for n 'location entities mode))))
+            append (org-chronicle--build-lanes-for n 'location entities mode))
+   (cl-loop for n in topics
+            append (org-chronicle--build-lanes-for n 'topic entities mode))))
 
-(cl-defun org-chronicle--compose (&key people locations truth from until (mode :collapse))
+(cl-defun org-chronicle--compose (&key people locations topics truth from until (mode :collapse))
   "Return the rendered timeline string for the given filters.
-PEOPLE/LOCATIONS are name lists naming lanes; TRUTH a list of allowed
+PEOPLE/LOCATIONS/TOPICS are name lists naming lanes; TRUTH a list of allowed
 truth strings; FROM/UNTIL date strings; MODE `:collapse' or `:expand'."
   (let* ((entities (org-chronicle--all-entities))
          (idx (org-chronicle--alias-index entities))
-         (lanes (org-chronicle--lanes-from-params people locations entities mode))
+         (lanes (org-chronicle--lanes-from-params people locations topics entities mode))
          (events (org-chronicle--filter-events
                   (org-chronicle--all-events) idx
                   :truth truth
@@ -528,9 +530,10 @@ truth strings; FROM/UNTIL date strings; MODE `:collapse' or `:expand'."
     (apply #'org-chronicle-timeline org-chronicle--view-args)))
 
 ;;;###autoload
-(cl-defun org-chronicle-timeline (&key people locations truth from until (mode :collapse))
-  "Display a swimlane timeline filtered by PEOPLE, LOCATIONS, TRUTH, FROM, UNTIL.
-PEOPLE and LOCATIONS are lists of names that become lanes.  MODE is
+(cl-defun org-chronicle-timeline (&key people locations topics truth from until (mode :collapse))
+  "Display a swimlane timeline filtered by PEOPLE, LOCATIONS, TOPICS, TRUTH,
+FROM, UNTIL.
+PEOPLE, LOCATIONS, and TOPICS are lists of names that become lanes.  MODE is
 `:collapse' (default) or `:expand' for groups/parent places.  Interactively,
 prompts for people, locations, and a truth subset, completing against the
 names used in events and promoted entities."
@@ -546,9 +549,9 @@ names used in events and promoted entities."
                           '("historical" "fictionalized" "fictional"))))
                   (and v (delete "" v)))
          :mode (if (y-or-n-p "Expand groups into member lanes? ") :expand :collapse)))
-  (let ((args (list :people people :locations locations :truth truth
-                    :from from :until until :mode mode))
-        (text (org-chronicle--compose :people people :locations locations
+  (let ((args (list :people people :locations locations :topics topics
+                    :truth truth :from from :until until :mode mode))
+        (text (org-chronicle--compose :people people :locations locations :topics topics
                                       :truth truth :from from :until until :mode mode)))
     (with-current-buffer (get-buffer-create "*org-chronicle*")
       (org-chronicle-view-mode)
@@ -562,7 +565,7 @@ names used in events and promoted entities."
 ;;;###autoload
 (defun org-dblock-write:chronicle (params)
   "Org dynamic-block writer: fill the block with a timeline per PARAMS.
-PARAMS keys mirror `org-chronicle-timeline' (:people :locations :truth
+PARAMS keys mirror `org-chronicle-timeline' (:people :topics :locations :truth
 :from :until :mode)."
   (insert (apply #'org-chronicle--compose params)))
 

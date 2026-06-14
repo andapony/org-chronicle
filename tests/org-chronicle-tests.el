@@ -346,6 +346,31 @@
       (org-chronicle-dblock-write '(:people ("Grant")))
       (should (string-match-p "Vicksburg \\[H\\]" (buffer-string))))))
 
+(ert-deftest org-chronicle-test-compose-topic-column ()
+  "Compose builds a topic column holding events that carry the topic."
+  (cl-letf (((symbol-function 'org-chronicle--all-events)
+             (lambda () (list (list :title "Wreck" :truth "fictional"
+                                    :date (org-chronicle--date-parse "1851-11-03")
+                                    :people nil :location nil
+                                    :topics '("shipping") :marker nil))))
+            ((symbol-function 'org-chronicle--all-entities) (lambda () '())))
+    (let ((text (org-chronicle--compose :topics '("shipping"))))
+      (should (string-match-p "SHIPPING" text))
+      (should (string-match-p "Wreck \\[F\\]" text)))))
+
+(ert-deftest org-chronicle-test-dblock-topics ()
+  "The chronicle dynamic block accepts a :topics parameter."
+  (cl-letf (((symbol-function 'org-chronicle--all-events)
+             (lambda () (list (list :title "Wreck" :truth "fictional"
+                                    :date (org-chronicle--date-parse "1851-11-03")
+                                    :people nil :location nil
+                                    :topics '("shipping") :marker nil))))
+            ((symbol-function 'org-chronicle--all-entities) (lambda () '())))
+    (with-temp-buffer
+      (org-mode)
+      (org-chronicle-dblock-write '(:topics ("shipping")))
+      (should (string-match-p "Wreck \\[F\\]" (buffer-string))))))
+
 ;;;; Capture
 
 (ert-deftest org-chronicle-test-event-string ()
