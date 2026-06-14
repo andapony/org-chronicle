@@ -10,23 +10,30 @@
   | DATE-END  | optional end (durations)                           |
   | PEOPLE    | semicolon-separated participant names               |
   | LOCATION  | place name                                         |
+  | TOPICS    | semicolon-separated topic names                    |
   | SOURCES   | semicolon-separated id links and/or free text       |
   TRUTH is mirrored to a tag of the same name by =org-chronicle-normalize=.
 
 * Entities (people/places files)
   One heading per entity; identified by a =KIND= property.
-  | Property   | Meaning                                  |
-  |------------+------------------------------------------|
-  | KIND       | person \vert place \vert group           |
-  | ALIASES    | semicolon-separated name variants        |
-  | MEMBER-OF  | group ids (people)                       |
-  | PART-OF    | parent place id (places)                 |
-  | PARENTS    | parent person ids                        |
-  | SPOUSE     | spouse person ids                        |
-  | BIRTHPLACE | place id                                 |
-  | DEATHPLACE | place id                                 |
+  | Property   | Meaning                                    |
+  |------------+--------------------------------------------|
+  | KIND       | person \vert place \vert group \vert topic |
+  | ALIASES    | semicolon-separated name variants          |
+  | MEMBER-OF  | group ids (people)                         |
+  | PART-OF    | parent place id (places)                   |
+  | PARENTS    | parent person ids                          |
+  | SPOUSE     | spouse person ids                          |
+  | BIRTHPLACE | place id                                   |
+  | DEATHPLACE | place id                                   |
+
+  Topics are thematic threads (e.g. crime, shipping, census).  A topic
+  entity carries only =ALIASES= and an optional =DESCRIPTION=; it has no
+  existence span and is filed in =org-chronicle-topics-file=.  Create
+  topics with =M-x org-chronicle-add-topic=.
 
 ** Existence spans (by kind)
+   Applies to =person=, =place=, and =group= only; topics have no span.
    | Kind   | Start property | End property |
    |--------+----------------+-------------|
    | person | BORN           | DIED        |
@@ -53,5 +60,7 @@
   =M-x org-chronicle-timeline=, or a dynamic block:
   : #+BEGIN: chronicle :people ("Grant" "Lincoln") :from "1862" :until "1865" :mode :collapse
   : #+END:
-  Parameters: =:people= =:locations= (lane names), =:truth= (subset),
+  Parameters: =:people= =:locations= =:topics= (lane names), =:truth= (subset),
   =:from= =:until= (date strings), =:mode= (=:collapse= or =:expand=).
+  Topic columns can show a per-topic glyph and face via
+  =org-chronicle-topic-glyphs= and =org-chronicle-topic-faces=.

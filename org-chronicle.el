@@ -532,12 +532,12 @@ truth strings; FROM/UNTIL date strings; MODE `:collapse' or `:expand'."
 
 ;;;###autoload
 (cl-defun org-chronicle-timeline (&key people locations topics truth from until (mode :collapse))
-  "Display a swimlane timeline filtered by PEOPLE, LOCATIONS, TOPICS, TRUTH,
-FROM, UNTIL.
-PEOPLE, LOCATIONS, and TOPICS are lists of names that become lanes.  MODE is
-`:collapse' (default) or `:expand' for groups/parent places.  Interactively,
-prompts for people, locations, topics, and a truth subset, completing against
-the names used in events and promoted entities."
+  "Display a swimlane timeline of events arranged into lanes.
+PEOPLE, LOCATIONS, and TOPICS are lists of names that become lanes; results are
+filtered by TRUTH and the FROM/UNTIL date range.  MODE is `:collapse' (default)
+or `:expand' for groups/parent places.  Interactively, prompts for people,
+locations, topics, and a truth subset, completing against the names used in
+events and promoted entities."
   (interactive
    (list :people (org-chronicle--read-names
                   "People/groups (lanes): "
@@ -795,7 +795,6 @@ warn if DATE does not parse."
   "File where new topic entities are filed."
   :type 'file
   :group 'org-chronicle)
-
 
 (cl-defun org-chronicle--entity-string (&key name kind aliases props)
   "Return the Org heading text for a new entity named NAME.

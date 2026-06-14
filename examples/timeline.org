@@ -4,6 +4,7 @@
 # A small example mixing real and invented 19th-century U.S. events.
 # Point `org-chronicle-timeline-file' at a copy of this file, then try
 #   M-x org-chronicle-timeline   (e.g. people = Ulysses S. Grant, Eliza Harlan)
+#   (topics work as lanes too, e.g. military, politics)
 #   M-x org-chronicle-lint
 # Each heading mirrors its TRUTH value as a tag, as org-chronicle-normalize
 # would set it.  See doc/chronicle-schema.org for the full schema.
@@ -15,6 +16,7 @@
 :DATE:      <1862-02-16>
 :PEOPLE:    Ulysses S. Grant; Simon B. Buckner
 :LOCATION:  Fort Donelson, Tennessee
+:TOPICS:    military
 :SOURCES:   Foote, The Civil War, vol. 1, pp. 204-215
 :END:
 Grant's "unconditional surrender" demand makes his reputation.
@@ -26,6 +28,7 @@ Grant's "unconditional surrender" demand makes his reputation.
 :DATE:      <1863-07-04>
 :PEOPLE:    Ulysses S. Grant; John C. Pemberton
 :LOCATION:  Vicksburg, Mississippi
+:TOPICS:    military
 :SOURCES:   Foote, The Civil War, vol. 2, p. 412
 :END:
 
@@ -36,6 +39,7 @@ Grant's "unconditional surrender" demand makes his reputation.
 :DATE:      <1863-11-19>
 :PEOPLE:    Abraham Lincoln
 :LOCATION:  Gettysburg, Pennsylvania
+:TOPICS:    politics
 :END:
 
 * A wager over the river road                                  :fictionalized:

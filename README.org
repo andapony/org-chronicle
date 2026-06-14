@@ -34,6 +34,7 @@ data-file locations:
 
 (use-package org-chronicle
   :commands (org-chronicle-add-event
+             org-chronicle-add-topic
              org-chronicle-timeline
              org-chronicle-lint)
   :custom
@@ -77,6 +78,13 @@ RET org-chronicle RET=.  The key variables are:
   entities are filed (default =~/org/people.org=).
 - =org-chronicle-places-file= :: File where new place entities are
   filed (default =~/org/places.org=).
+- =org-chronicle-topics-file= :: File where new topic entities are
+  filed (default =~/org/topics.org=); included in the default value of
+  =org-chronicle-entities-files=.
+- =org-chronicle-topic-glyphs= :: Alist mapping topic names to glyph
+  strings shown in that topic's timeline column (default =nil=).
+- =org-chronicle-topic-faces= :: Alist mapping topic names to faces
+  applied in that topic's timeline column (default =nil=).
 - =org-chronicle-lane-column-width= :: Width in columns of each lane in
   the timeline view (default =22=).
 
@@ -84,8 +92,8 @@ RET org-chronicle RET=.  The key variables are:
 
 Use =M-x org-chronicle-add-event= to interactively capture a new event
 into the timeline file.  It prompts for title, date, truth level
-(=historical= / =fictionalized= / =fictional=), participants, and
-location, then appends the heading and runs =org-chronicle-normalize=.
+(=historical= / =fictionalized= / =fictional=), participants, location,
+and topics, then appends the heading and runs =org-chronicle-normalize=.
 
 For integration with =org-capture=, use =org-chronicle-capture= as the
 template body:
@@ -108,6 +116,32 @@ back to the =:BORN:=/=:DIED:=/=:BIRTHPLACE:=/=:DEATHPLACE:=/=:SPOUSE:=
 properties when no event exists.  =org-chronicle-add-person= offers to
 create a birth event after filing the person.
 
+* Topics
+
+A topic is a thematic thread that cuts across events — crime, shipping,
+census, disease, or any other recurring theme in your project.  Events
+carry topics in a =:TOPICS:= property (semicolon-separated, alias-resolved
+like =:PEOPLE:=).
+
+Create a topic entity with =M-x org-chronicle-add-topic=, which prompts
+for a name, optional aliases, and an optional description, then files the
+heading into =org-chronicle-topics-file= (default =~/org/topics.org=).
+That file is automatically included in =org-chronicle-entities-files=.
+
+In the timeline view, each topic becomes its own swimlane column.  Pass
+topic names interactively via the "Topics (lanes): " prompt, or set the
+=:topics= parameter in a dynamic block:
+
+#+begin_example
+#+BEGIN: chronicle :topics ("crime" "shipping") :from "1850" :until "1855"
+#+END:
+#+end_example
+
+Per-topic glyphs and faces are configurable via
+=org-chronicle-topic-glyphs= (alist of topic-name to glyph string) and
+=org-chronicle-topic-faces= (alist of topic-name to face).  A glyph or
+face defined for a topic applies only within that topic's own column.
+
 * Timeline view
 
 =M-x org-chronicle-timeline= prompts for lane names (people or places),
@@ -122,9 +156,9 @@ The same view is available as an Org dynamic block:
 #+END:
 #+end_example
 
-Parameters: =:people= and =:locations= (lists of lane names), =:truth=
-(list of allowed truth strings), =:from= and =:until= (date strings),
-=:mode= (=:collapse= or =:expand= for groups/parent places).
+Parameters: =:people=, =:locations=, and =:topics= (lists of lane names),
+=:truth= (list of allowed truth strings), =:from= and =:until= (date
+strings), =:mode= (=:collapse= or =:expand= for groups/parent places).
 
 * Sources
 
