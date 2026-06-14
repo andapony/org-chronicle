@@ -250,6 +250,22 @@
     (should (string-match-p "Vicksburg \\[H\\]" text))
     (should (string-match-p "Address \\[H\\]" text))))
 
+;;;; View
+
+(ert-deftest org-chronicle-test-dblock-writer ()
+  (cl-letf (((symbol-function 'org-chronicle--all-events)
+             (lambda () (list (list :title "Vicksburg" :truth "historical"
+                                    :date (org-chronicle--date-parse "1863-07-04")
+                                    :people '("Grant") :location nil :marker nil))))
+            ((symbol-function 'org-chronicle--all-entities) (lambda () '())))
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+BEGIN: chronicle :people (\"Grant\")\n#+END:\n")
+      (goto-char (point-min))
+      (org-chronicle-dblock-write '(:people ("Grant")))
+      (should (string-match-p "Vicksburg \\[H\\]" (buffer-string))))))
+
+
 
 
 

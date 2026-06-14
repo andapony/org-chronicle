@@ -370,6 +370,111 @@ date.  EVENTS are assumed already filtered and sorted ascending."
           (push row lines))))
     (mapconcat #'identity (nreverse lines) "\n")))
 
+;;;; View
+
+(defcustom org-chronicle-lane-column-width 22
+  "Width in columns of each lane in the timeline view."
+  :type 'integer
+  :group 'org-chronicle)
+
+(defun org-chronicle--lanes-from-params (people locations entities mode)
+  "Build the list of lane plists from PEOPLE and LOCATIONS name lists.
+MODE is `:collapse' or `:expand'; ENTITIES is the entity list."
+  (append
+   (cl-loop for n in people
+            append (org-chronicle--build-lanes-for n 'people entities mode))
+   (cl-loop for n in locations
+            append (org-chronicle--build-lanes-for n 'location entities mode))))
+
+(cl-defun org-chronicle--compose (&key people locations truth from until (mode :collapse))
+  "Return the rendered timeline string for the given filters.
+PEOPLE/LOCATIONS are name lists naming lanes; TRUTH a list of allowed
+truth strings; FROM/UNTIL date strings; MODE `:collapse' or `:expand'."
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities))
+         (lanes (org-chronicle--lanes-from-params people locations entities mode))
+         (events (org-chronicle--filter-events
+                  (org-chronicle--all-events) idx
+                  :truth truth
+                  :from (and from (org-chronicle--date-parse from))
+                  :until (and until (org-chronicle--date-parse until)))))
+    (org-chronicle--render events lanes idx org-chronicle-lane-column-width)))
+
+(defvar org-chronicle-view-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'org-chronicle-view-goto)
+    (define-key map (kbd "q") #'quit-window)
+    (define-key map (kbd "g") #'org-chronicle-view-refresh)
+    map)
+  "Keymap for `org-chronicle-view-mode'.")
+
+(define-derived-mode org-chronicle-view-mode special-mode "Chronicle"
+  "Major mode for the read-only swimlane timeline view.")
+
+(defvar-local org-chronicle--view-args nil
+  "The plist of arguments that produced the current view, for refresh.")
+
+(defun org-chronicle-view-goto ()
+  "Jump to the event heading for the cell at point."
+  (interactive)
+  (let ((m (get-text-property (point) 'org-chronicle-marker)))
+    (if (and m (marker-buffer m))
+        (progn (pop-to-buffer (marker-buffer m))
+               (goto-char m)
+               (org-reveal))
+      (message "No event at point"))))
+
+(defun org-chronicle-view-refresh ()
+  "Recompute the current timeline view."
+  (interactive)
+  (when org-chronicle--view-args
+    (apply #'org-chronicle-timeline org-chronicle--view-args)))
+
+;;;###autoload
+(cl-defun org-chronicle-timeline (&key people locations truth from until (mode :collapse))
+  "Display a swimlane timeline filtered by PEOPLE, LOCATIONS, TRUTH, FROM, UNTIL.
+PEOPLE and LOCATIONS are lists of names that become lanes.  MODE is
+`:collapse' (default) or `:expand' for groups/parent places.  Interactively,
+prompts for people, locations, and a truth subset."
+  (interactive
+   (let* ((entities (org-chronicle--all-entities))
+          (names (mapcar (lambda (e) (plist-get e :name)) entities)))
+     (list :people (completing-read-multiple "People/groups (lanes): " names)
+           :locations (completing-read-multiple "Places (lanes): " names)
+           :truth (let ((v (completing-read-multiple
+                            "Truth (blank=all): "
+                            '("historical" "fictionalized" "fictional"))))
+                    (and v (delete "" v)))
+           :mode (if (y-or-n-p "Expand groups into member lanes? ") :expand :collapse))))
+  (let ((args (list :people people :locations locations :truth truth
+                    :from from :until until :mode mode))
+        (text (org-chronicle--compose :people people :locations locations
+                                      :truth truth :from from :until until :mode mode)))
+    (with-current-buffer (get-buffer-create "*org-chronicle*")
+      (org-chronicle-view-mode)
+      (setq org-chronicle--view-args args)
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert text))
+      (goto-char (point-min))
+      (pop-to-buffer (current-buffer)))))
+
+;;;###autoload
+(defun org-dblock-write:chronicle (params)
+  "Org dynamic-block writer: fill the block with a timeline per PARAMS.
+PARAMS keys mirror `org-chronicle-timeline' (:people :locations :truth
+:from :until :mode)."
+  (insert (apply #'org-chronicle--compose params)))
+
+;; Test-facing alias for the dynamic-block writer.
+(defalias 'org-chronicle-dblock-write 'org-dblock-write:chronicle)
+
+
+
+
+
+
+
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)
