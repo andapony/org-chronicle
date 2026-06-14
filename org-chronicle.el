@@ -3,7 +3,7 @@
 ;; Copyright (C) 2026 Rob Duncan
 
 ;; Author: Rob Duncan
-;; URL: https://github.com/YOUR-USERNAME/org-chronicle
+;; URL: https://github.com/andapony/org-chronicle
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1") (org "9.4"))
 ;; Keywords: outlines, calendar
