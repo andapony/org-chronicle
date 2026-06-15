@@ -399,6 +399,16 @@
             (should (string-match-p ":WIKIDATA:.*Q123" people))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-wikidata-test-events-file ()
+  (let ((org-chronicle-root "/tmp/octw/"))
+    (let ((org-chronicle-wikidata-file nil))
+      (should (equal (org-chronicle-wikidata--events-file)
+                     "/tmp/octw/imported/events.org")))
+    (let ((org-chronicle-wikidata-file "/tmp/elsewhere.org"))
+      (should (equal (org-chronicle-wikidata--events-file)
+                     "/tmp/elsewhere.org")))))
+
+
 
 
 

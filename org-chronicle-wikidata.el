@@ -599,6 +599,20 @@ annotated with :status and :current."
                  (append (list :status status :current cur) c)))))
          changes)))
 
+(defcustom org-chronicle-wikidata-file nil
+  "File where imported Wikidata events are filed.
+When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
+  :type '(choice (const :tag "Default under root" nil) file)
+  :group 'org-chronicle-wikidata)
+
+(defun org-chronicle-wikidata--events-file ()
+  "Return the file imported events are written to.
+Defaults to \"imported/events.org\" under `org-chronicle-root'."
+  (or org-chronicle-wikidata-file
+      (expand-file-name "imported/events.org" org-chronicle-root)))
+
+
+
 ;;;###autoload
 (defun org-chronicle-wikidata-reconcile ()
   "Re-query the stored Wikidata item and present drift as opt-in pulls."
