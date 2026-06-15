@@ -590,5 +590,42 @@
             (should (string-match-p ":NOTES: *hand-written" body)))) ; unmanaged prop preserved
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-wikidata-test-classify-changes ()
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Ada\n:PROPERTIES:\n:KIND: person\n:BORN: <1815-12-10>\n:END:\n")
+    (insert "* Birth of Ada\n:PROPERTIES:\n:IMPORT-KEY: birth:ADA\n:DATE: <1815-12-10>\n:END:\n")
+    (goto-char (point-min))
+    (let* ((marker (point-marker))
+           (index (make-hash-table :test 'equal)))
+      (save-excursion
+        (goto-char (point-min))
+        (search-forward "* Birth of Ada")
+        (beginning-of-line)
+        (puthash "birth:ADA" (point-marker) index))
+      (let* ((changes
+              (list
+               (list :target 'entity :property "BORN" :value "<1815-12-10>")
+               (list :target 'entity :property "DIED" :value "<1852-11-27>")
+               (list :target 'event :provenance "u"
+                     :event (list :kind "birth" :life-event "birth" :date "1815-12-10"))
+               (list :target 'event :provenance "u"
+                     :event (list :kind "marriage" :life-event "marriage" :date "1835"))))
+             (result (org-chronicle-wikidata--classify-changes changes marker "ADA" "Q7259" index)))
+        (cl-flet ((by-prop (p) (cl-find p result
+                                        :key (lambda (c) (plist-get c :property))
+                                        :test (lambda (a b) (and b (equal a b)))))
+                  (event-of (k) (cl-find k result
+                                         :key (lambda (c) (and (eq (plist-get c :target) 'event)
+                                                               (plist-get (plist-get c :event) :kind)))
+                                         :test (lambda (a b) (equal a b)))))
+          (should (= (length result) 3))
+          (should (eq (plist-get (by-prop "BORN") :status) 'same))
+          (should (eq (plist-get (by-prop "DIED") :status) 'new))
+          (let ((be (event-of "birth")))
+            (should (equal (plist-get be :key) "birth:ADA"))
+            (should (eq (plist-get be :status) 'same))))))))
+
+
 (provide 'org-chronicle-wikidata-tests)
 ;;; org-chronicle-wikidata-tests.el ends here

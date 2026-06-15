@@ -560,33 +560,42 @@ Wikidata item, review the proposed edits, and write the approved set."
            (subject-orgid (org-with-point-at marker (org-id-get-create)))
            (index (org-chronicle-wikidata--events-index)))
       (setq changes
-            (delq nil
-                  (mapcar
-                   (lambda (c)
-                     (pcase (plist-get c :target)
-                       ('entity
-                        (plist-put c :status
-                                   (org-chronicle-wikidata--classify
-                                    c (org-with-point-at marker
-                                                         (org-entry-get nil (plist-get c :property)))))
-                        c)
-                       ('event
-                        (let ((key (org-chronicle-wikidata--event-key
-                                    (plist-get c :event) subject-orgid subject-qid)))
-                          (when key
-                            (plist-put c :key key)
-                            (plist-put c :status
-                                       (org-chronicle-wikidata--classify-event
-                                        c (gethash key index)))
-                            c)))))
-                   changes)))
+            (org-chronicle-wikidata--classify-changes
+             changes marker subject-orgid subject-qid index))
       (org-chronicle-wikidata--review
        changes
        (lambda (selected)
          (org-with-point-at marker
-                            (org-chronicle-wikidata--apply-changes selected index)
-                            (when (buffer-file-name) (save-buffer))
-                            (message "Imported %d change(s) for %s" (length selected) seed)))))))
+			    (org-chronicle-wikidata--apply-changes selected index)
+			    (when (buffer-file-name) (save-buffer))
+			    (message "Imported %d change(s) for %s" (length selected) seed)))))))
+
+(defun org-chronicle-wikidata--classify-changes (changes marker subject-orgid subject-qid index)
+  "Stamp each proposed change with :status (and event :key); drop keyless events.
+CHANGES is the raw change list.  Entity changes classify against the heading at
+MARKER; event changes classify against INDEX by their IMPORT-KEY derived from
+SUBJECT-ORGID/SUBJECT-QID."
+  (delq nil
+        (mapcar
+         (lambda (c)
+           (pcase (plist-get c :target)
+             ('entity
+              (plist-put c :status
+                         (org-chronicle-wikidata--classify
+                          c (org-with-point-at marker
+					       (org-entry-get nil (plist-get c :property)))))
+              c)
+             ('event
+              (let ((key (org-chronicle-wikidata--event-key
+                          (plist-get c :event) subject-orgid subject-qid)))
+                (when key
+                  (plist-put c :key key)
+                  (plist-put c :status
+                             (org-chronicle-wikidata--classify-event
+                              c (gethash key index)))
+                  c)))))
+         changes)))
+
 
 (defun org-chronicle-wikidata--diff (changes current-fn)
   "Return entity edits that drift from local values via CURRENT-FN.
