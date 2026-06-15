@@ -553,19 +553,27 @@ MODE is `:collapse' or `:expand'; ENTITIES is the entity list."
    (cl-loop for n in topics
             append (org-chronicle--build-lanes-for n 'topic entities mode))))
 
-(cl-defun org-chronicle--compose (&key people locations topics truth from until (mode :collapse))
+(cl-defun org-chronicle--compose (&key people locations topics truth from until
+                                       (mode :collapse)
+                                       (root nil root-p)
+                                       (exclude nil exclude-p))
   "Return the rendered timeline string for the given filters.
-PEOPLE/LOCATIONS/TOPICS are name lists naming lanes; TRUTH a list of allowed
-truth strings; FROM/UNTIL date strings; MODE `:collapse' or `:expand'."
-  (let* ((entities (org-chronicle--all-entities))
-         (idx (org-chronicle--alias-index entities))
-         (lanes (org-chronicle--lanes-from-params people locations topics entities mode))
-         (events (org-chronicle--filter-events
-                  (org-chronicle--all-events) idx
-                  :truth truth
-                  :from (and from (org-chronicle--date-parse from))
-                  :until (and until (org-chronicle--date-parse until)))))
-    (org-chronicle--render events lanes idx org-chronicle-lane-column-width)))
+PEOPLE/LOCATIONS/TOPICS are name lists naming lanes; TRUTH a list of
+allowed truth strings; FROM/UNTIL date strings; MODE `:collapse' or
+`:expand'.  ROOT and EXCLUDE, when supplied, override
+`org-chronicle-root' and `org-chronicle-exclude' for this gather
+\(used to keep view refresh consistent with dir-local values)."
+  (let ((org-chronicle-root (if root-p root org-chronicle-root))
+        (org-chronicle-exclude (if exclude-p exclude org-chronicle-exclude)))
+    (let* ((entities (org-chronicle--all-entities))
+           (idx (org-chronicle--alias-index entities))
+           (lanes (org-chronicle--lanes-from-params people locations topics entities mode))
+           (events (org-chronicle--filter-events
+                    (org-chronicle--all-events) idx
+                    :truth truth
+                    :from (and from (org-chronicle--date-parse from))
+                    :until (and until (org-chronicle--date-parse until)))))
+      (org-chronicle--render events lanes idx org-chronicle-lane-column-width))))
 
 (defvar org-chronicle-view-mode-map
   (let ((map (make-sparse-keymap)))
@@ -598,13 +606,19 @@ truth strings; FROM/UNTIL date strings; MODE `:collapse' or `:expand'."
     (apply #'org-chronicle-timeline org-chronicle--view-args)))
 
 ;;;###autoload
-(cl-defun org-chronicle-timeline (&key people locations topics truth from until (mode :collapse))
+(cl-defun org-chronicle-timeline (&key people locations topics truth from until
+                                       (mode :collapse)
+                                       (root nil root-p)
+                                       (exclude nil exclude-p))
   "Display a swimlane timeline of events arranged into lanes.
-PEOPLE, LOCATIONS, and TOPICS are lists of names that become lanes; results are
-filtered by TRUTH and the FROM/UNTIL date range.  MODE is `:collapse' (default)
-or `:expand' for groups/parent places.  Interactively, prompts for people,
-locations, topics, and a truth subset, completing against the names used in
-events and promoted entities."
+PEOPLE, LOCATIONS, and TOPICS are lists of names that become lanes;
+results are filtered by TRUTH and the FROM/UNTIL date range.  MODE is
+`:collapse' (default) or `:expand' for groups/parent places.  ROOT and
+EXCLUDE, when supplied, override `org-chronicle-root' and
+`org-chronicle-exclude' (used to preserve dir-local values on refresh).
+Interactively, prompts for people, locations, topics, and a truth
+subset, completing against the names used in events and promoted
+entities."
   (interactive
    (list :people (org-chronicle--read-names
                   "People/groups (lanes): "
@@ -620,10 +634,14 @@ events and promoted entities."
                           '("historical" "fictionalized" "fictional"))))
                   (and v (delete "" v)))
          :mode (if (y-or-n-p "Expand groups into member lanes? ") :expand :collapse)))
-  (let ((args (list :people people :locations locations :topics topics
-                    :truth truth :from from :until until :mode mode))
-        (text (org-chronicle--compose :people people :locations locations :topics topics
-                                      :truth truth :from from :until until :mode mode)))
+  (let* ((root (if root-p root org-chronicle-root))
+         (exclude (if exclude-p exclude org-chronicle-exclude))
+         (args (list :people people :locations locations :topics topics
+                     :truth truth :from from :until until :mode mode
+                     :root root :exclude exclude))
+         (text (org-chronicle--compose :people people :locations locations :topics topics
+                                       :truth truth :from from :until until :mode mode
+                                       :root root :exclude exclude)))
     (with-current-buffer (get-buffer-create "*org-chronicle*")
       (org-chronicle-view-mode)
       (setq org-chronicle--view-args args)

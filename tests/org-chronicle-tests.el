@@ -403,6 +403,17 @@ directories are created.  The temp dir is removed afterward."
       (should (string-match-p "SHIPPING" text))
       (should (string-match-p "Wreck \\[F\\]" text)))))
 
+(ert-deftest org-chronicle-test-compose-root-override ()
+  "Compose honors an explicit :root override, gathering from it even when the
+global root differs."
+  (org-chronicle-test--with-root
+      '(("timeline.org" . "* Wreck\n:PROPERTIES:\n:TRUTH: fictional\n:DATE: <1851-11-03>\n:PEOPLE: Grant\n:END:\n"))
+    (let ((captured-root org-chronicle-root))
+      ;; Point the global root elsewhere; the override must still win.
+      (let ((org-chronicle-root "/no/such/dir/xyzzy"))
+        (let ((text (org-chronicle--compose :people '("Grant") :root captured-root)))
+          (should (string-match-p "Wreck \\[F\\]" text)))))))
+
 (ert-deftest org-chronicle-test-dblock-topics ()
   "The chronicle dynamic block accepts a :topics parameter."
   (cl-letf (((symbol-function 'org-chronicle--all-events)
