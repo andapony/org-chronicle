@@ -201,6 +201,80 @@ it offers completion over that reading list and builds an =id:= link
 with an optional locator (e.g. page number); otherwise it falls back
 to free-text input.  There is no hard dependency on =org-reading-list=.
 
+* Wikidata integration
+
+The optional =org-chronicle-wikidata= module fetches vitals, kinship
+relations, and curated life events for real historical figures from
+Wikidata and proposes them as opt-in changes to your chronicle.  Load it
+with:
+
+#+begin_src emacs-lisp
+(require 'org-chronicle-wikidata)
+#+end_src
+
+Both commands require network access to Wikidata: =wbsearchentities= (the
+MediaWiki API) for name search and the Wikidata SPARQL Query Service for
+record fetch.
+
+** =org-chronicle-wikidata-import=
+
+=M-x org-chronicle-wikidata-import= imports a person's Wikidata data into
+the chronicle.
+
+*Resolution.* When the heading already has a =WIKIDATA= property the
+stored QID is reused immediately.  Otherwise the command opens a prompt
+seeded with the heading name; pasting a bare QID (e.g. =Q7259=) or a full
+Wikidata URL short-circuits the network search.  Entering a plain name
+queries =wbsearchentities= and presents candidates for selection with
+=completing-read=.  A special affordance exists for kinship properties:
+invoking the command while point is on a =PARENTS= or =SPOUSE= property
+line seeds the search with the first name in that value and then, if the
+person does not already exist as an entity, creates it via
+=org-chronicle-add-person= before enriching it.
+
+*Fetch and review.* The resolved QID is used to run three SPARQL queries
+(vitals, spouses, positions held) against the Wikidata Query Service.
+The results are mapped to a proposed change set covering entity properties
+(=BORN=, =DIED=, =BIRTHPLACE=, =DEATHPLACE=, =PARENTS=, =SPOUSE=,
+=ALIASES=, =WIKIDATA=) and timeline events (birth, death, marriages, and
+curated position events).  A =*Wikidata Import*= buffer opens listing
+each proposed change with its current selection state:
+
+- =TAB= toggles a row selected / deselected.
+- =RET= applies the selected set and closes the buffer.
+- =q= cancels without writing anything.
+
+Vitals and life-event changes are selected by default; curated position
+events are deselected by default.
+
+*What gets written.* Applied entity changes are written as properties on
+the heading.  Applied event changes are appended to the chronicle timeline
+file.  Every imported property is marked =TRUTH: historical= and a
+=SOURCES= link pointing to the Wikidata item URL is recorded on the
+heading.  The QID is also stored in a =WIKIDATA= property for future
+reconciliation.
+
+** =org-chronicle-wikidata-reconcile=
+
+=M-x org-chronicle-wikidata-reconcile= re-queries the Wikidata item
+stored in the heading's =WIKIDATA= property and presents only the changes
+that have drifted from your local copy: fields missing locally or where
+the upstream value differs from what you have.  Fields that already match
+are suppressed.  The same review buffer is used; each row shows whether the
+change is new (absent locally) or a conflict (upstream value differs).
+Nothing is overwritten without explicit selection.
+
+The command requires a =WIKIDATA= property on the heading; if none is
+present it directs you to run =org-chronicle-wikidata-import= first.
+
+** Date coverage
+
+The integration targets mostly-modern, precisely-dated subjects.  Dates
+coarser than a year (decade or century Wikidata precision), BCE dates, and
+dates before the year 1000 CE are not representable by the
+=org-chronicle= date model and are dropped rather than approximated.
+Affected fields are silently omitted from the proposed change set.
+
 * Writing: scenes & continuity
 
 Tie creative prose to the timeline and check it for continuity with the
