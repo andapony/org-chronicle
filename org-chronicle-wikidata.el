@@ -664,6 +664,40 @@ pair of both participants' prefixed QIDs so it is symmetric."
            (org-chronicle-wikidata--apply-changes selected)
            (message "Reconciled %d field(s) for %s" (length selected) name)))))))
 
+(defun org-chronicle-wikidata--events-index ()
+  "Return a hash mapping each IMPORT-KEY to a marker in the events file.
+Scans `org-chronicle-wikidata--events-file'; an absent file yields an empty
+table."
+  (let ((file (org-chronicle-wikidata--events-file))
+        (index (make-hash-table :test 'equal)))
+    (when (file-exists-p file)
+      (with-current-buffer (find-file-noselect file)
+        (org-with-wide-buffer
+         (org-map-entries
+          (lambda ()
+            (let ((key (org-entry-get nil "IMPORT-KEY")))
+              (when key (puthash key (point-marker) index))))))))
+    index))
+
+(defun org-chronicle-wikidata--append-to-events-file (text key index)
+  "Append heading TEXT to the events file, stamp KEY, and register it in INDEX.
+Creates the file's directory if needed, assigns an id, normalizes, and saves."
+  (let ((file (org-chronicle-wikidata--events-file)))
+    (make-directory (file-name-directory file) t)
+    (with-current-buffer (find-file-noselect file)
+      (goto-char (point-max))
+      (unless (bolp) (insert "\n"))
+      (insert text)
+      (forward-line -1)
+      (org-back-to-heading t)
+      (when key (org-set-property "IMPORT-KEY" key))
+      (org-id-get-create)
+      (org-chronicle-normalize)
+      (save-buffer)
+      (when key (puthash key (point-marker) index)))))
+
+
+
 
 
 

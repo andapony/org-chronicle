@@ -464,6 +464,24 @@
   (should (null (org-chronicle-wikidata--event-key
                  (list :kind "position") "ABC" "Q7259"))))
 
+(ert-deftest org-chronicle-wikidata-test-events-index-and-append ()
+  (let* ((root (make-temp-file "octw-root" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root)))
+    (unwind-protect
+        (let ((index (org-chronicle-wikidata--events-index)))
+          (should (= (hash-table-count index) 0))
+          (org-chronicle-wikidata--append-to-events-file
+           "* Birth of X\n:PROPERTIES:\n:DATE: <1815-12-10>\n:END:\n"
+           "birth:ABC" index)
+          (should (gethash "birth:ABC" index))
+          (let ((fresh (org-chronicle-wikidata--events-index)))
+            (should (gethash "birth:ABC" fresh))
+            (org-with-point-at (gethash "birth:ABC" fresh)
+              (should (equal (org-entry-get nil "IMPORT-KEY") "birth:ABC")))))
+      (delete-directory root t))))
+
+
 
 
 
