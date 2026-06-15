@@ -183,16 +183,6 @@ wd:%s p:P39 ?st. ?st ps:P39 ?pos. \
 OPTIONAL { ?st pqv:P580 ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
 OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } }" qid))
 
-(defun org-chronicle-wikidata--dates-query (qid)
-  "Return the SPARQL dates query for QID (one row per birth/death statement)."
-  (format "SELECT ?prop ?value ?prec ?rank WHERE { \
-{ wd:%s p:P569 ?st. ?st psv:P569 ?n. ?n wikibase:timeValue ?value; \
-wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"born\" AS ?prop) } \
-UNION \
-{ wd:%s p:P570 ?st. ?st psv:P570 ?n. ?n wikibase:timeValue ?value; \
-wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"died\" AS ?prop) } }"
-          qid qid))
-
 (defun org-chronicle-wikidata--rank-symbol (uri)
   "Return `preferred', `normal', or `deprecated' for a wikibase:rank URI, else nil."
   (cond ((not (stringp uri)) nil)
@@ -282,7 +272,7 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
   (org-chronicle-wikidata--rows->record
    qid
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--vitals-query qid))
-   (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--dates-query qid))
+   (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--span-query qid "P569" "P570"))
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--spouses-query qid))
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--events-query qid))))
 
@@ -349,18 +339,14 @@ statements are resolved by rank then precision (see
 `org-chronicle-wikidata--select-candidate')."
   (let* ((v (car vitals))
          (alias-str (and v (org-chronicle-wikidata--cell v "aliases")))
-         (cands (org-chronicle-wikidata--dates->candidates dates))
-         (born-sel (org-chronicle-wikidata--select-candidate
-                    (cl-remove-if-not (lambda (c) (equal (plist-get c :prop) "born")) cands)))
-         (died-sel (org-chronicle-wikidata--select-candidate
-                    (cl-remove-if-not (lambda (c) (equal (plist-get c :prop) "died")) cands))))
+         (span (org-chronicle-wikidata--span-select dates)))
     (list
      :qid qid
      :label (and v (org-chronicle-wikidata--cell v "label"))
-     :born (plist-get born-sel :date)
-     :born-alternates (plist-get born-sel :alternates)
-     :died (plist-get died-sel :date)
-     :died-alternates (plist-get died-sel :alternates)
+     :born (plist-get span :start)
+     :born-alternates (plist-get span :start-alternates)
+     :died (plist-get span :end)
+     :died-alternates (plist-get span :end-alternates)
      :birthplace (and v (org-chronicle-wikidata--cell v "birthPlaceLabel"))
      :deathplace (and v (org-chronicle-wikidata--cell v "deathPlaceLabel"))
      :father (and v (org-chronicle-wikidata--cell v "fatherLabel"))

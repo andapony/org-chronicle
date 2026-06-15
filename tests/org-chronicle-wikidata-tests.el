@@ -693,13 +693,6 @@
                               (list (list :date nil :raw "1640-01-01T00:00:00Z"
                                           :precision 8 :rank 'normal))) :date)))))
 
-(ert-deftest org-chronicle-wikidata-test-dates-query ()
-  (let ((q (org-chronicle-wikidata--dates-query "Q935")))
-    (should (string-match-p "wd:Q935" q))
-    (should (string-match-p "P569" q))
-    (should (string-match-p "P570" q))
-    (should (string-match-p "wikibase:rank" q))))
-
 (ert-deftest org-chronicle-wikidata-test-kind-profile ()
   (should (equal (org-chronicle-wikidata--kind-span-pids 'place) '("P571" . "P576")))
   (should (equal (org-chronicle-wikidata--kind-span-props 'group) '("FOUNDED" . "DISBANDED")))
