@@ -249,15 +249,24 @@ each proposed change with its current selection state:
 - =RET= applies the selected set and closes the buffer.
 - =q= cancels without writing anything.
 
-Vitals and life-event changes are selected by default; curated position
-events are deselected by default.
+New vitals and life-event changes are selected by default; curated
+position events are deselected by default.  Changes that already match
+your copy, or that conflict with a value you have, are shown but left
+unselected, so a re-import never overwrites anything without an explicit
+choice.
 
 *What gets written.* Applied entity changes are written as properties on
-the heading.  Applied event changes are appended to the chronicle timeline
-file.  Every imported property is marked =TRUTH: historical= and a
-=SOURCES= link pointing to the Wikidata item URL is recorded on the
-heading.  The QID is also stored in a =WIKIDATA= property for future
-reconciliation.
+the heading (in place, so a re-import refreshes rather than duplicates).
+Applied event changes are written to the imported-events file
+(=org-chronicle-wikidata-file=, default =imported/events.org= under the
+root; created on demand and scanned like any other chronicle file, so its
+events appear interleaved with your authored ones on the timeline).  Each
+imported event carries an =IMPORT-KEY= identifying the real-world event
+independently of its source, so re-running an import updates the keyed
+heading in place instead of appending a duplicate.  Every imported
+property and event is marked =TRUTH: historical= and records a =SOURCES=
+link to the Wikidata item URL; the QID is stored in a =WIKIDATA= property
+for future reconciliation.
 
 ** =org-chronicle-wikidata-reconcile=
 
