@@ -151,6 +151,49 @@ Each candidate is (:qid :label :description)."
                     :description (or (alist-get 'description hit) "")))
             (alist-get 'search data))))
 
+(defun org-chronicle-wikidata--vitals-query (qid)
+  "Return the SPARQL vitals query for QID (single result row)."
+  (format "SELECT ?born ?bornPrec ?died ?diedPrec ?birthPlaceLabel \
+?deathPlaceLabel ?fatherLabel ?motherLabel \
+(GROUP_CONCAT(DISTINCT ?alias; separator=\"\\u001f\") AS ?aliases) WHERE { \
+BIND(wd:%s AS ?p) \
+OPTIONAL { ?p p:P569/psv:P569 ?bn. ?bn wikibase:timeValue ?born; wikibase:timePrecision ?bornPrec. } \
+OPTIONAL { ?p p:P570/psv:P570 ?dn. ?dn wikibase:timeValue ?died; wikibase:timePrecision ?diedPrec. } \
+OPTIONAL { ?p wdt:P19 ?birthPlace. } OPTIONAL { ?p wdt:P20 ?deathPlace. } \
+OPTIONAL { ?p wdt:P22 ?father. } OPTIONAL { ?p wdt:P25 ?mother. } \
+OPTIONAL { ?p skos:altLabel ?alias. FILTER(LANG(?alias)=\"en\") } \
+SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } } \
+GROUP BY ?born ?bornPrec ?died ?diedPrec ?birthPlaceLabel ?deathPlaceLabel \
+?fatherLabel ?motherLabel" qid))
+
+(defun org-chronicle-wikidata--spouses-query (qid)
+  "Return the SPARQL spouses query for QID (one row per spouse)."
+  (format "SELECT ?spouseLabel ?start ?startPrec ?end ?endPrec WHERE { \
+wd:%s p:P26 ?st. ?st ps:P26 ?spouse. \
+OPTIONAL { ?st pqv:P580 ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
+OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } \
+SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } }" qid))
+
+(defun org-chronicle-wikidata--events-query (qid)
+  "Return the SPARQL positions-held query for QID (one row per position)."
+  (format "SELECT ?title ?start ?startPrec ?end ?endPrec WHERE { \
+wd:%s p:P39 ?st. ?st ps:P39 ?pos. \
+?pos rdfs:label ?title. FILTER(LANG(?title)=\"en\") \
+OPTIONAL { ?st pqv:P580 ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
+OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } }" qid))
+
+(defun org-chronicle-wikidata--fetch-person (qid)
+  "Fetch QID from Wikidata and return a normalized person record."
+  (org-chronicle-wikidata--rows->record
+   qid
+   (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--vitals-query qid))
+   (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--spouses-query qid))
+   (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--events-query qid))))
+
+
+
+
+
 
 
 

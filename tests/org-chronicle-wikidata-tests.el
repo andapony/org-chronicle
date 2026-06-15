@@ -77,6 +77,30 @@
     (should-error (org-chronicle-wikidata--search-request "x")
                   :type 'org-chronicle-wikidata-rate-limited)))
 
+(ert-deftest org-chronicle-wikidata-test-queries-mention-qid ()
+  (should (string-match-p "wd:Q7259"
+                          (org-chronicle-wikidata--vitals-query "Q7259")))
+  (should (string-match-p "P26"
+                          (org-chronicle-wikidata--spouses-query "Q7259")))
+  (should (string-match-p "P39"
+                          (org-chronicle-wikidata--events-query "Q7259"))))
+
+(ert-deftest org-chronicle-wikidata-test-fetch-person ()
+  (cl-letf (((symbol-function 'org-chronicle-wikidata--sparql-request)
+             (lambda (q)
+               (org-chronicle-wikidata--bindings
+                (cond ((string-match-p "P26" q)
+                       (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
+                      ((string-match-p "P39" q)
+                       (org-chronicle-wikidata-test--fixture "lovelace-events.json"))
+                      (t (org-chronicle-wikidata-test--fixture "lovelace-vitals.json")))))))
+    (let ((rec (org-chronicle-wikidata--fetch-person "Q7259")))
+      (should (equal (plist-get rec :qid) "Q7259"))
+      (should (equal (plist-get rec :birthplace) "London"))
+      (should (= (length (plist-get rec :spouses)) 1)))))
+
+
+
 
 
 
