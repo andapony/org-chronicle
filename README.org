@@ -201,6 +201,51 @@ it offers completion over that reading list and builds an =id:= link
 with an optional locator (e.g. page number); otherwise it falls back
 to free-text input.  There is no hard dependency on =org-reading-list=.
 
+* Writing: scenes & continuity
+
+Tie creative prose to the timeline and check it for continuity with the
+historical record.  A *scene* is any heading carrying =:EVENT:=,
+=:AFTER:=/=:BEFORE:=, a fictional own =:DATE:=, or an inline =chronicle:=
+link.  Because a scene is just a property on a heading you already have, this
+composes with org-novelist and binder layouts and stays invisible in the
+exported manuscript.  (fountain-mode files are not Org, so scene markup does
+not apply to them.)
+
+#+begin_src org
+,*** The siege begins
+    :PROPERTIES:
+    :EVENT: [[id:vicksburg-1863]]
+    :END:
+    Grant's guns opened at dawn.  [[chronicle:eliza][Mrs. Grant]] watched.
+#+end_src
+
+A scene may instead *define a fictional event* by carrying its own =:DATE:=
+(and =:TRUTH: fictional=), optionally constrained relative to other events:
+
+#+begin_src org
+,*** A wager in the officers' tent
+    :PROPERTIES:
+    :DATE:   <1863-06-20>
+    :TRUTH:  fictional
+    :AFTER:  [[id:vicksburg-1863]]
+    :BEFORE: [[id:appomattox-1865]]
+    :END:
+#+end_src
+
+- =M-x org-chronicle-insert-reference= inserts an inline =chronicle:= link.
+- =M-x org-chronicle-set-event= / =org-chronicle-add-constraint= set the
+  =:EVENT:= / =:AFTER:=/=:BEFORE:= properties with completion.
+- =M-x org-chronicle-lint-scenes= reports each scene's continuity findings and
+  its *feasible window* — the range in which every reference and constraint is
+  satisfied.  Floating (undated) scenes are surfaced with their window; an
+  empty window means the references cannot co-exist at any date.
+- =M-x org-chronicle-set-scene-date= (or =s= on a finding in the lint buffer)
+  sets the scene's =:DATE:= to a value chosen from that window.
+
+Constraints are evaluated against referents' *current* dates — there is no
+propagation.  Pin scenes bounded by historical events first, then re-run the
+lint as you place the rest.
+
 * Schema reference
 
 See =doc/chronicle-schema.org= for the full property schema for events

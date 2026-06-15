@@ -22,6 +22,31 @@
   | SOURCES   | semicolon-separated id links and/or free text       |
   TRUTH is mirrored to a tag of the same name by =org-chronicle-normalize=.
 
+* Scenes (prose continuity)
+  A scene is any heading in a prose file that ties narrative to the
+  timeline.  A heading becomes a scene when it carries any of: =EVENT=,
+  =AFTER=, =BEFORE=, a fictional own =DATE= (with =TRUTH: fictional=), or an
+  inline =chronicle:= link in its subtree.  org-chronicle never creates
+  scene headings; tag whatever heading already bounds the scene.
+  | Property | Meaning                                                |
+  |----------+--------------------------------------------------------|
+  | EVENT    | id link(s) to the event(s) the scene depicts (anchor)  |
+  | AFTER    | id link(s); scene date must fall on/after the referent |
+  | BEFORE   | id link(s); scene date must fall on/before the referent|
+
+  Inline references use a dedicated link type,
+  =[[chronicle:ID][name as written]]=, where the description is the name used
+  in the prose (consumed by the name-validity check) and the target is an
+  event or entity id.  On export the markup is replaced by its description.
+
+  A scene's *temporal anchor* is its own =DATE= if present, else its =EVENT=
+  event dates, else it is *floating*.  =M-x org-chronicle-lint-scenes= checks
+  each scene's references against that anchor (existence spans, name validity
+  at date, dangling references) and reports a *feasible window* — the date
+  range satisfying every reference and constraint.  =M-x
+  org-chronicle-set-scene-date= (also =s= in the lint buffer) sets the
+  scene's =DATE= to a value from that window.
+
 * Entities
   One heading per entity; identified by a =KIND= property.  Entity
   headings may appear in any =*.org= file under =org-chronicle-root=.

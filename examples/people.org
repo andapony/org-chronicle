@@ -2,6 +2,7 @@
 
 * Ulysses S. Grant
 :PROPERTIES:
+:ID:        ent-grant
 :KIND:      person
 :ALIASES:   Grant; U.S. Grant
 :BORN:      <1822-04-27>
@@ -14,6 +15,7 @@ Union general and eighteenth President of the United States.
 
 * Eliza Harlan
 :PROPERTIES:
+:ID:        ent-harlan
 :KIND:      person
 :ALIASES:   Harlan
 :END:

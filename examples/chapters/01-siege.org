@@ -1,0 +1,18 @@
+#+TITLE: Chapter 1 — The Siege
+
+* The siege begins
+:PROPERTIES:
+:EVENT: [[id:evt-vicksburg]]
+:END:
+Grant's guns opened at dawn.  [[chronicle:ent-grant][the general]] watched
+from the bluff as the city held.
+
+* A wager in the officers' tent
+:PROPERTIES:
+:DATE:   <1860-01-01>
+:TRUTH:  fictional
+:AFTER:  [[id:evt-vicksburg]]
+:END:
+The general lost three dollars to a captain.  This scene's own date (1860)
+is before its :AFTER: bound, so =org-chronicle-lint-scenes= flags it and
+offers a window to move it into.
