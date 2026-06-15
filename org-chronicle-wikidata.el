@@ -54,6 +54,27 @@ precision match the core model."
            (10 (format "%04d-%02d" y mo))
            (_ (format "%04d-%02d-%02d" y mo d))))))))
 
+(defun org-chronicle-wikidata--bindings (json)
+  "Parse SPARQL JSON string JSON; return a list of binding alists."
+  (let* ((data (json-parse-string json :object-type 'alist :array-type 'list))
+         (results (alist-get 'results data))
+         (bindings (alist-get 'bindings results)))
+    bindings))
+
+(defun org-chronicle-wikidata--cell (row var)
+  "Return the string value of VAR in binding alist ROW, or nil.
+VAR is a string variable name."
+  (let ((b (alist-get (intern var) row)))
+    (and b (alist-get 'value b))))
+
+(defun org-chronicle-wikidata--cell-int (row var)
+  "Return the integer value of VAR in ROW, or nil when absent or non-numeric."
+  (let ((v (org-chronicle-wikidata--cell row var)))
+    (and v (string-match-p "\\`[0-9]+\\'" v) (string-to-number v))))
+
+
+
+
 
 
 (provide 'org-chronicle-wikidata)

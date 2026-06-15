@@ -46,6 +46,18 @@
   (should (null (org-chronicle-wikidata--time->date "+0500-01-01T00:00:00Z" 9)))
   (should (null (org-chronicle-wikidata--time->date nil 11))))
 
+(ert-deftest org-chronicle-wikidata-test-bindings ()
+  "Test SPARQL JSON parsing and binding accessors."
+  (let* ((json "{\"results\":{\"bindings\":[\
+{\"a\":{\"type\":\"literal\",\"value\":\"x\"},\"n\":{\"value\":\"11\"}}]}}")
+         (rows (org-chronicle-wikidata--bindings json)))
+    (should (= (length rows) 1))
+    (should (equal (org-chronicle-wikidata--cell (car rows) "a") "x"))
+    (should (null (org-chronicle-wikidata--cell (car rows) "missing")))
+    (should (= (org-chronicle-wikidata--cell-int (car rows) "n") 11))
+    (should (null (org-chronicle-wikidata--cell-int (car rows) "a")))))
+
+
 
 
 (provide 'org-chronicle-wikidata-tests)
