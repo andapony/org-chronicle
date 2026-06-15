@@ -34,6 +34,32 @@ Assertion failures in the caller still fail normally."
     (should (> (length (plist-get hit :label)) 0))
     (should (stringp (plist-get hit :description)))))
 
+(ert-deftest org-chronicle-wikidata-test-live-fetch-ada ()
+  "Live fetch of Ada Lovelace (Q7259) parses vitals, a spouse, and aliases."
+  :tags '(:wikidata-live)
+  (let* ((rec (org-chronicle-wikidata-live--fetch-or-skip
+               (lambda () (org-chronicle-wikidata--fetch-person "Q7259"))))
+         (born (plist-get rec :born))
+         (died (plist-get rec :died))
+         (spouse (car (plist-get rec :spouses)))
+         (aliases (plist-get rec :aliases)))
+    (should (equal (plist-get born :year) 1815))
+    (should (equal (plist-get born :month) 12))
+    (should (equal (plist-get born :day) 10))
+    (should (equal (plist-get died :year) 1852))
+    (should (equal (plist-get died :month) 11))
+    (should (equal (plist-get died :day) 27))
+    (should (equal (plist-get rec :birthplace) "London"))
+    (should (equal (plist-get rec :deathplace) "Marylebone"))
+    (should (equal (plist-get rec :father) "Lord Byron"))
+    (should (equal (plist-get rec :mother) "Anne Isabella Byron"))
+    (should (equal (plist-get rec :label) "Ada Lovelace"))
+    (should spouse)
+    (should (string-match-p "\\`Q[0-9]+\\'" (plist-get spouse :qid)))
+    (should (>= (length aliases) 1))
+    (should (cl-every #'stringp aliases))))
+
+
 
 (provide 'org-chronicle-wikidata-live-tests)
 ;;; org-chronicle-wikidata-live-tests.el ends here
