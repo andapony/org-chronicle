@@ -59,6 +59,18 @@ Assertion failures in the caller still fail normally."
     (should (>= (length aliases) 1))
     (should (cl-every #'stringp aliases))))
 
+(ert-deftest org-chronicle-wikidata-test-live-position-brannan ()
+  "Live fetch of Samuel Brannan (Q936075) parses a position-held event."
+  :tags '(:wikidata-live)
+  (let* ((rec (org-chronicle-wikidata-live--fetch-or-skip
+               (lambda () (org-chronicle-wikidata--fetch-person "Q936075"))))
+         (event (car (plist-get rec :events))))
+    (should (equal (plist-get (plist-get rec :born) :year) 1819))
+    (should event)
+    (should (equal (plist-get event :kind) "position"))
+    (should (string-match-p "\\`Q[0-9]+\\'" (plist-get event :qid)))))
+
+
 
 
 (provide 'org-chronicle-wikidata-live-tests)
