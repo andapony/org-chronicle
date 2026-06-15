@@ -713,6 +713,19 @@
     (should (null (plist-get (nth 1 cands) :date)))
     (should (= (plist-get (nth 1 cands) :precision) 7))))
 
+(ert-deftest org-chronicle-wikidata-test-alternates-surface ()
+  (let* ((rec (list :qid "Q935" :label "Isaac Newton"
+                    :born (org-chronicle--date-parse "1643-01-04")
+                    :born-alternates '("1642")))
+         (changes (org-chronicle-wikidata--record->changes rec "Isaac Newton"))
+         (born (cl-find "BORN" changes
+                        :key (lambda (c) (plist-get c :property))
+                        :test (lambda (a b) (and b (equal a b))))))
+    (should (equal (plist-get born :alternates) '("1642")))
+    (should (string-match-p "also lists: 1642"
+                            (org-chronicle-wikidata--change-label born)))))
+
+
 
 
 

@@ -333,12 +333,14 @@ statements are resolved by rank then precision (see
   "Return the canonical Wikidata item URL for QID."
   (concat "https://www.wikidata.org/wiki/" qid))
 
-(defun org-chronicle-wikidata--entity-change (group property value url)
+(defun org-chronicle-wikidata--entity-change (group property value url &optional alternates)
   "Build an entity change plist for PROPERTY=VALUE in GROUP, sourced to URL.
+ALTERNATES, when non-nil, is a list of display strings attached as :alternates.
 Return nil when VALUE is nil or empty."
   (and value (not (string-empty-p value))
-       (list :target 'entity :group group :property property :value value
-             :provenance url :default t)))
+       (append (list :target 'entity :group group :property property :value value
+                     :provenance url :default t)
+               (and alternates (list :alternates alternates)))))
 
 (defun org-chronicle-wikidata--record->changes (rec name)
   "Map person record REC (for person NAME) to a list of change plists.
@@ -358,11 +360,11 @@ See the data contract in the package commentary for field names."
                 (org-chronicle-wikidata--entity-change
                  'vitals "BORN"
                  (and born (org-chronicle--ts (org-chronicle--date-format born)))
-                 url)
+                 url (plist-get rec :born-alternates))
                 (org-chronicle-wikidata--entity-change
                  'vitals "DIED"
                  (and died (org-chronicle--ts (org-chronicle--date-format died)))
-                 url)
+                 url (plist-get rec :died-alternates))
                 (org-chronicle-wikidata--entity-change
                  'vitals "BIRTHPLACE" (plist-get rec :birthplace) url)
                 (org-chronicle-wikidata--entity-change
@@ -525,8 +527,14 @@ otherwise present search candidates for selection.  Return the QID string."
 (defun org-chronicle-wikidata--change-label (change)
   "Return a one-line human label describing CHANGE."
   (pcase (plist-get change :target)
-    ('entity (format "%-12s %s" (plist-get change :property)
-                     (plist-get change :value)))
+    ('entity (let ((alts (plist-get change :alternates)))
+               (format "%-12s %s%s"
+                       (plist-get change :property)
+                       (plist-get change :value)
+                       (if alts
+                           (format "  (Wikidata also lists: %s)"
+                                   (mapconcat #'identity alts "; "))
+                         ""))))
     ('event (let ((ev (plist-get change :event)))
               (format "event       %s [%s]" (plist-get ev :title)
                       (plist-get ev :date))))))
