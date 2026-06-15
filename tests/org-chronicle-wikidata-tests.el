@@ -687,6 +687,28 @@
                               (list (list :date nil :raw "1640-01-01T00:00:00Z"
                                           :precision 8 :rank 'normal))) :date)))))
 
+(ert-deftest org-chronicle-wikidata-test-dates-query ()
+  (let ((q (org-chronicle-wikidata--dates-query "Q935")))
+    (should (string-match-p "wd:Q935" q))
+    (should (string-match-p "P569" q))
+    (should (string-match-p "P570" q))
+    (should (string-match-p "wikibase:rank" q))))
+
+(ert-deftest org-chronicle-wikidata-test-dates->candidates ()
+  (let* ((json "{\"results\":{\"bindings\":[\
+{\"prop\":{\"value\":\"born\"},\"value\":{\"value\":\"1643-01-04T00:00:00Z\"},\"prec\":{\"value\":\"11\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#PreferredRank\"}},\
+{\"prop\":{\"value\":\"born\"},\"value\":{\"value\":\"-0900-01-01T00:00:00Z\"},\"prec\":{\"value\":\"7\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#NormalRank\"}}]}}")
+         (cands (org-chronicle-wikidata--dates->candidates
+                 (org-chronicle-wikidata--bindings json))))
+    (should (= (length cands) 2))
+    (should (eq (plist-get (nth 0 cands) :rank) 'preferred))
+    (should (equal (plist-get (plist-get (nth 0 cands) :date) :year) 1643))
+    (should (equal (plist-get (nth 0 cands) :prop) "born"))
+    (should (null (plist-get (nth 1 cands) :date)))
+    (should (= (plist-get (nth 1 cands) :precision) 7))))
+
+
+
 
 
 

@@ -184,6 +184,41 @@ wd:%s p:P39 ?st. ?st ps:P39 ?pos. \
 OPTIONAL { ?st pqv:P580 ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
 OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } }" qid))
 
+(defun org-chronicle-wikidata--dates-query (qid)
+  "Return the SPARQL dates query for QID (one row per birth/death statement)."
+  (format "SELECT ?prop ?value ?prec ?rank WHERE { \
+{ wd:%s p:P569 ?st. ?st psv:P569 ?n. ?n wikibase:timeValue ?value; \
+wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"born\" AS ?prop) } \
+UNION \
+{ wd:%s p:P570 ?st. ?st psv:P570 ?n. ?n wikibase:timeValue ?value; \
+wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"died\" AS ?prop) } }"
+          qid qid))
+
+(defun org-chronicle-wikidata--rank-symbol (uri)
+  "Return `preferred', `normal', or `deprecated' for a wikibase:rank URI, else nil."
+  (cond ((not (stringp uri)) nil)
+        ((string-suffix-p "PreferredRank" uri) 'preferred)
+        ((string-suffix-p "NormalRank" uri) 'normal)
+        ((string-suffix-p "DeprecatedRank" uri) 'deprecated)
+        (t nil)))
+
+(defun org-chronicle-wikidata--dates->candidates (rows)
+  "Map dates-query ROWS to neutral date-candidate plists."
+  (mapcar
+   (lambda (row)
+     (let ((raw (org-chronicle-wikidata--cell row "value"))
+           (prec (org-chronicle-wikidata--cell-int row "prec")))
+       (list :prop (org-chronicle-wikidata--cell row "prop")
+             :date (org-chronicle-wikidata--time->date raw prec)
+             :raw raw
+             :precision prec
+             :rank (org-chronicle-wikidata--rank-symbol
+                    (org-chronicle-wikidata--cell row "rank")))))
+   rows))
+
+
+
+
 (defun org-chronicle-wikidata--fetch-person (qid)
   "Fetch QID from Wikidata and return a normalized person record."
   (org-chronicle-wikidata--rows->record
