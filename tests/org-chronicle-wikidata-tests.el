@@ -236,6 +236,28 @@
                (car (if (functionp collection) (funcall collection "" nil t) collection)))))
     (should (equal (org-chronicle-wikidata--resolve "Ada Lovelace") "Q7259"))))
 
+(ert-deftest org-chronicle-wikidata-test-review-rows ()
+  "Test that review rows carry selected state from change defaults."
+  (let* ((changes
+          (list (list :target 'entity :group 'vitals :property "BORN"
+                      :value "1815-12-10" :default t :status 'new)
+                (list :target 'event :group 'events :default nil :status 'new
+                      :event (list :title "Countess of Lovelace" :date "1838"))))
+         (rows (org-chronicle-wikidata--review-rows changes)))
+    (should (= (length rows) 2))
+    (should (plist-get (nth 0 (car rows)) :selected))
+    (should-not (plist-get (nth 0 (cadr rows)) :selected))))
+
+(ert-deftest org-chronicle-wikidata-test-selected-changes ()
+  "Test that only rows with :selected non-nil are returned."
+  (let ((rows (list (list (list :selected t) (list :property "BORN"))
+                    (list (list :selected nil) (list :property "DIED")))))
+    (let ((sel (org-chronicle-wikidata--selected-changes rows)))
+      (should (= (length sel) 1))
+      (should (equal (plist-get (car sel) :property) "BORN")))))
+
+
+
 
 
 

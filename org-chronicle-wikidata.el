@@ -397,6 +397,105 @@ otherwise present search candidates for selection.  Return the QID string."
                  (cand (cdr (assoc choice table))))
             (plist-get cand :qid))))))
 
+(defun org-chronicle-wikidata--change-label (change)
+  "Return a one-line human label describing CHANGE."
+  (pcase (plist-get change :target)
+    ('entity (format "%-12s %s" (plist-get change :property)
+                     (plist-get change :value)))
+    ('event (let ((ev (plist-get change :event)))
+              (format "event       %s [%s]" (plist-get ev :title)
+                      (plist-get ev :date))))))
+
+(defun org-chronicle-wikidata--review-rows (changes)
+  "Map CHANGES to a review-row list.
+Each row is a two-element list (STATE plist): STATE has :selected
+\(from the change :default) and :status (carried through)."
+  (mapcar (lambda (c)
+            (list (list :selected (and (plist-get c :default) t)
+                        :status (plist-get c :status))
+                  c))
+          changes))
+
+(defun org-chronicle-wikidata--selected-changes (rows)
+  "Return the change plists from ROWS whose STATE has :selected non-nil."
+  (delq nil (mapcar (lambda (row)
+                      (when (plist-get (nth 0 row) :selected)
+                        (nth 1 row)))
+                    rows)))
+
+(defvar-local org-chronicle-wikidata--rows nil
+  "Review rows for the current review buffer.")
+
+(defvar-local org-chronicle-wikidata--on-confirm nil
+  "Function called with the selected changes when the review is confirmed.")
+
+(defun org-chronicle-wikidata-review-toggle ()
+  "Toggle selection of the row at point."
+  (interactive)
+  (let ((idx (- (line-number-at-pos) 3)))
+    (when (and (>= idx 0) (< idx (length org-chronicle-wikidata--rows)))
+      (let ((state (nth 0 (nth idx org-chronicle-wikidata--rows))))
+        (plist-put state :selected (not (plist-get state :selected))))
+      (org-chronicle-wikidata--render-review)
+      (forward-line (+ idx 3)))))
+
+(defun org-chronicle-wikidata-review-confirm ()
+  "Invoke the confirm callback with selected rows and close the review."
+  (interactive)
+  (let ((selected (org-chronicle-wikidata--selected-changes
+                   org-chronicle-wikidata--rows))
+        (cb org-chronicle-wikidata--on-confirm))
+    (quit-window)
+    (when cb (funcall cb selected))))
+
+(defvar org-chronicle-wikidata-review-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "TAB") #'org-chronicle-wikidata-review-toggle)
+    (define-key map (kbd "RET") #'org-chronicle-wikidata-review-confirm)
+    (define-key map (kbd "q") #'quit-window)
+    map)
+  "Keymap for `org-chronicle-wikidata-review-mode'.")
+
+(define-derived-mode org-chronicle-wikidata-review-mode special-mode
+  "WD-Review"
+  "Major mode for reviewing proposed Wikidata changes.")
+
+(defun org-chronicle-wikidata--render-review ()
+  "Render `org-chronicle-wikidata--rows' into the current buffer."
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (insert "Wikidata import — TAB toggles, RET applies selected, q cancels\n\n")
+    (dolist (row org-chronicle-wikidata--rows)
+      (let* ((state (nth 0 row)) (change (nth 1 row)))
+        (insert (format "[%s] %-8s %s\n"
+                        (if (plist-get state :selected) "x" " ")
+                        (plist-get state :status)
+                        (org-chronicle-wikidata--change-label change)))))))
+
+(defun org-chronicle-wikidata--review (changes on-confirm)
+  "Open a review buffer; call ON-CONFIRM with the selected change plists.
+CHANGES is the list of proposed change plists to present."
+  (let ((buf (get-buffer-create "*Wikidata Import*")))
+    (with-current-buffer buf
+      (org-chronicle-wikidata-review-mode)
+      (setq org-chronicle-wikidata--rows
+            (org-chronicle-wikidata--review-rows changes))
+      (setq org-chronicle-wikidata--on-confirm on-confirm)
+      (org-chronicle-wikidata--render-review)
+      (goto-char (point-min)))
+    (pop-to-buffer buf)))
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
