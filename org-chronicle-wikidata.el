@@ -716,40 +716,30 @@ Return nil otherwise."
         (when (member key '("PARENTS" "SPOUSE"))
           (car (org-chronicle--split (org-element-property :value el))))))))
 
-(defun org-chronicle-wikidata--create-person (name)
-  "Create a minimal person entity NAME in the people file.
-Return a marker at the new heading."
-  (with-current-buffer (find-file-noselect (org-chronicle--people-file))
-    (goto-char (point-max))
-    (unless (bolp) (insert "\n"))
-    (insert (org-chronicle--entity-string :name name :kind 'person))
-    (forward-line -1)
-    (org-back-to-heading t)
-    (org-id-get-create)
-    (save-buffer)
-    (point-marker)))
-
 ;;;###autoload
 (defun org-chronicle-wikidata-import ()
-  "Import a person's Wikidata life events into the chronicle.
+  "Import Wikidata life events into the chronicle by kind.
 With point on a person entity heading, enrich that entity.  With point on a
 PARENTS or SPOUSE property value, or on a non-entity heading, create a new
-person entity in the people file and enrich it.  In all cases, resolve the
-Wikidata item, review the proposed edits, and write the approved set."
+entity in the kind's file and enrich it.  In all cases, resolve the Wikidata
+item, review the proposed edits, and write the approved set."
   (interactive)
   (let* ((promote (org-chronicle-wikidata--label-at-point))
-         (kind (unless promote
-                 (save-excursion (org-back-to-heading t) (org-entry-get nil "KIND"))))
+         (heading-kind (unless promote
+                         (save-excursion (org-back-to-heading t) (org-entry-get nil "KIND"))))
+         (kind (cond (promote 'person)
+                     (heading-kind (intern heading-kind))
+                     (t (intern (completing-read "Kind: " '("person" "place" "group")
+                                                 nil t nil nil "person")))))
          (seed (or promote
                    (save-excursion (org-back-to-heading t) (org-get-heading t t t t))))
-         (stored (and kind
-                      (save-excursion (org-back-to-heading t)
-                                      (org-entry-get nil "WIKIDATA"))))
+         (stored (and heading-kind
+                      (save-excursion (org-back-to-heading t) (org-entry-get nil "WIKIDATA"))))
          (qid (or stored (org-chronicle-wikidata--resolve seed)))
-         (marker (if kind
+         (marker (if heading-kind
                      (save-excursion (org-back-to-heading t) (point-marker))
-                   (org-chronicle-wikidata--create-person seed)))
-         (rec (org-chronicle-wikidata--fetch-person qid))
+                   (org-chronicle-wikidata--create-entity seed kind)))
+         (rec (org-chronicle-wikidata--fetch-record qid kind))
          (changes (org-chronicle-wikidata--record->changes rec seed)))
     (when (seq-empty-p changes)
       (user-error "Nothing to import for %s (%s)" seed qid))
@@ -836,10 +826,11 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
     (unless qid
       (user-error "No WIKIDATA property here; run org-chronicle-wikidata-import first"))
     (let* ((name (org-get-heading t t t t))
+           (kind (let ((k (org-entry-get nil "KIND"))) (if k (intern k) 'person)))
            (marker (point-marker))
            (subject-orgid (org-with-point-at marker (org-id-get-create)))
            (index (org-chronicle-wikidata--events-index))
-           (rec (org-chronicle-wikidata--fetch-person qid))
+           (rec (org-chronicle-wikidata--fetch-record qid kind))
            (changes (org-chronicle-wikidata--classify-changes
                      (org-chronicle-wikidata--record->changes rec name)
                      marker subject-orgid qid index))

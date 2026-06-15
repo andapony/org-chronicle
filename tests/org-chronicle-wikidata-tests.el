@@ -275,9 +275,9 @@
             (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n"))
           (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
                      (lambda (&rest _) "Q7259"))
-                    ((symbol-function 'org-chronicle-wikidata--fetch-person)
-                     (lambda (_qid)
-                       (list :qid "Q7259"
+                    ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                     (lambda (_qid _kind)
+                       (list :qid "Q7259" :kind 'person
                              :born (org-chronicle--date-parse "1815-12-10")
                              :birthplace "London")))
                     ((symbol-function 'org-chronicle-wikidata--review)
@@ -328,7 +328,7 @@
     (should (eq (org-chronicle-wikidata--classify change "1900-01-01") 'conflict))))
 
 (ert-deftest org-chronicle-wikidata-test-import-create ()
-  "Non-entity heading triggers create-person then enriches the new entity."
+  "Non-entity heading triggers entity creation then enriches the new entity."
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file (expand-file-name "people.org" root))
@@ -338,11 +338,12 @@
           (org-mode)
           (insert "* Charles Babbage\nsome prose\n")
           (goto-char (point-min))
-          (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
+          (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "person"))
+                    ((symbol-function 'org-chronicle-wikidata--resolve)
                      (lambda (&rest _) "Q46633"))
-                    ((symbol-function 'org-chronicle-wikidata--fetch-person)
-                     (lambda (_qid)
-                       (list :qid "Q46633"
+                    ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                     (lambda (_qid _kind)
+                       (list :qid "Q46633" :kind 'person
                              :born (org-chronicle--date-parse "1791-12-26"))))
                     ((symbol-function 'org-chronicle-wikidata--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
@@ -373,9 +374,9 @@
                      (lambda (seed)
                        (should (string-match-p "William" seed))
                        "Q123"))
-                    ((symbol-function 'org-chronicle-wikidata--fetch-person)
-                     (lambda (_qid)
-                       (list :qid "Q123"
+                    ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                     (lambda (_qid _kind)
+                       (list :qid "Q123" :kind 'person
                              :born (org-chronicle--date-parse "1805"))))
                     ((symbol-function 'org-chronicle-wikidata--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
@@ -524,9 +525,9 @@
     (unwind-protect
         (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
                    (lambda (&rest _) "Q7259"))
-                  ((symbol-function 'org-chronicle-wikidata--fetch-person)
-                   (lambda (_qid)
-                     (list :qid "Q7259"
+                  ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                   (lambda (_qid _kind)
+                     (list :qid "Q7259" :kind 'person
                            :born (org-chronicle--date-parse "1815-12-10")
                            :birthplace "London")))
                   ((symbol-function 'org-chronicle-wikidata--review)
@@ -629,9 +630,9 @@
           (make-directory (file-name-directory org-chronicle-wikidata-file) t)
           (with-temp-file org-chronicle-wikidata-file
             (insert "* Birth of Ada Lovelace\n:PROPERTIES:\n:IMPORT-KEY: birth:ADA-ID\n:LIFE-EVENT: birth\n:DATE: <1800-01-01>\n:END:\n"))
-          (cl-letf (((symbol-function 'org-chronicle-wikidata--fetch-person)
-                     (lambda (_qid)
-                       (list :qid "Q7259"
+          (cl-letf (((symbol-function 'org-chronicle-wikidata--fetch-record)
+                     (lambda (_qid _kind)
+                       (list :qid "Q7259" :kind 'person
                              :born (org-chronicle--date-parse "1815-12-10")
                              :died (org-chronicle--date-parse "1852-11-27"))))
                     ((symbol-function 'org-chronicle-wikidata--review)
@@ -779,6 +780,38 @@
       (should (equal (plist-get rec :label) "Sutro Baths"))
       (should (equal (plist-get (plist-get rec :start) :year) 1896))
       (should (null (plist-get rec :end))))))
+
+(ert-deftest org-chronicle-wikidata-test-import-create-place ()
+  "Importing with kind=place writes to places file with BUILT and WIKIDATA."
+  (let* ((root (make-temp-file "octw-place" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file (expand-file-name "people.org" root))
+         (org-chronicle-places-file (expand-file-name "places.org" root))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
+         (org-id-locations-file (expand-file-name ".org-id-locations" root)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'org-chronicle-wikidata--label-at-point) (lambda () nil))
+                  ((symbol-function 'completing-read) (lambda (&rest _) "place"))
+                  ((symbol-function 'org-chronicle-wikidata--resolve) (lambda (&rest _) "Q3505806"))
+                  ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                   (lambda (_qid _kind)
+                     (list :qid "Q3505806" :kind 'place :label "Sutro Baths"
+                           :start (org-chronicle--date-parse "1896") :end nil)))
+                  ((symbol-function 'org-chronicle-wikidata--review)
+                   (lambda (changes on-confirm) (funcall on-confirm changes))))
+          (with-temp-file org-chronicle-people-file (insert "* placeholder\n"))
+          (with-current-buffer (find-file-noselect org-chronicle-people-file)
+            (goto-char (point-max))
+            (insert "* Sutro Baths\nprose\n")
+            (goto-char (point-max)) (forward-line -2)
+            (org-chronicle-wikidata-import))
+          (let ((places (with-temp-buffer (insert-file-contents org-chronicle-places-file) (buffer-string))))
+            (should (string-match-p ":KIND: *place" places))
+            (should (string-match-p ":BUILT:" places))
+            (should (string-match-p ":WIKIDATA: *Q3505806" places))))
+      (delete-directory root t))))
+
 
 
 
