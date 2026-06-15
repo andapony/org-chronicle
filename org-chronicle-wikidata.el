@@ -46,7 +46,7 @@ precision match the core model."
              (integerp precision)
              (>= precision 9)
              (string-match
-              "\\`\\+\\([0-9]\\{4,\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)"
+              "\\`\\+?\\([0-9]\\{4,\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)"
               time))
     (let* ((y (string-to-number (match-string 1 time)))
            (mo (string-to-number (match-string 2 time)))
