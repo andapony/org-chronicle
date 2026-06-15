@@ -256,6 +256,31 @@
       (should (= (length sel) 1))
       (should (equal (plist-get (car sel) :property) "BORN")))))
 
+(ert-deftest org-chronicle-wikidata-test-import ()
+  (let* ((root (make-temp-file "octw-root" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root)))
+    (unwind-protect
+        (with-temp-buffer
+          (org-mode)
+          (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n")
+          (goto-char (point-min))
+          (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
+                     (lambda (&rest _) "Q7259"))
+                    ((symbol-function 'org-chronicle-wikidata--fetch-person)
+                     (lambda (_qid)
+                       (list :qid "Q7259"
+                             :born (org-chronicle--date-parse "1815-12-10")
+                             :birthplace "London")))
+                    ((symbol-function 'org-chronicle-wikidata--review)
+                     (lambda (changes on-confirm) (funcall on-confirm changes))))
+            (org-chronicle-wikidata-import))
+          (goto-char (point-min))
+          (should (equal (org-entry-get nil "BORN") "1815-12-10"))
+          (should (equal (org-entry-get nil "WIKIDATA") "Q7259")))
+      (delete-directory root t))))
+
+
 
 
 

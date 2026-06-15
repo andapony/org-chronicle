@@ -19,6 +19,12 @@
 (require 'subr-x)
 (require 'cl-lib)
 
+(require 'org-element)
+
+(require 'seq)
+
+
+
 (defgroup org-chronicle-wikidata nil
   "Wikidata integration for org-chronicle."
   :group 'org-chronicle)
@@ -486,6 +492,54 @@ CHANGES is the list of proposed change plists to present."
       (org-chronicle-wikidata--render-review)
       (goto-char (point-min)))
     (pop-to-buffer buf)))
+
+(defun org-chronicle-wikidata--heading-name ()
+  "Return the entity name for import, seeding from the heading or a property value.
+When point is on a PARENTS/SPOUSE property line, use that value; otherwise
+use the heading text."
+  (or (let ((el (org-element-at-point)))
+        (when (eq (org-element-type el) 'node-property)
+          (let ((p (org-element-property :key el)))
+            (when (member p '("PARENTS" "SPOUSE"))
+              (car (org-chronicle--split (org-element-property :value el)))))))
+      (org-get-heading t t t t)))
+
+(defun org-chronicle-wikidata--ensure-entity (name)
+  "Ensure point is on a person entity heading for NAME.
+If point is not already on a KIND heading, create the person via
+`org-chronicle-add-person' and move to it."
+  (unless (org-entry-get nil "KIND")
+    (org-chronicle-add-person name)))
+
+;;;###autoload
+(defun org-chronicle-wikidata-import ()
+  "Import a person's Wikidata life events into the chronicle.
+Resolve-or-create the entity at point (or seeded from a PARENTS/SPOUSE value),
+fetch from Wikidata, review the proposed changes, and write the approved set."
+  (interactive)
+  (org-back-to-heading t)
+  (let* ((name (org-chronicle-wikidata--heading-name))
+         (stored (org-entry-get nil "WIKIDATA"))
+         (qid (or stored (org-chronicle-wikidata--resolve name)))
+         (rec (org-chronicle-wikidata--fetch-person qid))
+         (changes (org-chronicle-wikidata--record->changes rec name))
+         (marker (point-marker)))
+    (when (seq-empty-p changes)
+      (user-error "Nothing to import for %s (%s)" name qid))
+    (dolist (c changes)
+      (when (eq (plist-get c :target) 'entity)
+        (plist-put c :status
+                   (org-chronicle-wikidata--classify
+                    c (org-entry-get nil (plist-get c :property))))))
+    (org-chronicle-wikidata--review
+     changes
+     (lambda (selected)
+       (org-with-point-at marker
+         (org-chronicle-wikidata--apply-changes selected)
+         (message "Imported %d change(s) for %s" (length selected) name))))))
+
+
+
 
 
 
