@@ -538,6 +538,47 @@ fetch from Wikidata, review the proposed changes, and write the approved set."
          (org-chronicle-wikidata--apply-changes selected)
          (message "Imported %d change(s) for %s" (length selected) name))))))
 
+(defun org-chronicle-wikidata--diff (changes current-fn)
+  "Return entity edits that drift from local values via CURRENT-FN.
+CHANGES is the proposed change list; CURRENT-FN takes a property name and
+returns the current local value (or nil).
+Same-valued changes are excluded; new and conflicting ones are returned, each
+annotated with :status and :current."
+  (delq nil
+        (mapcar
+         (lambda (c)
+           (when (eq (plist-get c :target) 'entity)
+             (let* ((cur (funcall current-fn (plist-get c :property)))
+                    (status (org-chronicle-wikidata--classify c cur)))
+               (unless (eq status 'same)
+                 (append (list :status status :current cur) c)))))
+         changes)))
+
+;;;###autoload
+(defun org-chronicle-wikidata-reconcile ()
+  "Re-query the stored Wikidata item and present drift as opt-in pulls."
+  (interactive)
+  (org-back-to-heading t)
+  (let ((qid (org-entry-get nil "WIKIDATA")))
+    (unless qid
+      (user-error "No WIKIDATA property here; run org-chronicle-wikidata-import first"))
+    (let* ((name (org-get-heading t t t t))
+           (rec (org-chronicle-wikidata--fetch-person qid))
+           (changes (org-chronicle-wikidata--record->changes rec name))
+           (drift (org-chronicle-wikidata--diff
+                   changes (lambda (p) (org-entry-get nil p))))
+           (marker (point-marker)))
+      (when (seq-empty-p drift)
+        (user-error "No drift from Wikidata for %s (%s)" name qid))
+      (org-chronicle-wikidata--review
+       drift
+       (lambda (selected)
+         (org-with-point-at marker
+           (org-chronicle-wikidata--apply-changes selected)
+           (message "Reconciled %d field(s) for %s" (length selected) name)))))))
+
+
+
 
 
 

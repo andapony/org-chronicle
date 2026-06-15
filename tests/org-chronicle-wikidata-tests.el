@@ -280,6 +280,25 @@
           (should (equal (org-entry-get nil "WIKIDATA") "Q7259")))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-wikidata-test-diff ()
+  (let* ((changes
+          (list (list :target 'entity :property "BORN" :value "1815-12-10")
+                (list :target 'entity :property "DIED" :value "1852-11-27")
+                (list :target 'entity :property "BIRTHPLACE" :value "London")))
+         (current (lambda (p) (pcase p
+                                ("BORN" "1815-12-10")
+                                ("DIED" "1900-01-01")
+                                (_ nil))))
+         (drift (org-chronicle-wikidata--diff changes current)))
+    (should (= (length drift) 2))
+    (should (cl-find "DIED" drift
+                     :key (lambda (d) (plist-get d :property)) :test #'equal))
+    (should (cl-find "BIRTHPLACE" drift
+                     :key (lambda (d) (plist-get d :property)) :test #'equal))
+    (should-not (cl-find "BORN" drift
+                         :key (lambda (d) (plist-get d :property)) :test #'equal))))
+
+
 
 
 
