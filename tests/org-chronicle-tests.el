@@ -916,5 +916,25 @@ global root differs."
       (should (equal (mapcar (lambda (r) (plist-get r :id)) (plist-get outer :refs)) '("a")))
       (should (equal (mapcar (lambda (r) (plist-get r :id)) (plist-get inner :refs)) '("b"))))))
 
+(ert-deftest org-chronicle-test-date-min-max ()
+  "Date min/max treat nil as an open (ignored) bound."
+  (let ((a (org-chronicle--date-parse "1863"))
+        (b (org-chronicle--date-parse "1865")))
+    (should (equal (org-chronicle--date-max a b) b))
+    (should (equal (org-chronicle--date-min a b) a))
+    (should (equal (org-chronicle--date-max nil b) b))
+    (should (equal (org-chronicle--date-min a nil) a))))
+
+(ert-deftest org-chronicle-test-name-adoption ()
+  "A name-change event records the adoption date of its NEW-NAME for the subject."
+  (let* ((events
+          (list (list :life-event "name-change"
+                      :subject '("Eliza Dent") :new-name "Mrs. Grant"
+                      :date (org-chronicle--date-parse "1863-08-22"))))
+         (idx (make-hash-table :test #'equal))
+         (adopt (org-chronicle--name-adoption events idx)))
+    (should (equal (gethash (cons "Eliza Dent" "mrs. grant") adopt)
+                   (org-chronicle--date-parse "1863-08-22")))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

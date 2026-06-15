@@ -1459,6 +1459,44 @@ unmarked heading can still be treated as a (constraint-free) scene."
                   :key (lambda (s) (plist-get s :begin)) :test #'=)
          (append (org-chronicle--heading-scene-props) (list :refs nil))))))
 
+;;;; Scenes: shared context and bounds
+
+(defun org-chronicle--date-max (a b)
+  "Return the later of date plists A and B; nil means open (return the other)."
+  (cond ((null a) b) ((null b) a)
+        ((org-chronicle--date-lessp a b) b) (t a)))
+
+(defun org-chronicle--date-min (a b)
+  "Return the earlier of date plists A and B; nil means open (return the other)."
+  (cond ((null a) b) ((null b) a)
+        ((org-chronicle--date-lessp b a) b) (t a)))
+
+(defun org-chronicle--name-adoption (events idx)
+  "Return a hash from (CANON . DOWNCASED-NEW-NAME) to the change date.
+Built from name-change life events in EVENTS; CANON is the canonical subject
+name resolved through alias index IDX."
+  (let ((h (make-hash-table :test #'equal)))
+    (dolist (e events h)
+      (when (equal (plist-get e :life-event) "name-change")
+        (let ((canon (org-chronicle--canonical (car (plist-get e :subject)) idx))
+              (new (plist-get e :new-name))
+              (date (plist-get e :date)))
+          (when (and canon new date)
+            (puthash (cons canon (downcase new)) date h)))))))
+
+(defun org-chronicle--scene-context ()
+  "Gather the data shared by the scene lint and the date-solving command.
+Returns a plist with :entities :idx :events :index :adoption :events-by-id."
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities))
+         (events (org-chronicle--all-events))
+         (index (org-chronicle--life-index events idx))
+         (adoption (org-chronicle--name-adoption events idx))
+         (by-id (make-hash-table :test #'equal)))
+    (dolist (e events)
+      (when (plist-get e :id) (puthash (plist-get e :id) e by-id)))
+    (list :entities entities :idx idx :events events :index index
+          :adoption adoption :events-by-id by-id)))
 
 ;;;; (sections added by later tasks)
 
