@@ -722,11 +722,12 @@ directories are created.  The temp dir is removed afterward."
 (ert-deftest org-chronicle-test-accrue-alias-across-root ()
   "Alias accrual finds and edits the subject entity by ID anywhere under the root."
   (org-chronicle-test--with-root
-      '(("people/grant.org" . "* Ulysses S. Grant\n:PROPERTIES:\n:ID: ent-grant\n:KIND: person\n:END:\n"))
-    (org-chronicle--accrue-alias "Ulysses S. Grant" "Sam Grant")
-    (let ((ent (cl-find "Ulysses S. Grant" (org-chronicle--all-entities)
-                        :key (lambda (e) (plist-get e :name)) :test #'equal)))
-      (should (member "Sam Grant" (plist-get ent :aliases))))))
+   '(("people/grant.org" . "* Ulysses S. Grant\n:PROPERTIES:\n:ID: ent-grant\n:KIND: person\n:END:\n"))
+   (org-chronicle--accrue-alias "Ulysses S. Grant" "Sam Grant")
+   (let ((ent (cl-find "Ulysses S. Grant" (org-chronicle--all-entities)
+                       :key (lambda (e) (plist-get e :name)) :test #'equal)))
+     (should ent)
+     (should (member "Sam Grant" (plist-get ent :aliases))))))
 
 (ert-deftest org-chronicle-test-completion-table-metadata ()
   "The completion table reports its category and completes candidates."

@@ -61,7 +61,6 @@
 
 (require 'crm)
 
-
 (defgroup org-chronicle nil
   "Event timeline for historical fiction."
   :group 'org
@@ -113,12 +112,6 @@ All arguments are date plists (or nil for FROM/UNTIL)."
 (defcustom org-chronicle-timeline-file "~/org/timeline.org"
   "Org file holding one heading per timeline event."
   :type 'file
-  :group 'org-chronicle)
-
-(defcustom org-chronicle-entities-files
-  '("~/org/people.org" "~/org/places.org" "~/org/topics.org")
-  "Org files holding promoted person, place, and group entities."
-  :type '(repeat file)
   :group 'org-chronicle)
 
 (defcustom org-chronicle-root "~/org/chronicle/"
@@ -669,7 +662,6 @@ ENTITY-KINDS."
         (dolist (a (plist-get e :aliases)) (puthash a t names))))
     (sort (hash-table-keys names) #'string<)))
 
-
 (defun org-chronicle--known-people ()
   "Return known person and group names from events and entities."
   (org-chronicle--collect-names :people '(person group)))
@@ -727,8 +719,6 @@ in CANDIDATES are still accepted."
 
 
 
-
-
 (defun org-chronicle--read-people ()
   "Prompt for participants with completion against known people; return a list."
   (org-chronicle--read-names
@@ -754,7 +744,6 @@ PROMPT defaults to \"Topics (blank to skip): \"."
     (org-id-get-create)
     (org-chronicle-normalize)
     (save-buffer)))
-
 
 ;;;###autoload
 (defun org-chronicle-add-event ()
@@ -917,8 +906,6 @@ alias index IDX), ask whether to create another; declining signals a
                              (plist-get dup :name) name))))
       (user-error "Not creating duplicate of \"%s\"" (plist-get dup :name))))
   t)
-
-
 
 
 
@@ -1177,9 +1164,6 @@ KIND and SUBJECTS may be supplied non-interactively (used by
 
 
 
-
-
-
 ;;;; Sources
 
 (declare-function org-reading-list-entries "org-reading-list" ())
@@ -1220,7 +1204,6 @@ FREE-TEXT or a prompted free-text citation."
                        (concat existing org-chronicle-multi-value-separator new)
                      new)))
     (org-set-property "SOURCES" combined)))
-
 
 ;;;; Lint
 
@@ -1303,19 +1286,8 @@ the event's date.  IDX is the alias index.  Empty list means clean."
 
 
 
-
-
-
-
-
-
-
-
-
-
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)
-
 
 ;;; org-chronicle.el ends here
