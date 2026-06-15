@@ -365,9 +365,10 @@ The heading carries LIFE-EVENT, SUBJECT, and NEW-NAME as applicable."
      base t t)))
 
 (defun org-chronicle-wikidata--apply-changes (changes)
-  "Apply each plist in CHANGES at the entity heading at point.
-Entity changes set properties on the heading; event changes are appended
-to the chronicle timeline file via `org-chronicle--append-event'."
+  "Apply each approved change at the entity heading at point.
+CHANGES is a list of change plists.  Entity changes set properties on the
+heading; event changes are appended to the chronicle timeline file via
+`org-chronicle--append-event'."
   (org-back-to-heading t)
   (dolist (change changes)
     (pcase (plist-get change :target)
@@ -407,9 +408,10 @@ otherwise present search candidates for selection.  Return the QID string."
                       (plist-get ev :date))))))
 
 (defun org-chronicle-wikidata--review-rows (changes)
-  "Map CHANGES to a review-row list.
-Each row is a two-element list (STATE plist): STATE has :selected
-\(from the change :default) and :status (carried through)."
+  "Build review rows from proposed change plists.
+CHANGES is a list of change plists.  Each row is a two-element list
+\(STATE plist): STATE has :selected (from the change :default) and :status
+\(carried through)."
   (mapcar (lambda (c)
             (list (list :selected (and (plist-get c :default) t)
                         :status (plist-get c :status))
