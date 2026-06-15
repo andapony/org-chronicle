@@ -406,17 +406,16 @@ Life events (those with a :life-event kind) go through
        :location (plist-get ev :location)
        :sources (plist-get change :provenance)))))
 
-(defun org-chronicle-wikidata--apply-changes (changes)
-  "Apply each approved change at the entity heading at point.
-CHANGES is a list of change plists.  Entity changes set properties on the
-heading; event changes are appended to the chronicle timeline file via
-`org-chronicle--append-event'."
+(defun org-chronicle-wikidata--apply-changes (changes index)
+  "Write approved change plists to the chronicle at the heading at point.
+CHANGES is a list of change plists; INDEX maps IMPORT-KEY to markers in the
+events file.  Entity changes set properties on the heading; event changes are
+written idempotently to the events file."
   (org-back-to-heading t)
   (dolist (change changes)
     (pcase (plist-get change :target)
       ('entity (org-chronicle-wikidata--apply-entity-change change))
-      ('event (org-chronicle--append-event
-               (org-chronicle-wikidata--event-change-string change))))))
+      ('event (org-chronicle-wikidata--apply-event-change change index)))))
 
 (defun org-chronicle-wikidata--candidate-line (cand)
   "Format candidate plist CAND as a completion line."
@@ -452,10 +451,11 @@ otherwise present search candidates for selection.  Return the QID string."
 (defun org-chronicle-wikidata--review-rows (changes)
   "Build review rows from proposed change plists.
 CHANGES is a list of change plists.  Each row is a two-element list
-\(STATE plist): STATE has :selected (from the change :default) and :status
-\(carried through)."
+\(STATE plist): STATE has :selected (default proposals that are new) and
+:status (carried through)."
   (mapcar (lambda (c)
-            (list (list :selected (and (plist-get c :default) t)
+            (list (list :selected (and (plist-get c :default)
+                                       (eq (plist-get c :status) 'new))
                         :status (plist-get c :status))
                   c))
           changes))
@@ -575,19 +575,40 @@ Wikidata item, review the proposed edits, and write the approved set."
          (changes (org-chronicle-wikidata--record->changes rec seed)))
     (when (seq-empty-p changes)
       (user-error "Nothing to import for %s (%s)" seed qid))
-    (dolist (c changes)
-      (when (eq (plist-get c :target) 'entity)
-        (plist-put c :status
-                   (org-chronicle-wikidata--classify
-                    c (org-with-point-at marker
-                        (org-entry-get nil (plist-get c :property)))))))
-    (org-chronicle-wikidata--review
-     changes
-     (lambda (selected)
-       (org-with-point-at marker
-         (org-chronicle-wikidata--apply-changes selected)
-         (when (buffer-file-name) (save-buffer))
-         (message "Imported %d change(s) for %s" (length selected) seed))))))
+    (let* ((subject-qid qid)
+           (subject-orgid (org-with-point-at marker
+					     (condition-case nil
+						 (org-id-get-create)
+					       (error (or (org-entry-get nil "ID") (org-id-new))))))
+           (index (org-chronicle-wikidata--events-index)))
+      (setq changes
+            (delq nil
+                  (mapcar
+                   (lambda (c)
+                     (pcase (plist-get c :target)
+                       ('entity
+                        (plist-put c :status
+                                   (org-chronicle-wikidata--classify
+                                    c (org-with-point-at marker
+							 (org-entry-get nil (plist-get c :property)))))
+                        c)
+                       ('event
+                        (let ((key (org-chronicle-wikidata--event-key
+                                    (plist-get c :event) subject-orgid subject-qid)))
+                          (when key
+                            (plist-put c :key key)
+                            (plist-put c :status
+                                       (org-chronicle-wikidata--classify-event
+                                        c (gethash key index)))
+                            c)))))
+                   changes)))
+      (org-chronicle-wikidata--review
+       changes
+       (lambda (selected)
+         (org-with-point-at marker
+			    (org-chronicle-wikidata--apply-changes selected index)
+			    (when (buffer-file-name) (save-buffer))
+			    (message "Imported %d change(s) for %s" (length selected) seed)))))))
 
 (defun org-chronicle-wikidata--diff (changes current-fn)
   "Return entity edits that drift from local values via CURRENT-FN.
@@ -661,8 +682,8 @@ pair of both participants' prefixed QIDs so it is symmetric."
        drift
        (lambda (selected)
          (org-with-point-at marker
-           (org-chronicle-wikidata--apply-changes selected)
-           (message "Reconciled %d field(s) for %s" (length selected) name)))))))
+			    (org-chronicle-wikidata--apply-changes selected (make-hash-table :test 'equal))
+			    (message "Reconciled %d field(s) for %s" (length selected) name)))))))
 
 (defun org-chronicle-wikidata--events-index ()
   "Return a hash mapping each IMPORT-KEY to a marker in the events file.

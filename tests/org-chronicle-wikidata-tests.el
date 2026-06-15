@@ -181,33 +181,35 @@
 (ert-deftest org-chronicle-wikidata-test-apply-changes ()
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
-         (org-chronicle-timeline-file (expand-file-name "timeline.org" root)))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root)))
     (unwind-protect
         (with-temp-buffer
           (org-mode)
           (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n")
           (goto-char (point-min))
           (let ((changes
-                 (list (list :target 'entity :property "BORN" :value "1815-12-10"
+                 (list (list :target 'entity :property "BORN" :value "<1815-12-10>"
                              :provenance "https://www.wikidata.org/wiki/Q7259")
                        (list :target 'entity :property "WIKIDATA" :value "Q7259"
                              :provenance "https://www.wikidata.org/wiki/Q7259")
-                       (list :target 'event
+                       (list :target 'event :key "birth:ABC"
                              :provenance "https://www.wikidata.org/wiki/Q7259"
                              :event (list :life-event "birth" :title "Birth of Ada Lovelace"
                                           :date "1815-12-10" :subject (list "Ada Lovelace")
                                           :location "London")))))
-            (org-chronicle-wikidata--apply-changes changes))
+            (org-chronicle-wikidata--apply-changes
+             changes (org-chronicle-wikidata--events-index)))
           (goto-char (point-min))
-          (should (equal (org-entry-get nil "BORN") "1815-12-10"))
+          (should (equal (org-entry-get nil "BORN") "<1815-12-10>"))
           (should (equal (org-entry-get nil "WIKIDATA") "Q7259"))
           (should (equal (org-entry-get nil "SOURCES")
                          "https://www.wikidata.org/wiki/Q7259"))
-          (let ((tl (with-temp-buffer
-                      (insert-file-contents org-chronicle-timeline-file)
-                      (buffer-string))))
-            (should (string-match-p "Birth of Ada Lovelace" tl))
-            (should (string-match-p ":LIFE-EVENT: birth" tl))))
+          (let ((events (with-temp-buffer
+                          (insert-file-contents org-chronicle-wikidata-file)
+                          (buffer-string))))
+            (should (string-match-p "Birth of Ada Lovelace" events))
+            (should (string-match-p ":LIFE-EVENT: birth" events))
+            (should (string-match-p ":IMPORT-KEY: birth:ABC" events))))
       (delete-directory root t))))
 
 (ert-deftest org-chronicle-wikidata-test-candidate-line ()
@@ -259,7 +261,8 @@
 (ert-deftest org-chronicle-wikidata-test-import ()
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
-         (org-chronicle-timeline-file (expand-file-name "timeline.org" root)))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root)))
     (unwind-protect
         (with-temp-buffer
           (org-mode)
@@ -523,6 +526,40 @@
             (should (= 1 (cl-count ?* body)))
             (should (string-match-p "1816-01-01" body))))
       (delete-directory root t))))
+
+(ert-deftest org-chronicle-wikidata-test-import-events-idempotent ()
+  (let* ((root (make-temp-file "octw-root" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file (expand-file-name "people.org" root))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
+         (people-file (expand-file-name "people.org" root)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
+                   (lambda (&rest _) "Q7259"))
+                  ((symbol-function 'org-chronicle-wikidata--fetch-person)
+                   (lambda (_qid)
+                     (list :qid "Q7259"
+                           :born (org-chronicle--date-parse "1815-12-10")
+                           :birthplace "London")))
+                  ((symbol-function 'org-chronicle-wikidata--review)
+                   (lambda (changes on-confirm) (funcall on-confirm changes))))
+          (with-temp-file people-file
+            (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n"))
+          (cl-flet ((run ()
+                      (with-current-buffer (find-file-noselect people-file)
+                        (goto-char (point-min))
+                        (org-chronicle-wikidata-import))))
+            (run)
+            (run)
+            (let ((body (with-temp-buffer
+                          (insert-file-contents org-chronicle-wikidata-file)
+                          (buffer-string))))
+              (should (= 1 (cl-count-if
+                            (lambda (l) (string-match-p "Birth of Ada Lovelace" l))
+                            (split-string body "\n")))))))
+      (delete-directory root t))))
+
 
 
 
