@@ -1,0 +1,9 @@
+{"results":{"bindings":[{
+"born":{"value":"+1815-12-10T00:00:00Z"},"bornPrec":{"value":"11"},
+"died":{"value":"+1852-11-27T00:00:00Z"},"diedPrec":{"value":"11"},
+"birthPlaceLabel":{"value":"London"},
+"deathPlaceLabel":{"value":"Marylebone"},
+"fatherLabel":{"value":"Lord Byron"},
+"motherLabel":{"value":"Anne Isabella Byron"},
+"aliases":{"value":"Augusta Ada KingAda King"}
+}]}}
