@@ -272,11 +272,16 @@ for future reconciliation.
 
 =M-x org-chronicle-wikidata-reconcile= re-queries the Wikidata item
 stored in the heading's =WIKIDATA= property and presents only the changes
-that have drifted from your local copy: fields missing locally or where
-the upstream value differs from what you have.  Fields that already match
-are suppressed.  The same review buffer is used; each row shows whether the
-change is new (absent locally) or a conflict (upstream value differs).
-Nothing is overwritten without explicit selection.
+that have drifted from your local copy.  Drift covers both entity
+properties and imported events: a property or event that is missing
+locally (new), or whose value has changed upstream (conflict) — for an
+event, a changed date or place — is shown as an opt-in pull, while items
+that already match are suppressed.  Imported events are matched by their
+=IMPORT-KEY=, so a pulled conflict updates the existing event heading in
+place rather than duplicating it.  The same review buffer is used; each
+row shows whether the change is new or a conflict, and nothing is
+overwritten without explicit selection.  (Events that have been *removed*
+upstream are not yet detected.)
 
 The command requires a =WIKIDATA= property on the heading; if none is
 present it directs you to run =org-chronicle-wikidata-import= first.
