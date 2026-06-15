@@ -99,11 +99,6 @@
       (should (equal (plist-get rec :birthplace) "London"))
       (should (= (length (plist-get rec :spouses)) 1)))))
 
-
-
-
-
-
 (defun org-chronicle-wikidata-test--fixture (name)
   "Return the contents of fixture NAME under tests/fixtures/."
   (with-temp-buffer
@@ -262,12 +257,12 @@
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root)))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (people-file (expand-file-name "people.org" root)))
     (unwind-protect
-        (with-temp-buffer
-          (org-mode)
-          (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n")
-          (goto-char (point-min))
+        (progn
+          (with-temp-file people-file
+            (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n"))
           (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
                      (lambda (&rest _) "Q7259"))
                     ((symbol-function 'org-chronicle-wikidata--fetch-person)
@@ -277,10 +272,14 @@
                              :birthplace "London")))
                     ((symbol-function 'org-chronicle-wikidata--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
-            (org-chronicle-wikidata-import))
-          (goto-char (point-min))
-          (should (equal (org-entry-get nil "BORN") "<1815-12-10>"))
-          (should (equal (org-entry-get nil "WIKIDATA") "Q7259")))
+            (with-current-buffer (find-file-noselect people-file)
+              (goto-char (point-min))
+              (org-chronicle-wikidata-import))
+            (let ((content (with-temp-buffer
+                             (insert-file-contents people-file)
+                             (buffer-string))))
+              (should (string-match-p ":BORN:.*1815-12-10" content))
+              (should (string-match-p ":WIKIDATA:.*Q7259" content)))))
       (delete-directory root t))))
 
 (ert-deftest org-chronicle-wikidata-test-diff ()
@@ -560,25 +559,36 @@
                             (split-string body "\n")))))))
       (delete-directory root t))))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+(ert-deftest org-chronicle-wikidata-test-apply-event-preserves-unmanaged ()
+  (let* ((root (make-temp-file "octw-root" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
+         (change (list :target 'event :key "birth:ABC"
+                       :provenance "https://www.wikidata.org/wiki/Q7259"
+                       :event (list :life-event "birth" :title "Birth of Ada Lovelace"
+                                    :date "1815-12-10" :subject (list "Ada Lovelace")))))
+    (unwind-protect
+        (let ((index (org-chronicle-wikidata--events-index)))
+          (org-chronicle-wikidata--apply-event-change change index)
+          ;; Author edits the heading: renames it and adds an unmanaged property.
+          (org-with-point-at (gethash "birth:ABC" index)
+            (org-back-to-heading t)
+            (org-edit-headline "Ada's birth (my note)")
+            (org-set-property "NOTES" "hand-written")
+            (save-buffer))
+          ;; Re-apply with a changed date.
+          (let ((change2 (copy-sequence change)))
+            (plist-put change2 :event (list :life-event "birth" :title "Birth of Ada Lovelace"
+                                            :date "1816-02-02" :subject (list "Ada Lovelace")))
+            (org-chronicle-wikidata--apply-event-change change2 index))
+          (let ((body (with-temp-buffer
+                        (insert-file-contents org-chronicle-wikidata-file)
+                        (buffer-string))))
+            (should (string-match-p "1816-02-02" body))          ; managed field updated
+            (should (string-match-p "Ada's birth (my note)" body)) ; title preserved
+            (should (string-match-p ":NOTES: *hand-written" body)))) ; unmanaged prop preserved
+      (delete-directory root t))))
 
 (provide 'org-chronicle-wikidata-tests)
 ;;; org-chronicle-wikidata-tests.el ends here

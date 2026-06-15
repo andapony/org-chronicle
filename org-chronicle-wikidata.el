@@ -23,8 +23,6 @@
 
 (require 'seq)
 
-
-
 (defgroup org-chronicle-wikidata nil
   "Wikidata integration for org-chronicle."
   :group 'org-chronicle)
@@ -194,18 +192,6 @@ OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--spouses-query qid))
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--events-query qid))))
 
-
-
-
-
-
-
-
-
-
-
-
-
 (defun org-chronicle-wikidata--rows->record (qid vitals spouses events)
   "Assemble a person record for QID from parsed binding lists.
 VITALS is the (single) vitals row list, SPOUSES and EVENTS are row lists.
@@ -240,11 +226,6 @@ Returns a plist; unrepresentable dates are dropped (see
                              :date-end (org-chronicle-wikidata--row-date row "end" "endPrec")
                              :location nil))
                      events))))
-
-
-
-
-
 
 (defun org-chronicle-wikidata--url (qid)
   "Return the canonical Wikidata item URL for QID."
@@ -576,10 +557,7 @@ Wikidata item, review the proposed edits, and write the approved set."
     (when (seq-empty-p changes)
       (user-error "Nothing to import for %s (%s)" seed qid))
     (let* ((subject-qid qid)
-           (subject-orgid (org-with-point-at marker
-					     (condition-case nil
-						 (org-id-get-create)
-					       (error (or (org-entry-get nil "ID") (org-id-new))))))
+           (subject-orgid (org-with-point-at marker (org-id-get-create)))
            (index (org-chronicle-wikidata--events-index)))
       (setq changes
             (delq nil
@@ -590,7 +568,7 @@ Wikidata item, review the proposed edits, and write the approved set."
                         (plist-put c :status
                                    (org-chronicle-wikidata--classify
                                     c (org-with-point-at marker
-							 (org-entry-get nil (plist-get c :property)))))
+                                                         (org-entry-get nil (plist-get c :property)))))
                         c)
                        ('event
                         (let ((key (org-chronicle-wikidata--event-key
@@ -606,9 +584,9 @@ Wikidata item, review the proposed edits, and write the approved set."
        changes
        (lambda (selected)
          (org-with-point-at marker
-			    (org-chronicle-wikidata--apply-changes selected index)
-			    (when (buffer-file-name) (save-buffer))
-			    (message "Imported %d change(s) for %s" (length selected) seed)))))))
+                            (org-chronicle-wikidata--apply-changes selected index)
+                            (when (buffer-file-name) (save-buffer))
+                            (message "Imported %d change(s) for %s" (length selected) seed)))))))
 
 (defun org-chronicle-wikidata--diff (changes current-fn)
   "Return entity edits that drift from local values via CURRENT-FN.
@@ -659,9 +637,6 @@ pair of both participants' prefixed QIDs so it is symmetric."
        (and obj (format "position:%s:wd:%s" subject-orgid obj)))
       (_ (and subject-orgid (format "%s:%s" kind subject-orgid))))))
 
-
-
-
 ;;;###autoload
 (defun org-chronicle-wikidata-reconcile ()
   "Re-query the stored Wikidata item and present drift as opt-in pulls."
@@ -682,8 +657,8 @@ pair of both participants' prefixed QIDs so it is symmetric."
        drift
        (lambda (selected)
          (org-with-point-at marker
-			    (org-chronicle-wikidata--apply-changes selected (make-hash-table :test 'equal))
-			    (message "Reconciled %d field(s) for %s" (length selected) name)))))))
+                            (org-chronicle-wikidata--apply-changes selected (make-hash-table :test 'equal))
+                            (message "Reconciled %d field(s) for %s" (length selected) name)))))))
 
 (defun org-chronicle-wikidata--events-index ()
   "Return a hash mapping each IMPORT-KEY to a marker in the events file.
@@ -766,32 +741,6 @@ otherwise append a new heading carrying the key."
           (save-buffer))
       (org-chronicle-wikidata--append-to-events-file
        (org-chronicle-wikidata--event-change-string change) key index))))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 (provide 'org-chronicle-wikidata)
 ;;; org-chronicle-wikidata.el ends here
