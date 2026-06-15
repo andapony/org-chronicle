@@ -748,5 +748,39 @@
     (should (string-match-p "also lists: 1642"
                             (org-chronicle-wikidata--change-label born)))))
 
+(ert-deftest org-chronicle-wikidata-test-place-changes ()
+  "Place record produces BUILT/ALIASES/WIKIDATA but not RAZED or BORN."
+  (let* ((rec (list :qid "Q3505806" :kind 'place :label "Sutro Baths"
+                    :aliases '("Sutro")
+                    :start (org-chronicle--date-parse "1896")
+                    :start-alternates '("1894") :end nil))
+         (changes (org-chronicle-wikidata--record->changes rec "Sutro Baths"))
+         (props (mapcar (lambda (c) (plist-get c :property))
+                        (cl-remove-if-not (lambda (c) (eq (plist-get c :target) 'entity)) changes))))
+    (should (member "BUILT" props))
+    (should (member "ALIASES" props))
+    (should (member "WIKIDATA" props))
+    (should-not (member "RAZED" props))
+    (should-not (member "BORN" props))
+    (should (cl-every (lambda (c) (eq (plist-get c :target) 'entity)) changes))
+    (let ((built (cl-find "BUILT" changes :key (lambda (c) (plist-get c :property)) :test #'equal)))
+      (should (equal (plist-get built :alternates) '("1894"))))))
+
+(ert-deftest org-chronicle-wikidata-test-fetch-record-place ()
+  "Fetch-record for a place returns kind=place with label and start from SPARQL."
+  (cl-letf (((symbol-function 'org-chronicle-wikidata--sparql-request)
+             (lambda (q)
+               (org-chronicle-wikidata--bindings
+                (if (string-match-p "P571" q)
+                    "{\"results\":{\"bindings\":[{\"prop\":{\"value\":\"start\"},\"value\":{\"value\":\"1896-01-01T00:00:00Z\"},\"prec\":{\"value\":\"9\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#NormalRank\"}}]}}"
+                  "{\"results\":{\"bindings\":[{\"label\":{\"value\":\"Sutro Baths\"}}]}}")))))
+    (let ((rec (org-chronicle-wikidata--fetch-record "Q3505806" 'place)))
+      (should (eq (plist-get rec :kind) 'place))
+      (should (equal (plist-get rec :label) "Sutro Baths"))
+      (should (equal (plist-get (plist-get rec :start) :year) 1896))
+      (should (null (plist-get rec :end))))))
+
+
+
 (provide 'org-chronicle-wikidata-tests)
 ;;; org-chronicle-wikidata-tests.el ends here
