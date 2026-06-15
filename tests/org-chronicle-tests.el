@@ -1054,6 +1054,24 @@ Marek is born 1870, but BEFORE Vicksburg (1863) caps the window earlier."
                                           :marker (point-marker))))))
       (should (null (org-chronicle--scene-findings scene ctx))))))
 
+(ert-deftest org-chronicle-test-findings-span-end-out-of-window ()
+  "A span anchor whose END exceeds the window is flagged at its end date."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let* ((ctx (org-chronicle--scene-context))
+           (scene (list :title "S" :marker (point-marker)
+                        :own-date (org-chronicle--date-parse "1863-07-04")
+                        :own-date-end (org-chronicle--date-parse "1866-01-01")
+                        :before-ids '("vicksburg") :refs nil))
+           (f (org-chronicle--scene-findings scene ctx)))
+      (should (eq (plist-get f :verdict) 'out-of-window))
+      (should (equal (plist-get f :offending)
+                     (org-chronicle--date-parse "1866-01-01")))
+      (should (plist-get f :reasons))
+      (should (string-match-p
+               "1866-01-01"
+               (org-chronicle--scene-verdict-line f))))))
+
+
 (ert-deftest org-chronicle-test-lint-scenes-reports ()
   "The command lists an out-of-window scene and a clean run says so."
   (org-chronicle-test--with-root

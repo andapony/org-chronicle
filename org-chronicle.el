@@ -1538,8 +1538,8 @@ against current dates in CTX.  Undated referents contribute no bound."
 
 (defun org-chronicle--scene-anchor (scene ctx)
   "Return SCENE's temporal anchor as (START . END) date plists, or nil.
-Own DATE (with optional DATE-END) wins; else the span across EVENT events;
-else nil (floating)."
+Own DATE (with optional DATE-END) wins; else the span across the EVENT
+events resolved through CTX; else nil (floating)."
   (cond
    ((plist-get scene :own-date)
     (cons (plist-get scene :own-date)
@@ -1565,7 +1565,8 @@ else nil (floating)."
           (if (cdr span) (org-chronicle--date-format (cdr span)) "?")))
 
 (defun org-chronicle--scene-dangling (scene ctx)
-  "Return ((MSG . MARKER) ...) for unresolved references in SCENE."
+  "Return ((MSG . MARKER) ...) for unresolved references in SCENE.
+CTX is the shared scene context."
   (let ((entities (plist-get ctx :entities))
         (by-id (plist-get ctx :events-by-id))
         (out '()))
@@ -1586,7 +1587,8 @@ else nil (floating)."
     (nreverse out)))
 
 (defun org-chronicle--scene-violation-reasons (scene ctx date)
-  "Return ((MSG . MARKER) ...) explaining why DATE violates SCENE's bounds."
+  "Return ((MSG . MARKER) ...) explaining why DATE violates SCENE's bounds.
+CTX is the shared scene context."
   (let ((entities (plist-get ctx :entities))
         (idx (plist-get ctx :idx))
         (index (plist-get ctx :index))
@@ -1641,7 +1643,8 @@ else nil (floating)."
     (nreverse out)))
 
 (defun org-chronicle--scene-conflict-reasons (scene ctx)
-  "Return ((MSG . MARKER) ...) describing the bounds that make SCENE empty."
+  "Return ((MSG . MARKER) ...) describing the bounds that make SCENE empty.
+CTX is the shared scene context."
   (let ((entities (plist-get ctx :entities))
         (idx (plist-get ctx :idx))
         (index (plist-get ctx :index))
@@ -1675,8 +1678,10 @@ else nil (floating)."
 
 (defun org-chronicle--scene-findings (scene ctx)
   "Return a finding plist for SCENE, or nil if it is clean.
-Result: (:scene SCENE :verdict V :window W :anchor A :reasons (...)),
-V one of `dangling', `empty', `out-of-window', `floating'."
+The plist is (:scene :verdict :window :anchor :offending :reasons); :verdict
+is `dangling', `empty', `out-of-window', or `floating'; :offending is the
+anchor endpoint that violates the window (out-of-window only).  CTX is the
+shared scene context."
   (let ((dangling (org-chronicle--scene-dangling scene ctx))
         (window (org-chronicle--scene-window scene ctx))
         (anchor (org-chronicle--scene-anchor scene ctx)))
@@ -1691,13 +1696,15 @@ V one of `dangling', `empty', `out-of-window', `floating'."
       (list :scene scene :verdict 'floating :window window :anchor anchor
             :reasons nil))
      (t
-      (let ((lo (car window)) (hi (cdr window))
-            (astart (car anchor)) (aend (cdr anchor)))
-        (unless (and (org-chronicle--date-in-span-p astart lo hi)
-                     (org-chronicle--date-in-span-p aend lo hi))
+      (let* ((lo (car window)) (hi (cdr window))
+             (astart (car anchor)) (aend (cdr anchor))
+             (bad (cond ((not (org-chronicle--date-in-span-p astart lo hi)) astart)
+                        ((not (org-chronicle--date-in-span-p aend lo hi)) aend))))
+        (when bad
           (list :scene scene :verdict 'out-of-window :window window :anchor anchor
+                :offending bad
                 :reasons (org-chronicle--scene-violation-reasons
-                          scene ctx astart))))))))
+                          scene ctx bad))))))))
 
 ;;;; Scenes: the lint command
 
@@ -1723,7 +1730,7 @@ V one of `dangling', `empty', `out-of-window', `floating'."
 
 (defun org-chronicle--scene-verdict-line (f)
   "Return the one-line verdict summary for finding F."
-  (let ((window (plist-get f :window)) (anchor (plist-get f :anchor)))
+  (let ((window (plist-get f :window)))
     (pcase (plist-get f :verdict)
       ('dangling "unresolved reference(s)")
       ('empty "empty window — references cannot co-exist")
@@ -1731,7 +1738,8 @@ V one of `dangling', `empty', `out-of-window', `floating'."
                          (org-chronicle--window-string window)))
       ('out-of-window
        (format "date %s outside feasible window %s"
-               (org-chronicle--date-format (car anchor))
+               (org-chronicle--date-format
+                (or (plist-get f :offending) (car (plist-get f :anchor))))
                (org-chronicle--window-string window))))))
 
 (defun org-chronicle--scene-verdict-glyph (verdict)
