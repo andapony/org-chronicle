@@ -892,5 +892,29 @@ global root differs."
       (should (equal (plist-get (car refs) :name) "Mrs. Grant"))
       (should (null (plist-get (cadr refs) :name))))))
 
+(ert-deftest org-chronicle-test-buffer-scenes-detects-triggers ()
+  "Headings with EVENT/AFTER/BEFORE, a fictional DATE, or an inline link are scenes."
+  (org-chronicle-test--with-org
+      (concat "* Plain\n"
+              "* Has event\n:PROPERTIES:\n:EVENT: [[id:e1]]\n:END:\nbody\n"
+              "* Fictional\n:PROPERTIES:\n:DATE: <1863-06-01>\n:TRUTH: fictional\n:END:\n"
+              "* Linked\nprose [[chronicle:x][X]] more\n")
+    (let ((titles (mapcar (lambda (s) (plist-get s :title))
+                          (org-chronicle--buffer-scenes))))
+      (should (equal titles '("Has event" "Fictional" "Linked")))
+      (should-not (member "Plain" titles)))))
+
+(ert-deftest org-chronicle-test-buffer-scenes-nearest-enclosing ()
+  "A link inside a descendant scene is owned by the descendant, not the ancestor."
+  (org-chronicle-test--with-org
+      (concat "* Outer\n:PROPERTIES:\n:EVENT: [[id:e1]]\n:END:\n"
+              "outer [[chronicle:a][A]]\n"
+              "** Inner\ninner [[chronicle:b][B]]\n")
+    (let* ((scenes (org-chronicle--buffer-scenes))
+           (outer (cl-find "Outer" scenes :key (lambda (s) (plist-get s :title)) :test #'equal))
+           (inner (cl-find "Inner" scenes :key (lambda (s) (plist-get s :title)) :test #'equal)))
+      (should (equal (mapcar (lambda (r) (plist-get r :id)) (plist-get outer :refs)) '("a")))
+      (should (equal (mapcar (lambda (r) (plist-get r :id)) (plist-get inner :refs)) '("b"))))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

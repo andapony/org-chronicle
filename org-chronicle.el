@@ -1397,6 +1397,69 @@ Each element is a plist (:id ID :name DESC-or-nil :pos POS :marker MARKER)."
                 refs))))
     (nreverse refs)))
 
+;;;; Scenes: gathering
+
+(defun org-chronicle--heading-scene-props ()
+  "Return scene-relevant fields of the Org heading at point as a plist."
+  (list :title (org-get-heading t t t t)
+        :marker (point-marker)
+        :begin (point)
+        :end (save-excursion (org-end-of-subtree t t) (point))
+        :truth (org-entry-get nil "TRUTH")
+        :own-date (org-chronicle--date-parse (org-entry-get nil "DATE"))
+        :own-date-end (org-chronicle--date-parse (org-entry-get nil "DATE-END"))
+        :event-ids (org-chronicle--extract-ids (org-entry-get nil "EVENT"))
+        :after-ids (org-chronicle--extract-ids (org-entry-get nil "AFTER"))
+        :before-ids (org-chronicle--extract-ids (org-entry-get nil "BEFORE"))))
+
+(defun org-chronicle--structural-scene-p (h)
+  "Non-nil if heading plist H is a scene by its own properties."
+  (or (plist-get h :event-ids)
+      (plist-get h :after-ids)
+      (plist-get h :before-ids)
+      (and (plist-get h :own-date)
+           (equal (plist-get h :truth) "fictional"))))
+
+(defun org-chronicle--buffer-scenes ()
+  "Return scene plists for the current buffer in document order.
+A scene is a heading carrying EVENT/AFTER/BEFORE, a fictional own DATE, or
+directly containing an inline chronicle: link.  Each scene plist gains a
+:refs field: the references it owns, attributed to the nearest enclosing
+scene (the deepest heading whose subtree contains the link)."
+  (org-with-wide-buffer
+   (let ((headings '())
+         (refs (org-chronicle--scan-references))
+         (owned (make-hash-table :test #'eq)))
+     (org-map-entries
+      (lambda () (push (org-chronicle--heading-scene-props) headings)))
+     (setq headings (nreverse headings))
+     (dolist (ref refs)
+       (let ((pos (plist-get ref :pos)) (best nil))
+         (dolist (h headings)
+           (when (and (<= (plist-get h :begin) pos)
+                      (< pos (plist-get h :end))
+                      (or (null best)
+                          (> (plist-get h :begin) (plist-get best :begin))))
+             (setq best h)))
+         (when best
+           (puthash best (cons ref (gethash best owned)) owned))))
+     (cl-loop for h in headings
+              for hrefs = (nreverse (gethash h owned))
+              when (or (org-chronicle--structural-scene-p h) hrefs)
+              collect (append h (list :refs hrefs))))))
+
+(defun org-chronicle--scene-at-point ()
+  "Return the scene plist for the heading at point, or a bare scene if none.
+Falls back to `org-chronicle--heading-scene-props' with no refs so an
+unmarked heading can still be treated as a (constraint-free) scene."
+  (save-excursion
+    (org-back-to-heading t)
+    (let ((pos (point)))
+      (or (cl-find pos (org-chronicle--buffer-scenes)
+                   :key (lambda (s) (plist-get s :begin)) :test #'=)
+          (append (org-chronicle--heading-scene-props) (list :refs nil))))))
+
+
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)
