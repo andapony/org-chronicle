@@ -339,8 +339,65 @@
     (should (eq (org-chronicle-wikidata--classify change "<1815-12-10>") 'same))
     (should (eq (org-chronicle-wikidata--classify change "1900-01-01") 'conflict))))
 
+(ert-deftest org-chronicle-wikidata-test-import-create ()
+  "Non-entity heading triggers create-person then enriches the new entity."
+  (let* ((root (make-temp-file "octw-root" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file (expand-file-name "people.org" root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root)))
+    (unwind-protect
+        (with-temp-buffer
+          (org-mode)
+          (insert "* Charles Babbage\nsome prose\n")
+          (goto-char (point-min))
+          (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
+                     (lambda (&rest _) "Q46633"))
+                    ((symbol-function 'org-chronicle-wikidata--fetch-person)
+                     (lambda (_qid)
+                       (list :qid "Q46633"
+                             :born (org-chronicle--date-parse "1791-12-26"))))
+                    ((symbol-function 'org-chronicle-wikidata--review)
+                     (lambda (changes on-confirm) (funcall on-confirm changes))))
+            (org-chronicle-wikidata-import))
+          (let ((people (with-temp-buffer
+                          (insert-file-contents org-chronicle-people-file)
+                          (buffer-string))))
+            (should (string-match-p "Charles Babbage" people))
+            (should (string-match-p ":KIND:" people))
+            (should (string-match-p ":WIKIDATA:.*Q46633" people))
+            (should (string-match-p ":BORN:" people))))
+      (delete-directory root t))))
 
-
+(ert-deftest org-chronicle-wikidata-test-import-promote ()
+  "Point on SPOUSE property creates a new entity seeded from the value."
+  (let* ((root (make-temp-file "octw-root" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file (expand-file-name "people.org" root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root)))
+    (unwind-protect
+        (with-temp-buffer
+          (org-mode)
+          (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:SPOUSE: William King-Noel\n:END:\n")
+          (goto-char (point-min))
+          (search-forward ":SPOUSE:")
+          (beginning-of-line)
+          (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
+                     (lambda (seed)
+                       (should (string-match-p "William" seed))
+                       "Q123"))
+                    ((symbol-function 'org-chronicle-wikidata--fetch-person)
+                     (lambda (_qid)
+                       (list :qid "Q123"
+                             :born (org-chronicle--date-parse "1805"))))
+                    ((symbol-function 'org-chronicle-wikidata--review)
+                     (lambda (changes on-confirm) (funcall on-confirm changes))))
+            (org-chronicle-wikidata-import))
+          (let ((people (with-temp-buffer
+                          (insert-file-contents org-chronicle-people-file)
+                          (buffer-string))))
+            (should (string-match-p "William King-Noel" people))
+            (should (string-match-p ":WIKIDATA:.*Q123" people))))
+      (delete-directory root t))))
 
 
 

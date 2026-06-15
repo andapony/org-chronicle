@@ -226,11 +226,16 @@ stored QID is reused immediately.  Otherwise the command opens a prompt
 seeded with the heading name; pasting a bare QID (e.g. =Q7259=) or a full
 Wikidata URL short-circuits the network search.  Entering a plain name
 queries =wbsearchentities= and presents candidates for selection with
-=completing-read=.  A special affordance exists for kinship properties:
-invoking the command while point is on a =PARENTS= or =SPOUSE= property
-line seeds the search with the first name in that value and then, if the
-person does not already exist as an entity, creates it via
-=org-chronicle-add-person= before enriching it.
+=completing-read=.
+
+*Resolve-or-create.* The command can be invoked in three situations: (1)
+point on a =KIND: person= entity heading — the existing entity is enriched
+in place; (2) point on a =PARENTS= or =SPOUSE= property line — the first
+name in that value seeds the search, a minimal person entity is written to
+the people file without interactive prompts, and then it is enriched from
+Wikidata; (3) point on any other heading — a minimal person entity is
+written to the people file and enriched.  In all cases the entity is saved
+to its file before returning.
 
 *Fetch and review.* The resolved QID is used to run three SPARQL queries
 (vitals, spouses, positions held) against the Wikidata Query Service.
