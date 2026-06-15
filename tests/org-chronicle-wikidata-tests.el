@@ -650,6 +650,45 @@
             (should (string-match-p "Death of Ada Lovelace" events))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-wikidata-test-coarse-date-label ()
+  (should (equal (org-chronicle-wikidata--coarse-date-label "1640-01-01T00:00:00Z" 8) "1640s"))
+  (should (equal (org-chronicle-wikidata--coarse-date-label "1643-01-01T00:00:00Z" 7) "17th century"))
+  (should (equal (org-chronicle-wikidata--coarse-date-label "-0900-01-01T00:00:00Z" 7) "900 BC")))
+
+(ert-deftest org-chronicle-wikidata-test-select-candidate ()
+  (cl-flet ((cand (date prec rank)
+                  (list :date (and date (org-chronicle--date-parse date))
+                        :raw (and date (concat date "T00:00:00Z"))
+                        :precision prec :rank rank)))
+    (let ((sel (org-chronicle-wikidata--select-candidate
+                (list (cand "1643-01-04" 11 'normal)
+                      (cand "1643-01-04" 11 'preferred)
+                      (cand "1642" 9 'normal)))))
+      (should (equal (plist-get (plist-get sel :date) :year) 1643))
+      (should (equal (plist-get (plist-get sel :date) :day) 4))
+      (should (member "1642" (plist-get sel :alternates)))
+      (should-not (member "1643-01-04" (plist-get sel :alternates))))
+    (should (equal (plist-get (plist-get (org-chronicle-wikidata--select-candidate
+                                          (list (cand "1500" 9 'normal)
+                                                (cand "1500-06-15" 11 'normal))) :date) :day) 15))
+    (should (equal (plist-get (plist-get (org-chronicle-wikidata--select-candidate
+                                          (list (cand "1500" 9 nil)
+                                                (cand "1500-06-15" 11 nil))) :date) :day) 15))
+    (let ((sel (org-chronicle-wikidata--select-candidate
+                (list (cand "1500-06-15" 11 'deprecated) (cand "1500" 9 'normal)))))
+      (should (equal (plist-get (plist-get sel :date) :year) 1500))
+      (should (null (plist-get (plist-get sel :date) :day))))
+    (let ((sel (org-chronicle-wikidata--select-candidate
+                (list (list :date nil :raw "1640-01-01T00:00:00Z" :precision 8 :rank 'preferred)
+                      (cand "1643-01-04" 11 'normal)))))
+      (should (equal (plist-get (plist-get sel :date) :year) 1643))
+      (should (member "1640s" (plist-get sel :alternates))))
+    (should (null (plist-get (org-chronicle-wikidata--select-candidate
+                              (list (list :date nil :raw "1640-01-01T00:00:00Z"
+                                          :precision 8 :rank 'normal))) :date)))))
+
+
+
 
 
 (provide 'org-chronicle-wikidata-tests)

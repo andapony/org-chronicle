@@ -192,6 +192,65 @@ OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--spouses-query qid))
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--events-query qid))))
 
+(defun org-chronicle-wikidata--ordinal (n)
+  "Return N as an English ordinal string, e.g. 17 -> \"17th\"."
+  (let ((suffix (cond ((memq (% n 100) '(11 12 13)) "th")
+                      ((= (% n 10) 1) "st")
+                      ((= (% n 10) 2) "nd")
+                      ((= (% n 10) 3) "rd")
+                      (t "th"))))
+    (format "%d%s" n suffix)))
+
+(defun org-chronicle-wikidata--coarse-date-label (raw precision)
+  "Return a display label for an unrepresentable Wikidata time value RAW.
+PRECISION is the integer Wikidata precision; decade is 8 and century is 7."
+  (if (not (and (stringp raw) (string-match "\\`\\([-+]?\\)\\([0-9]+\\)" raw)))
+      (or raw "?")
+    (let ((bce (equal (match-string 1 raw) "-"))
+          (year (string-to-number (match-string 2 raw))))
+      (cond
+       (bce (format "%d BC" year))
+       ((eq precision 8) (format "%ds" (- year (% year 10))))
+       ((eq precision 7) (format "%s century"
+                                 (org-chronicle-wikidata--ordinal
+                                  (1+ (/ (1- year) 100)))))
+       (t (format "%d" year))))))
+
+(defun org-chronicle-wikidata--candidate-label (cand)
+  "Return a display string for date-candidate CAND."
+  (if (plist-get cand :date)
+      (org-chronicle--date-format (plist-get cand :date))
+    (org-chronicle-wikidata--coarse-date-label
+     (plist-get cand :raw) (plist-get cand :precision))))
+
+(defun org-chronicle-wikidata--select-candidate (candidates)
+  "Choose the best date among CANDIDATES (for one property).
+Drop deprecated, keep representable, prefer preferred rank, then highest
+precision.  Return a plist (:date CHOSEN-OR-NIL :alternates LIST-OF-STRINGS),
+where alternates are the other distinct values as display strings."
+  (let* ((live (cl-remove-if (lambda (c) (eq (plist-get c :rank) 'deprecated)) candidates))
+         (representable (cl-remove-if-not (lambda (c) (plist-get c :date)) live))
+         (preferred (cl-remove-if-not (lambda (c) (eq (plist-get c :rank) 'preferred))
+                                      representable))
+         (pool (if preferred preferred representable))
+         (chosen (car (sort (copy-sequence pool)
+                            (lambda (a b) (> (or (plist-get a :precision) 0)
+                                             (or (plist-get b :precision) 0))))))
+         (chosen-date (plist-get chosen :date))
+         (chosen-label (and chosen-date (org-chronicle--date-format chosen-date)))
+         (alternates
+          (delete-dups
+           (delq nil
+                 (mapcar (lambda (c)
+                           (let ((lbl (org-chronicle-wikidata--candidate-label c)))
+                             (unless (and chosen-label (equal lbl chosen-label)) lbl)))
+                         candidates)))))
+    (list :date chosen-date :alternates alternates)))
+
+
+
+
+
 (defun org-chronicle-wikidata--rows->record (qid vitals spouses events)
   "Assemble a person record for QID from parsed binding lists.
 VITALS is the (single) vitals row list, SPOUSES and EVENTS are row lists.
