@@ -70,6 +70,39 @@ Assertion failures in the caller still fail normally."
     (should (equal (plist-get event :kind) "position"))
     (should (string-match-p "\\`Q[0-9]+\\'" (plist-get event :qid)))))
 
+(ert-deftest org-chronicle-wikidata-test-live-import-capstone ()
+  "Live end-to-end import of Ada Lovelace into a sandbox writes entity + event."
+  :tags '(:wikidata-live)
+  (let* ((root (make-temp-file "octw-live" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file (expand-file-name "people.org" root))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root)))
+    (unwind-protect
+        (progn
+          (with-temp-file org-chronicle-people-file
+            (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:WIKIDATA: Q7259\n:END:\n"))
+          (cl-letf (((symbol-function 'org-chronicle-wikidata--review)
+                     (lambda (changes on-confirm) (funcall on-confirm changes))))
+            (org-chronicle-wikidata-live--fetch-or-skip
+             (lambda ()
+               (with-current-buffer (find-file-noselect org-chronicle-people-file)
+                 (goto-char (point-min))
+                 (org-chronicle-wikidata-import)))))
+          (let ((people (with-temp-buffer
+                          (insert-file-contents org-chronicle-people-file)
+                          (buffer-string))))
+            (should (string-match-p ":BORN: *<?1815-12-10" people))
+            (should (string-match-p ":WIKIDATA: *Q7259" people)))
+          (let ((events (with-temp-buffer
+                          (insert-file-contents org-chronicle-wikidata-file)
+                          (buffer-string))))
+            (should (string-match-p "Birth of Ada Lovelace" events))
+            (should (string-match-p ":IMPORT-KEY: *birth:" events))
+            (should (string-match-p ":DATE: *<?1815-12-10" events))))
+      (delete-directory root t))))
+
+
 
 
 
