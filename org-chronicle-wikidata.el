@@ -113,13 +113,10 @@ VAR is a string variable name."
   "GET URL and return the response body as a string.
 Signal `org-chronicle-wikidata-rate-limited' on HTTP 429 and
 `org-chronicle-wikidata-error' on any other failure or timeout."
-  (let ((url-request-extra-headers
-         '(("Accept" . "application/sparql-results+json")
-           ("User-Agent" . "org-chronicle (Emacs)")))
-        (buf (with-timeout (org-chronicle-wikidata-timeout
-                            (signal 'org-chronicle-wikidata-error
-                                    (list "timeout" url)))
-               (url-retrieve-synchronously url t t))))
+  (let* ((url-request-extra-headers
+          '(("Accept" . "application/sparql-results+json")
+            ("User-Agent" . "org-chronicle (Emacs)")))
+         (buf (url-retrieve-synchronously url t t org-chronicle-wikidata-timeout)))
     (unless buf (signal 'org-chronicle-wikidata-error (list "no response" url)))
     (unwind-protect
         (with-current-buffer buf
@@ -160,7 +157,7 @@ Each candidate is (:qid :label :description)."
 (defun org-chronicle-wikidata--vitals-query (qid)
   "Return the SPARQL vitals query for QID (single result row)."
   (format "SELECT ?born ?bornPrec ?died ?diedPrec ?birthPlaceLabel \
-?deathPlaceLabel ?fatherLabel ?motherLabel \
+?deathPlaceLabel ?fatherLabel ?motherLabel ?label \
 (GROUP_CONCAT(DISTINCT ?alias; separator=\"\\u001f\") AS ?aliases) WHERE { \
 BIND(wd:%s AS ?p) \
 OPTIONAL { ?p p:P569/psv:P569 ?bn. ?bn wikibase:timeValue ?born; wikibase:timePrecision ?bornPrec. } \
@@ -168,9 +165,10 @@ OPTIONAL { ?p p:P570/psv:P570 ?dn. ?dn wikibase:timeValue ?died; wikibase:timePr
 OPTIONAL { ?p wdt:P19 ?birthPlace. } OPTIONAL { ?p wdt:P20 ?deathPlace. } \
 OPTIONAL { ?p wdt:P22 ?father. } OPTIONAL { ?p wdt:P25 ?mother. } \
 OPTIONAL { ?p skos:altLabel ?alias. FILTER(LANG(?alias)=\"en\") } \
+?p rdfs:label ?label. FILTER(LANG(?label)=\"en\") \
 SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } } \
 GROUP BY ?born ?bornPrec ?died ?diedPrec ?birthPlaceLabel ?deathPlaceLabel \
-?fatherLabel ?motherLabel" qid))
+?fatherLabel ?motherLabel ?label" qid))
 
 (defun org-chronicle-wikidata--spouses-query (qid)
   "Return the SPARQL spouses query for QID (one row per spouse)."
@@ -217,6 +215,7 @@ Returns a plist; unrepresentable dates are dropped (see
          (alias-str (and v (org-chronicle-wikidata--cell v "aliases"))))
     (list
      :qid qid
+     :label (and v (org-chronicle-wikidata--cell v "label"))
      :born (and v (org-chronicle-wikidata--row-date v "born" "bornPrec"))
      :died (and v (org-chronicle-wikidata--row-date v "died" "diedPrec"))
      :birthplace (and v (org-chronicle-wikidata--cell v "birthPlaceLabel"))
@@ -264,12 +263,19 @@ See the data contract in the package commentary for field names."
          (died (plist-get rec :died))
          (parents (delq nil (list (plist-get rec :father) (plist-get rec :mother))))
          (spouses (plist-get rec :spouses))
+         (aliases (let* ((label (plist-get rec :label))
+                         (extra (and label (not (equal label name)) (list label))))
+                    (append extra (plist-get rec :aliases))))
          changes)
     (dolist (c (list
                 (org-chronicle-wikidata--entity-change
-                 'vitals "BORN" (and born (org-chronicle--date-format born)) url)
+                 'vitals "BORN"
+                 (and born (org-chronicle--ts (org-chronicle--date-format born)))
+                 url)
                 (org-chronicle-wikidata--entity-change
-                 'vitals "DIED" (and died (org-chronicle--date-format died)) url)
+                 'vitals "DIED"
+                 (and died (org-chronicle--ts (org-chronicle--date-format died)))
+                 url)
                 (org-chronicle-wikidata--entity-change
                  'vitals "BIRTHPLACE" (plist-get rec :birthplace) url)
                 (org-chronicle-wikidata--entity-change
@@ -288,8 +294,7 @@ See the data contract in the package commentary for field names."
                  url)
                 (org-chronicle-wikidata--entity-change
                  'relations "ALIASES"
-                 (and (plist-get rec :aliases)
-                      (org-chronicle--join (plist-get rec :aliases)))
+                 (and aliases (org-chronicle--join aliases))
                  url)))
       (when c (push c changes)))
     (when born
@@ -315,6 +320,7 @@ See the data contract in the package commentary for field names."
                                  :title (format "Marriage of %s and %s"
                                                 name (plist-get s :name))
                                  :date (org-chronicle--date-format (plist-get s :date))
+                                 :subject (list name (plist-get s :name))
                                  :people (list name (plist-get s :name))))
               changes)))
     (dolist (ev (plist-get rec :events))
@@ -331,44 +337,68 @@ See the data contract in the package commentary for field names."
               changes)))
     (nreverse changes)))
 
+(defun org-chronicle-wikidata--dates-equal-p (a b)
+  "Non-nil when date strings A and B denote the same Y/M/D after parsing."
+  (let ((da (org-chronicle--date-parse a))
+        (db (org-chronicle--date-parse b)))
+    (and da db
+         (equal (plist-get da :year) (plist-get db :year))
+         (equal (plist-get da :month) (plist-get db :month))
+         (equal (plist-get da :day) (plist-get db :day)))))
+
 (defun org-chronicle-wikidata--classify (change current)
   "Classify CHANGE against the CURRENT local value string (or nil).
-Return `new' when CURRENT is empty, `same' when it equals the change value,
-or `conflict' otherwise."
-  (let ((value (plist-get change :value)))
+Return `new' when CURRENT is empty, `same' when it matches the change value
+\(dates compared by parsed value), or `conflict' otherwise."
+  (let ((value (plist-get change :value))
+        (prop (plist-get change :property)))
     (cond
      ((or (null current) (string-empty-p current)) 'new)
-     ((equal (string-trim current) (string-trim value)) 'same)
+     ((if (member prop '("BORN" "DIED"))
+          (org-chronicle-wikidata--dates-equal-p current value)
+        (equal (string-trim current) (string-trim value)))
+      'same)
      (t 'conflict))))
+
+(defun org-chronicle-wikidata--add-source (url)
+  "Add URL to the SOURCES property at point unless already present."
+  (let* ((existing (org-chronicle--split (org-entry-get nil "SOURCES")))
+         (merged (if (member url existing) existing (append existing (list url)))))
+    (org-set-property "SOURCES" (org-chronicle--join merged))))
 
 (defun org-chronicle-wikidata--apply-entity-change (change)
   "Set the entity property named in CHANGE at the heading at point.
 Also records the provenance URL in SOURCES and marks TRUTH historical."
   (org-set-property (plist-get change :property) (plist-get change :value))
-  (org-set-property "SOURCES" (plist-get change :provenance))
+  (org-chronicle-wikidata--add-source (plist-get change :provenance))
   (unless (org-entry-get nil "TRUTH")
     (org-set-property "TRUTH" "historical")))
 
 (defun org-chronicle-wikidata--event-change-string (change)
   "Return the Org heading text for the event in CHANGE.
-The heading carries LIFE-EVENT, SUBJECT, and NEW-NAME as applicable."
+Life events (those with a :life-event kind) go through
+`org-chronicle--life-event-string'; other events use the generic
+`org-chronicle--event-string'."
   (let* ((ev (plist-get change :event))
-         (base (org-chronicle--event-string
-                :title (plist-get ev :title)
-                :truth "historical"
-                :date (plist-get ev :date)
-                :date-end (plist-get ev :date-end)
-                :people (plist-get ev :people)
-                :location (plist-get ev :location)
-                :sources (plist-get change :provenance))))
-    (replace-regexp-in-string
-     ":END:\n"
-     (concat
-      (format ":LIFE-EVENT: %s\n" (plist-get ev :life-event))
-      (when (plist-get ev :subject)
-        (format ":SUBJECT:  %s\n" (org-chronicle--join (plist-get ev :subject))))
-      ":END:\n")
-     base t t)))
+         (kind (plist-get ev :life-event)))
+    (if kind
+        (org-chronicle--life-event-string
+         :title (plist-get ev :title)
+         :kind kind
+         :truth "historical"
+         :date (plist-get ev :date)
+         :subject (plist-get ev :subject)
+         :people (plist-get ev :people)
+         :location (plist-get ev :location)
+         :sources (plist-get change :provenance))
+      (org-chronicle--event-string
+       :title (plist-get ev :title)
+       :truth "historical"
+       :date (plist-get ev :date)
+       :date-end (plist-get ev :date-end)
+       :people (plist-get ev :people)
+       :location (plist-get ev :location)
+       :sources (plist-get change :provenance)))))
 
 (defun org-chronicle-wikidata--apply-changes (changes)
   "Apply each approved change at the entity heading at point.

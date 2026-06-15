@@ -157,7 +157,7 @@
                                       (and (eq (plist-get c :target) 'entity)
                                            (equal (plist-get c :property) p)))
                                     changes)))
-      (should (equal (plist-get (prop "BORN") :value) "1815-12-10"))
+      (should (equal (plist-get (prop "BORN") :value) "<1815-12-10>"))
       (should (equal (plist-get (prop "BIRTHPLACE") :value) "London"))
       (should (equal (plist-get (prop "PARENTS") :value) "Lord Byron; Anne Isabella Byron"))
       (should (equal (plist-get (prop "SPOUSE") :value) "William King-Noel"))
@@ -276,7 +276,7 @@
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
             (org-chronicle-wikidata-import))
           (goto-char (point-min))
-          (should (equal (org-entry-get nil "BORN") "1815-12-10"))
+          (should (equal (org-entry-get nil "BORN") "<1815-12-10>"))
           (should (equal (org-entry-get nil "WIKIDATA") "Q7259")))
       (delete-directory root t))))
 
@@ -304,7 +304,40 @@
   (let ((rec (org-chronicle-wikidata--fetch-person "Q7259")))
     (should (equal (plist-get (plist-get rec :born) :year) 1815))))
 
+(ert-deftest org-chronicle-wikidata-test-event-change-string ()
+  "Life events use life-event-string; position events use event-string."
+  (let ((life (org-chronicle-wikidata--event-change-string
+               (list :provenance "u"
+                     :event (list :life-event "birth" :title "Birth of X"
+                                  :date "1815-12-10" :subject (list "X")))))
+        (pos (org-chronicle-wikidata--event-change-string
+              (list :provenance "u"
+                    :event (list :title "Countess of Lovelace" :date "1838")))))
+    (should (string-match-p ":LIFE-EVENT: birth" life))
+    (should (string-match-p ":SUBJECT:" life))
+    (should-not (string-match-p "LIFE-EVENT" pos))
+    (should-not (string-match-p "nil" pos))))
 
+(ert-deftest org-chronicle-wikidata-test-sources-append ()
+  "Applying a change appends to SOURCES rather than overwriting it."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* X\n:PROPERTIES:\n:SOURCES: my-book p.12\n:END:\n")
+    (goto-char (point-min))
+    (org-chronicle-wikidata--apply-entity-change
+     (list :target 'entity :property "BORN" :value "<1815-12-10>"
+           :provenance "https://www.wikidata.org/wiki/Q7259"))
+    (goto-char (point-min))
+    (let ((s (org-entry-get nil "SOURCES")))
+      (should (string-match-p "my-book p.12" s))
+      (should (string-match-p "Q7259" s)))))
+
+(ert-deftest org-chronicle-wikidata-test-classify-dates ()
+  "BORN/DIED classification ignores brackets around dates."
+  (let ((change (list :target 'entity :property "BORN" :value "<1815-12-10>")))
+    (should (eq (org-chronicle-wikidata--classify change "1815-12-10") 'same))
+    (should (eq (org-chronicle-wikidata--classify change "<1815-12-10>") 'same))
+    (should (eq (org-chronicle-wikidata--classify change "1900-01-01") 'conflict))))
 
 
 
