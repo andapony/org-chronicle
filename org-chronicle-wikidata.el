@@ -215,9 +215,6 @@ wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"died\" AS ?prop) }
                     (org-chronicle-wikidata--cell row "rank")))))
    rows))
 
-
-
-
 (defun org-chronicle-wikidata--fetch-person (qid)
   "Fetch QID from Wikidata and return a normalized person record."
   (org-chronicle-wikidata--rows->record
@@ -281,10 +278,6 @@ where alternates are the other distinct values as display strings."
                              (unless (and chosen-label (equal lbl chosen-label)) lbl)))
                          candidates)))))
     (list :date chosen-date :alternates alternates)))
-
-
-
-
 
 (defun org-chronicle-wikidata--rows->record (qid vitals dates spouses events)
   "Assemble a person record for QID from parsed binding lists.

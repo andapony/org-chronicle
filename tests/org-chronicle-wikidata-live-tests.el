@@ -126,7 +126,5 @@ Assertion failures in the caller still fail normally."
               (lambda () (org-chronicle-wikidata--fetch-person "Q6691")))))
     (should (null (plist-get rec :born)))))
 
-
-
 (provide 'org-chronicle-wikidata-live-tests)
 ;;; org-chronicle-wikidata-live-tests.el ends here

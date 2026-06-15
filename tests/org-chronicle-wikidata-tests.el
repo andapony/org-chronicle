@@ -725,12 +725,5 @@
     (should (string-match-p "also lists: 1642"
                             (org-chronicle-wikidata--change-label born)))))
 
-
-
-
-
-
-
-
 (provide 'org-chronicle-wikidata-tests)
 ;;; org-chronicle-wikidata-tests.el ends here
