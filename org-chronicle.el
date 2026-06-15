@@ -109,9 +109,10 @@ All arguments are date plists (or nil for FROM/UNTIL)."
 
 ;;;; Customization
 
-(defcustom org-chronicle-timeline-file "~/org/timeline.org"
-  "Org file holding one heading per timeline event."
-  :type 'file
+(defcustom org-chronicle-timeline-file nil
+  "File where new events are filed.
+When nil, defaults to \"timeline.org\" under `org-chronicle-root'."
+  :type '(choice (const :tag "Default under root" nil) file)
   :group 'org-chronicle)
 
 (defcustom org-chronicle-root "~/org/chronicle/"
@@ -216,6 +217,32 @@ whose path relative to the root matches a regexp in `org-chronicle-exclude'."
          (let ((rel (concat "/" (file-relative-name f root))))
            (cl-some (lambda (re) (string-match-p re rel)) org-chronicle-exclude)))
        (directory-files-recursively root "\\.org\\'")))))
+
+(defvar org-chronicle-people-file)
+
+(defvar org-chronicle-places-file)
+
+(defvar org-chronicle-topics-file)
+
+(defun org-chronicle--timeline-file ()
+  "Return the file new events are filed into (under the root by default)."
+  (or org-chronicle-timeline-file
+      (expand-file-name "timeline.org" org-chronicle-root)))
+
+(defun org-chronicle--people-file ()
+  "Return the file new person and group entities are filed into."
+  (or org-chronicle-people-file
+      (expand-file-name "people.org" org-chronicle-root)))
+
+(defun org-chronicle--places-file ()
+  "Return the file new place entities are filed into."
+  (or org-chronicle-places-file
+      (expand-file-name "places.org" org-chronicle-root)))
+
+(defun org-chronicle--topics-file ()
+  "Return the file new topic entities are filed into."
+  (or org-chronicle-topics-file
+      (expand-file-name "topics.org" org-chronicle-root)))
 
 (defun org-chronicle--file-ignored-p ()
   "Non-nil if the current buffer opts out of the scan via `#+CHRONICLE: ignore'."
@@ -735,7 +762,7 @@ PROMPT defaults to \"Topics (blank to skip): \"."
 
 (defun org-chronicle--append-event (text)
   "Append event heading TEXT to the timeline file; add an id, normalize, save."
-  (with-current-buffer (find-file-noselect org-chronicle-timeline-file)
+  (with-current-buffer (find-file-noselect (org-chronicle--timeline-file))
     (goto-char (point-max))
     (unless (bolp) (insert "\n"))
     (insert text)
@@ -747,7 +774,7 @@ PROMPT defaults to \"Topics (blank to skip): \"."
 
 ;;;###autoload
 (defun org-chronicle-add-event ()
-  "Interactively capture a new event into `org-chronicle-timeline-file'."
+  "Interactively capture a new event into the chronicle timeline file."
   (interactive)
   (let* ((title (read-string "Event title: "))
          (date (org-chronicle--read-date "Date (YYYY-MM-DD): "))
@@ -817,19 +844,22 @@ warn if DATE does not parse."
 
 ;;;; Entity creation
 
-(defcustom org-chronicle-people-file "~/org/people.org"
-  "File where new person and group entities are filed."
-  :type 'file
+(defcustom org-chronicle-people-file nil
+  "File where new person and group entities are filed.
+When nil, defaults to \"people.org\" under `org-chronicle-root'."
+  :type '(choice (const :tag "Default under root" nil) file)
   :group 'org-chronicle)
 
-(defcustom org-chronicle-places-file "~/org/places.org"
-  "File where new place entities are filed."
-  :type 'file
+(defcustom org-chronicle-places-file nil
+  "File where new place entities are filed.
+When nil, defaults to \"places.org\" under `org-chronicle-root'."
+  :type '(choice (const :tag "Default under root" nil) file)
   :group 'org-chronicle)
 
-(defcustom org-chronicle-topics-file "~/org/topics.org"
-  "File where new topic entities are filed."
-  :type 'file
+(defcustom org-chronicle-topics-file nil
+  "File where new topic entities are filed.
+When nil, defaults to \"topics.org\" under `org-chronicle-root'."
+  :type '(choice (const :tag "Default under root" nil) file)
   :group 'org-chronicle)
 
 (cl-defun org-chronicle--entity-string (&key name kind aliases props)
@@ -912,7 +942,7 @@ alias index IDX), ask whether to create another; declining signals a
 
 ;;;###autoload
 (defun org-chronicle-add-person (name)
-  "Create a person entity NAME in `org-chronicle-people-file'.
+  "Create a person entity NAME in the chronicle people file.
 Prompts for aliases, birth, death, and group membership; refuses to
 create a duplicate of an existing entity without confirmation; and offers
 to capture a birth life event."
@@ -925,7 +955,7 @@ to capture a birth life event."
           (died (read-string "Died (YYYY-MM-DD, blank to skip): "))
           (groups (org-chronicle--read-groups entities idx)))
       (org-chronicle--file-entity
-       org-chronicle-people-file
+       (org-chronicle--people-file)
        (org-chronicle--entity-string
         :name name :kind 'person :aliases aliases
         :props `(("BORN" . ,(and (not (string-blank-p born)) (org-chronicle--ts born)))
@@ -937,7 +967,7 @@ to capture a birth life event."
 
 ;;;###autoload
 (defun org-chronicle-add-place (name)
-  "Create a place entity NAME in `org-chronicle-places-file'.
+  "Create a place entity NAME in the chronicle places file.
 Prompts for an optional build/raze span.  Refuses to create a duplicate
 of an existing entity without confirmation."
   (interactive "sPlace name: ")
@@ -947,7 +977,7 @@ of an existing entity without confirmation."
     (let ((built (read-string "Built (blank to skip): "))
           (razed (read-string "Razed (blank to skip): ")))
       (org-chronicle--file-entity
-       org-chronicle-places-file
+       (org-chronicle--places-file)
        (org-chronicle--entity-string
         :name name :kind 'place
         :props `(("BUILT" . ,(and (not (string-blank-p built)) (org-chronicle--ts built)))
@@ -956,7 +986,7 @@ of an existing entity without confirmation."
 
 ;;;###autoload
 (defun org-chronicle-add-topic (name)
-  "Create a topic entity NAME in `org-chronicle-topics-file'.
+  "Create a topic entity NAME in the chronicle topics file.
 Prompts for optional aliases and a description.  Refuses to create a
 duplicate of an existing entity without confirmation."
   (interactive "sTopic name: ")
@@ -966,7 +996,7 @@ duplicate of an existing entity without confirmation."
     (let ((aliases (completing-read-multiple "Aliases (blank to skip): " nil))
           (description (read-string "Description (blank to skip): ")))
       (org-chronicle--file-entity
-       org-chronicle-topics-file
+       (org-chronicle--topics-file)
        (org-chronicle--entity-string
         :name name :kind 'topic :aliases aliases
         :props `(("DESCRIPTION" . ,(and (not (string-blank-p description)) description)))))
@@ -974,14 +1004,14 @@ duplicate of an existing entity without confirmation."
 
 ;;;###autoload
 (defun org-chronicle-add-group (name)
-  "Create a group entity NAME in `org-chronicle-people-file'.
+  "Create a group entity NAME in the chronicle people file.
 Refuses to create a duplicate of an existing entity without confirmation."
   (interactive "sGroup name: ")
   (let* ((entities (org-chronicle--all-entities))
          (idx (org-chronicle--alias-index entities)))
     (org-chronicle--check-duplicate name entities idx)
     (org-chronicle--file-entity
-     org-chronicle-people-file
+     (org-chronicle--people-file)
      (org-chronicle--entity-string :name name :kind 'group))
     (message "Added group: %s" name)))
 
@@ -998,7 +1028,7 @@ duplicate of an existing entity without confirmation."
          (idx (org-chronicle--alias-index entities)))
     (org-chronicle--check-duplicate canonical entities idx)
     (org-chronicle--file-entity
-     org-chronicle-people-file
+     (org-chronicle--people-file)
      (org-chronicle--entity-string
       :name canonical :kind 'person
       :aliases (unless (equal canonical variant) (list variant))))

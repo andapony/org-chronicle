@@ -599,6 +599,26 @@ directories are created.  The temp dir is removed afterward."
       (should (string-match-p ":ALIASES: shipping" filed-text))
       (should (string-match-p ":DESCRIPTION: Trade and wrecks." filed-text)))))
 
+(ert-deftest org-chronicle-test-write-target-accessors ()
+  "Write-target accessors resolve under the root when nil, else use the set value."
+  (let ((org-chronicle-root "/tmp/chron")
+        (org-chronicle-timeline-file nil)
+        (org-chronicle-people-file nil)
+        (org-chronicle-places-file nil)
+        (org-chronicle-topics-file nil))
+    (should (equal (org-chronicle--timeline-file) (expand-file-name "timeline.org" "/tmp/chron")))
+    (should (equal (org-chronicle--people-file) (expand-file-name "people.org" "/tmp/chron")))
+    (should (equal (org-chronicle--places-file) (expand-file-name "places.org" "/tmp/chron")))
+    (should (equal (org-chronicle--topics-file) (expand-file-name "topics.org" "/tmp/chron"))))
+  (let ((org-chronicle-timeline-file "~/explicit/tl.org")
+        (org-chronicle-people-file "~/explicit/pe.org")
+        (org-chronicle-places-file "~/explicit/pl.org")
+        (org-chronicle-topics-file "~/explicit/to.org"))
+    (should (equal (org-chronicle--timeline-file) "~/explicit/tl.org"))
+    (should (equal (org-chronicle--people-file) "~/explicit/pe.org"))
+    (should (equal (org-chronicle--places-file) "~/explicit/pl.org"))
+    (should (equal (org-chronicle--topics-file) "~/explicit/to.org"))))
+
 (defconst org-chronicle-test--life "\
 * Birth of Grant
 :PROPERTIES:
