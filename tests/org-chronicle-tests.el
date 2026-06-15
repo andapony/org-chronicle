@@ -854,8 +854,22 @@ global root differs."
   "The chronicle link type is registered with org."
   (should (org-link-get-parameter "chronicle" :follow)))
 
+(ert-deftest org-chronicle-test-link-export-falls-back-to-title ()
+  "With no description the export uses the target's heading title."
+  (cl-letf (((symbol-function 'org-chronicle--reference-title)
+             (lambda (_) "Ulysses S. Grant")))
+    (should (equal (org-chronicle--link-export "grant-id" nil 'html)
+                   "Ulysses S. Grant"))))
 
-
+(ert-deftest org-chronicle-test-reference-title ()
+  "A reference title resolves among events and entities, else nil."
+  (cl-letf (((symbol-function 'org-chronicle--all-events)
+             (lambda () '((:id "e1" :title "Vicksburg"))))
+            ((symbol-function 'org-chronicle--all-entities)
+             (lambda () '((:id "p1" :name "Eliza Dent")))))
+    (should (equal (org-chronicle--reference-title "p1") "Eliza Dent"))
+    (should (equal (org-chronicle--reference-title "e1") "Vicksburg"))
+    (should (null (org-chronicle--reference-title "missing")))))
 
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

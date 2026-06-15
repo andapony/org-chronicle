@@ -1349,10 +1349,12 @@ the event's date.  IDX is the alias index.  Empty list means clean."
       path))
 
 (defun org-chronicle--link-complete (&optional _arg)
-  "Completion for inserting a chronicle: link; return \"chronicle:ID\"."
-  (let* ((targets (org-chronicle--reference-targets))
-         (name (completing-read "Reference: " targets nil t)))
-    (concat "chronicle:" (cdr (assoc name targets)))))
+  "Return a chronicle: link string for an event or entity chosen with completion."
+  (let ((targets (org-chronicle--reference-targets)))
+    (unless targets
+      (user-error "No chronicle reference targets are defined"))
+    (concat "chronicle:"
+            (cdr (assoc (completing-read "Reference: " targets nil t) targets)))))
 
 (org-link-set-parameters
  "chronicle"
