@@ -61,6 +61,24 @@
   (file-name-directory (or load-file-name buffer-file-name))
   "Directory containing the wikidata test file, captured at load time.")
 
+(ert-deftest org-chronicle-wikidata-test-search-request ()
+  (cl-letf (((symbol-function 'org-chronicle-wikidata--http-get)
+             (lambda (&rest _)
+               (org-chronicle-wikidata-test--fixture "search-lovelace.json"))))
+    (let ((cands (org-chronicle-wikidata--search-request "Ada Lovelace")))
+      (should (equal (plist-get (car cands) :qid) "Q7259"))
+      (should (equal (plist-get (car cands) :label) "Ada Lovelace"))
+      (should (string-match-p "mathematician"
+                              (plist-get (car cands) :description))))))
+
+(ert-deftest org-chronicle-wikidata-test-http-error ()
+  (cl-letf (((symbol-function 'org-chronicle-wikidata--http-get)
+             (lambda (&rest _) (signal 'org-chronicle-wikidata-rate-limited nil))))
+    (should-error (org-chronicle-wikidata--search-request "x")
+                  :type 'org-chronicle-wikidata-rate-limited)))
+
+
+
 
 (defun org-chronicle-wikidata-test--fixture (name)
   "Return the contents of fixture NAME under tests/fixtures/."

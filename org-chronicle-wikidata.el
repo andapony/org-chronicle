@@ -81,6 +81,84 @@ VAR is a string variable name."
    (org-chronicle-wikidata--cell row val-var)
    (org-chronicle-wikidata--cell-int row prec-var)))
 
+(defcustom org-chronicle-wikidata-sparql-endpoint
+  "https://query.wikidata.org/sparql"
+  "SPARQL endpoint for the Wikidata Query Service."
+  :type 'string
+  :group 'org-chronicle-wikidata)
+
+(defcustom org-chronicle-wikidata-api-endpoint
+  "https://www.wikidata.org/w/api.php"
+  "Wikidata REST API endpoint."
+  :type 'string
+  :group 'org-chronicle-wikidata)
+
+(defcustom org-chronicle-wikidata-timeout 20
+  "Seconds to wait for a Wikidata HTTP response before failing."
+  :type 'integer
+  :group 'org-chronicle-wikidata)
+
+(define-error 'org-chronicle-wikidata-error "Wikidata request failed")
+
+(define-error 'org-chronicle-wikidata-rate-limited
+  "Wikidata rate limited the request" 'org-chronicle-wikidata-error)
+
+(defun org-chronicle-wikidata--http-get (url)
+  "GET URL and return the response body as a string.
+Signal `org-chronicle-wikidata-rate-limited' on HTTP 429 and
+`org-chronicle-wikidata-error' on any other failure or timeout."
+  (let ((url-request-extra-headers
+         '(("Accept" . "application/sparql-results+json")
+           ("User-Agent" . "org-chronicle (Emacs)")))
+        (buf (with-timeout (org-chronicle-wikidata-timeout
+                            (signal 'org-chronicle-wikidata-error
+                                    (list "timeout" url)))
+               (url-retrieve-synchronously url t t))))
+    (unless buf (signal 'org-chronicle-wikidata-error (list "no response" url)))
+    (unwind-protect
+        (with-current-buffer buf
+          (goto-char (point-min))
+          (let ((status (and (re-search-forward "^HTTP/[0-9.]+ \\([0-9]+\\)" nil t)
+                             (string-to-number (match-string 1)))))
+            (cond
+             ((eq status 429) (signal 'org-chronicle-wikidata-rate-limited (list url)))
+             ((and status (>= status 400))
+              (signal 'org-chronicle-wikidata-error (list status url)))))
+          (goto-char (point-min))
+          (re-search-forward "\n\n" nil t)
+          (decode-coding-string (buffer-substring-no-properties (point) (point-max))
+                                'utf-8))
+      (kill-buffer buf))))
+
+(defun org-chronicle-wikidata--sparql-request (query)
+  "Run SPARQL QUERY against the endpoint; return parsed binding rows."
+  (org-chronicle-wikidata--bindings
+   (org-chronicle-wikidata--http-get
+    (concat org-chronicle-wikidata-sparql-endpoint
+            "?format=json&query=" (url-hexify-string query)))))
+
+(defun org-chronicle-wikidata--search-request (term)
+  "Search Wikidata for TERM; return a list of candidate plists.
+Each candidate is (:qid :label :description)."
+  (let* ((url (concat org-chronicle-wikidata-api-endpoint
+                      "?action=wbsearchentities&format=json&language=en"
+                      "&type=item&limit=10&search=" (url-hexify-string term)))
+         (data (json-parse-string (org-chronicle-wikidata--http-get url)
+                                  :object-type 'alist :array-type 'list)))
+    (mapcar (lambda (hit)
+              (list :qid (alist-get 'id hit)
+                    :label (alist-get 'label hit)
+                    :description (or (alist-get 'description hit) "")))
+            (alist-get 'search data))))
+
+
+
+
+
+
+
+
+
 (defun org-chronicle-wikidata--rows->record (qid vitals spouses events)
   "Assemble a person record for QID from parsed binding lists.
 VITALS is the (single) vitals row list, SPOUSES and EVENTS are row lists.
