@@ -1013,6 +1013,48 @@ Marek is born 1870, but BEFORE Vicksburg (1863) caps the window earlier."
                      (org-chronicle--date-parse "1863-07-04")))
       (should (null (org-chronicle--scene-anchor (list :refs nil) ctx))))))
 
+(ert-deftest org-chronicle-test-findings-out-of-window ()
+  "A pinned date outside the window yields an out-of-window verdict + reason."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let* ((ctx (org-chronicle--scene-context))
+           (scene (list :title "S" :marker (point-marker)
+                        :own-date (org-chronicle--date-parse "1862-01-01")
+                        :refs (list (list :id "eliza" :name "Mrs. Grant"
+                                          :marker (point-marker)))))
+           (f (org-chronicle--scene-findings scene ctx)))
+      (should (eq (plist-get f :verdict) 'out-of-window))
+      (should (cl-some (lambda (r) (string-match-p "not adopted" (car r)))
+                       (plist-get f :reasons))))))
+
+(ert-deftest org-chronicle-test-findings-dangling ()
+  "An unresolved :EVENT: id yields a dangling verdict."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let* ((ctx (org-chronicle--scene-context))
+           (scene (list :title "S" :marker (point-marker)
+                        :event-ids '("missing-99") :refs nil))
+           (f (org-chronicle--scene-findings scene ctx)))
+      (should (eq (plist-get f :verdict) 'dangling)))))
+
+(ert-deftest org-chronicle-test-findings-floating ()
+  "An undated scene with a resolvable window is floating, not an error."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let* ((ctx (org-chronicle--scene-context))
+           (scene (list :title "S" :marker (point-marker)
+                        :after-ids '("vicksburg") :refs nil))
+           (f (org-chronicle--scene-findings scene ctx)))
+      (should (eq (plist-get f :verdict) 'floating)))))
+
+(ert-deftest org-chronicle-test-findings-clean ()
+  "A pinned date inside the window produces no finding."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let* ((ctx (org-chronicle--scene-context))
+           (scene (list :title "S" :marker (point-marker)
+                        :own-date (org-chronicle--date-parse "1864-01-01")
+                        :refs (list (list :id "eliza" :name nil
+                                          :marker (point-marker))))))
+      (should (null (org-chronicle--scene-findings scene ctx))))))
+
+
 
 
 (provide 'org-chronicle-tests)

@@ -1556,6 +1556,154 @@ else nil (floating)."
               (cl-reduce #'org-chronicle--date-max ends)))))
    (t nil)))
 
+;;;; Scenes: findings
+
+(defun org-chronicle--span-string (span)
+  "Format existence SPAN (FROM . TO) date plists as \"from..to\"."
+  (format "%s..%s"
+          (if (car span) (org-chronicle--date-format (car span)) "?")
+          (if (cdr span) (org-chronicle--date-format (cdr span)) "?")))
+
+(defun org-chronicle--scene-dangling (scene ctx)
+  "Return ((MSG . MARKER) ...) for unresolved references in SCENE."
+  (let ((entities (plist-get ctx :entities))
+        (by-id (plist-get ctx :events-by-id))
+        (out '()))
+    (dolist (id (plist-get scene :event-ids))
+      (unless (gethash id by-id)
+        (push (cons (format "dangling :EVENT: [[id:%s]] — no such event" id)
+                    (plist-get scene :marker)) out)))
+    (dolist (id (append (plist-get scene :after-ids) (plist-get scene :before-ids)))
+      (unless (gethash id by-id)
+        (push (cons (format "dangling constraint [[id:%s]] — no such event" id)
+                    (plist-get scene :marker)) out)))
+    (dolist (ref (plist-get scene :refs))
+      (unless (or (org-chronicle--entity-by-id (plist-get ref :id) entities)
+                  (gethash (plist-get ref :id) by-id))
+        (push (cons (format "dangling reference [[chronicle:%s]] — unresolved"
+                            (plist-get ref :id))
+                    (plist-get ref :marker)) out)))
+    (nreverse out)))
+
+(defun org-chronicle--scene-violation-reasons (scene ctx date)
+  "Return ((MSG . MARKER) ...) explaining why DATE violates SCENE's bounds."
+  (let ((entities (plist-get ctx :entities))
+        (idx (plist-get ctx :idx))
+        (index (plist-get ctx :index))
+        (adoption (plist-get ctx :adoption))
+        (by-id (plist-get ctx :events-by-id))
+        (out '()))
+    (dolist (ref (plist-get scene :refs))
+      (let ((ent (org-chronicle--entity-by-id (plist-get ref :id) entities)))
+        (when ent
+          (let ((span (org-chronicle--span-for-name
+                       (plist-get ent :name) entities idx index)))
+            (when (and span (not (org-chronicle--date-in-span-p
+                                  date (car span) (cdr span))))
+              (push (cons (format "%s not extant at %s (span %s)"
+                                  (plist-get ent :name)
+                                  (org-chronicle--date-format date)
+                                  (org-chronicle--span-string span))
+                          (plist-get ref :marker)) out)))
+          (let* ((name (plist-get ref :name))
+                 (adopt (and name (gethash (cons (plist-get ent :name)
+                                                 (downcase name)) adoption))))
+            (when (and adopt (org-chronicle--date-lessp date adopt))
+              (push (cons (format "name %S not adopted until %s"
+                                  name (org-chronicle--date-format adopt))
+                          (plist-get ref :marker)) out))))))
+    (dolist (id (plist-get scene :after-ids))
+      (let ((ev (gethash id by-id)))
+        (when ev
+          (let ((d (or (plist-get ev :date-end) (plist-get ev :date))))
+            (cond ((null d)
+                   (push (cons (format ":AFTER: %s unresolved (referent undated)"
+                                       (plist-get ev :title))
+                               (plist-get scene :marker)) out))
+                  ((org-chronicle--date-lessp date d)
+                   (push (cons (format "violates :AFTER: %s (must be on/after %s)"
+                                       (plist-get ev :title)
+                                       (org-chronicle--date-format d))
+                               (plist-get scene :marker)) out)))))))
+    (dolist (id (plist-get scene :before-ids))
+      (let ((ev (gethash id by-id)))
+        (when ev
+          (let ((d (plist-get ev :date)))
+            (cond ((null d)
+                   (push (cons (format ":BEFORE: %s unresolved (referent undated)"
+                                       (plist-get ev :title))
+                               (plist-get scene :marker)) out))
+                  ((org-chronicle--date-lessp d date)
+                   (push (cons (format "violates :BEFORE: %s (must be on/before %s)"
+                                       (plist-get ev :title)
+                                       (org-chronicle--date-format d))
+                               (plist-get scene :marker)) out)))))))
+    (nreverse out)))
+
+(defun org-chronicle--scene-conflict-reasons (scene ctx)
+  "Return ((MSG . MARKER) ...) describing the bounds that make SCENE empty."
+  (let ((entities (plist-get ctx :entities))
+        (idx (plist-get ctx :idx))
+        (index (plist-get ctx :index))
+        (by-id (plist-get ctx :events-by-id))
+        (out '()))
+    (dolist (ref (plist-get scene :refs))
+      (let ((ent (org-chronicle--entity-by-id (plist-get ref :id) entities)))
+        (when ent
+          (let ((span (org-chronicle--span-for-name
+                       (plist-get ent :name) entities idx index)))
+            (when span
+              (push (cons (format "%s requires %s"
+                                  (plist-get ent :name)
+                                  (org-chronicle--span-string span))
+                          (plist-get ref :marker)) out))))))
+    (dolist (id (plist-get scene :after-ids))
+      (let ((ev (gethash id by-id)))
+        (when ev
+          (let ((d (or (plist-get ev :date-end) (plist-get ev :date))))
+            (when d (push (cons (format "after %s (%s)" (plist-get ev :title)
+                                        (org-chronicle--date-format d))
+                                (plist-get scene :marker)) out))))))
+    (dolist (id (plist-get scene :before-ids))
+      (let ((ev (gethash id by-id)))
+        (when ev
+          (let ((d (plist-get ev :date)))
+            (when d (push (cons (format "before %s (%s)" (plist-get ev :title)
+                                        (org-chronicle--date-format d))
+                                (plist-get scene :marker)) out))))))
+    (nreverse out)))
+
+(defun org-chronicle--scene-findings (scene ctx)
+  "Return a finding plist for SCENE, or nil if it is clean.
+Result: (:scene SCENE :verdict V :window W :anchor A :reasons (...)),
+V one of `dangling', `empty', `out-of-window', `floating'."
+  (let ((dangling (org-chronicle--scene-dangling scene ctx))
+        (window (org-chronicle--scene-window scene ctx))
+        (anchor (org-chronicle--scene-anchor scene ctx)))
+    (cond
+     (dangling
+      (list :scene scene :verdict 'dangling :window window :anchor anchor
+            :reasons dangling))
+     ((eq window :empty)
+      (list :scene scene :verdict 'empty :window window :anchor anchor
+            :reasons (org-chronicle--scene-conflict-reasons scene ctx)))
+     ((null anchor)
+      (list :scene scene :verdict 'floating :window window :anchor anchor
+            :reasons nil))
+     (t
+      (let ((lo (car window)) (hi (cdr window))
+            (astart (car anchor)) (aend (cdr anchor)))
+        (unless (and (org-chronicle--date-in-span-p astart lo hi)
+                     (org-chronicle--date-in-span-p aend lo hi))
+          (list :scene scene :verdict 'out-of-window :window window :anchor anchor
+                :reasons (org-chronicle--scene-violation-reasons
+                          scene ctx astart))))))))
+
+
+
+
+
+
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)
