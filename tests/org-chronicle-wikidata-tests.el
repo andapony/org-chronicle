@@ -720,10 +720,6 @@
     (should (eq (org-chronicle-wikidata--classify change "1896") 'same))
     (should (eq (org-chronicle-wikidata--classify change "1900") 'conflict))))
 
-
-
-
-
 (ert-deftest org-chronicle-wikidata-test-dates->candidates ()
   (let* ((json "{\"results\":{\"bindings\":[\
 {\"prop\":{\"value\":\"born\"},\"value\":{\"value\":\"1643-01-04T00:00:00Z\"},\"prec\":{\"value\":\"11\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#PreferredRank\"}},\
@@ -812,8 +808,12 @@
             (should (string-match-p ":WIKIDATA: *Q3505806" places))))
       (delete-directory root t))))
 
-
-
+(ert-deftest org-chronicle-wikidata-test-reconcile-rejects-unknown-kind ()
+  (with-temp-buffer
+    (org-mode)
+    (insert "* A topic\n:PROPERTIES:\n:KIND: topic\n:WIKIDATA: Q1\n:END:\n")
+    (goto-char (point-min))
+    (should-error (org-chronicle-wikidata-reconcile) :type 'user-error)))
 
 (provide 'org-chronicle-wikidata-tests)
 ;;; org-chronicle-wikidata-tests.el ends here

@@ -225,6 +225,11 @@ OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision
   "Return the file new KIND entities are written to."
   (if (eq kind 'place) (org-chronicle--places-file) (org-chronicle--people-file)))
 
+(defun org-chronicle-wikidata--check-kind (kind)
+  "Signal a `user-error' unless KIND is a supported import kind."
+  (unless (assq kind org-chronicle-wikidata--kind-profiles)
+    (user-error "Cannot import Wikidata for kind `%s' (supported: person, place, group)" kind)))
+
 (defun org-chronicle-wikidata--span-query (qid start-pid end-pid)
   "Return a SPARQL query for QID's START-PID and END-PID date statements.
 One row per statement, tagged ?prop \"start\"/\"end\", with value, precision,
@@ -260,13 +265,6 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
     (save-buffer)
     (point-marker)))
 
-
-
-
-
-
-
-
 (defun org-chronicle-wikidata--fetch-record (qid kind)
   "Fetch QID from Wikidata as a KIND record (person, place, or group)."
   (let* ((pids (org-chronicle-wikidata--kind-span-pids kind))
@@ -292,7 +290,6 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
 (defun org-chronicle-wikidata--fetch-person (qid)
   "Fetch QID from Wikidata as a person record."
   (org-chronicle-wikidata--fetch-record qid 'person))
-
 
 (defun org-chronicle-wikidata--ordinal (n)
   "Return N as an English ordinal string, e.g. 17 -> \"17th\"."
@@ -734,28 +731,29 @@ item, review the proposed edits, and write the approved set."
          (seed (or promote
                    (save-excursion (org-back-to-heading t) (org-get-heading t t t t))))
          (stored (and heading-kind
-                      (save-excursion (org-back-to-heading t) (org-entry-get nil "WIKIDATA"))))
-         (qid (or stored (org-chronicle-wikidata--resolve seed)))
-         (marker (if heading-kind
-                     (save-excursion (org-back-to-heading t) (point-marker))
-                   (org-chronicle-wikidata--create-entity seed kind)))
-         (rec (org-chronicle-wikidata--fetch-record qid kind))
-         (changes (org-chronicle-wikidata--record->changes rec seed)))
-    (when (seq-empty-p changes)
-      (user-error "Nothing to import for %s (%s)" seed qid))
-    (let* ((subject-qid qid)
-           (subject-orgid (org-with-point-at marker (org-id-get-create)))
-           (index (org-chronicle-wikidata--events-index)))
-      (setq changes
-            (org-chronicle-wikidata--classify-changes
-             changes marker subject-orgid subject-qid index))
-      (org-chronicle-wikidata--review
-       changes
-       (lambda (selected)
-         (org-with-point-at marker
-                            (org-chronicle-wikidata--apply-changes selected index)
-                            (when (buffer-file-name) (save-buffer))
-                            (message "Imported %d change(s) for %s" (length selected) seed)))))))
+                      (save-excursion (org-back-to-heading t) (org-entry-get nil "WIKIDATA")))))
+    (org-chronicle-wikidata--check-kind kind)
+    (let* ((qid (or stored (org-chronicle-wikidata--resolve seed)))
+           (marker (if heading-kind
+                       (save-excursion (org-back-to-heading t) (point-marker))
+                     (org-chronicle-wikidata--create-entity seed kind)))
+           (rec (org-chronicle-wikidata--fetch-record qid kind))
+           (changes (org-chronicle-wikidata--record->changes rec seed)))
+      (when (seq-empty-p changes)
+        (user-error "Nothing to import for %s (%s)" seed qid))
+      (let* ((subject-qid qid)
+             (subject-orgid (org-with-point-at marker (org-id-get-create)))
+             (index (org-chronicle-wikidata--events-index)))
+        (setq changes
+              (org-chronicle-wikidata--classify-changes
+               changes marker subject-orgid subject-qid index))
+        (org-chronicle-wikidata--review
+         changes
+         (lambda (selected)
+           (org-with-point-at marker
+                              (org-chronicle-wikidata--apply-changes selected index)
+                              (when (buffer-file-name) (save-buffer))
+                              (message "Imported %d change(s) for %s" (length selected) seed))))))))
 
 (defun org-chronicle-wikidata--classify-changes (changes marker subject-orgid subject-qid index)
   "Stamp each proposed change with :status (and event :key); drop keyless events.
@@ -826,24 +824,25 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
     (unless qid
       (user-error "No WIKIDATA property here; run org-chronicle-wikidata-import first"))
     (let* ((name (org-get-heading t t t t))
-           (kind (let ((k (org-entry-get nil "KIND"))) (if k (intern k) 'person)))
-           (marker (point-marker))
-           (subject-orgid (org-with-point-at marker (org-id-get-create)))
-           (index (org-chronicle-wikidata--events-index))
-           (rec (org-chronicle-wikidata--fetch-record qid kind))
-           (changes (org-chronicle-wikidata--classify-changes
-                     (org-chronicle-wikidata--record->changes rec name)
-                     marker subject-orgid qid index))
-           (drift (cl-remove-if (lambda (c) (eq (plist-get c :status) 'same)) changes)))
-      (when (seq-empty-p drift)
-        (user-error "No drift from Wikidata for %s (%s)" name qid))
-      (org-chronicle-wikidata--review
-       drift
-       (lambda (selected)
-         (org-with-point-at marker
-                            (org-chronicle-wikidata--apply-changes selected index)
-                            (when (buffer-file-name) (save-buffer))
-                            (message "Reconciled %d change(s) for %s" (length selected) name)))))))
+           (kind (let ((k (org-entry-get nil "KIND"))) (if k (intern k) 'person))))
+      (org-chronicle-wikidata--check-kind kind)
+      (let* ((marker (point-marker))
+             (subject-orgid (org-with-point-at marker (org-id-get-create)))
+             (index (org-chronicle-wikidata--events-index))
+             (rec (org-chronicle-wikidata--fetch-record qid kind))
+             (changes (org-chronicle-wikidata--classify-changes
+                       (org-chronicle-wikidata--record->changes rec name)
+                       marker subject-orgid qid index))
+             (drift (cl-remove-if (lambda (c) (eq (plist-get c :status) 'same)) changes)))
+        (when (seq-empty-p drift)
+          (user-error "No drift from Wikidata for %s (%s)" name qid))
+        (org-chronicle-wikidata--review
+         drift
+         (lambda (selected)
+           (org-with-point-at marker
+                              (org-chronicle-wikidata--apply-changes selected index)
+                              (when (buffer-file-name) (save-buffer))
+                              (message "Reconciled %d change(s) for %s" (length selected) name))))))))
 
 (defun org-chronicle-wikidata--events-index ()
   "Return a hash mapping each IMPORT-KEY to a marker in the events file.

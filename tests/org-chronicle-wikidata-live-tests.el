@@ -149,7 +149,5 @@ Assertion failures in the caller still fail normally."
     (should (equal (plist-get end :month) 12))
     (should (equal (plist-get end :day) 4))))
 
-
-
 (provide 'org-chronicle-wikidata-live-tests)
 ;;; org-chronicle-wikidata-live-tests.el ends here
