@@ -566,9 +566,9 @@ Wikidata item, review the proposed edits, and write the approved set."
        changes
        (lambda (selected)
          (org-with-point-at marker
-			    (org-chronicle-wikidata--apply-changes selected index)
-			    (when (buffer-file-name) (save-buffer))
-			    (message "Imported %d change(s) for %s" (length selected) seed)))))))
+                            (org-chronicle-wikidata--apply-changes selected index)
+                            (when (buffer-file-name) (save-buffer))
+                            (message "Imported %d change(s) for %s" (length selected) seed)))))))
 
 (defun org-chronicle-wikidata--classify-changes (changes marker subject-orgid subject-qid index)
   "Stamp each proposed change with :status (and event :key); drop keyless events.
@@ -583,7 +583,7 @@ SUBJECT-ORGID/SUBJECT-QID."
               (plist-put c :status
                          (org-chronicle-wikidata--classify
                           c (org-with-point-at marker
-					       (org-entry-get nil (plist-get c :property)))))
+                                               (org-entry-get nil (plist-get c :property)))))
               c)
              ('event
               (let ((key (org-chronicle-wikidata--event-key
@@ -653,9 +653,9 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
        drift
        (lambda (selected)
          (org-with-point-at marker
-			    (org-chronicle-wikidata--apply-changes selected index)
-			    (when (buffer-file-name) (save-buffer))
-			    (message "Reconciled %d change(s) for %s" (length selected) name)))))))
+                            (org-chronicle-wikidata--apply-changes selected index)
+                            (when (buffer-file-name) (save-buffer))
+                            (message "Reconciled %d change(s) for %s" (length selected) name)))))))
 
 (defun org-chronicle-wikidata--events-index ()
   "Return a hash mapping each IMPORT-KEY to a marker in the events file.
