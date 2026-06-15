@@ -617,6 +617,28 @@ Defaults to \"imported/events.org\" under `org-chronicle-root'."
   (or org-chronicle-wikidata-file
       (expand-file-name "imported/events.org" org-chronicle-root)))
 
+(defun org-chronicle-wikidata--event-key (event subject-orgid subject-qid)
+  "Return the IMPORT-KEY for EVENT, or nil when a required id is missing.
+SUBJECT-ORGID is the chronicle entity's org id and SUBJECT-QID its Wikidata
+QID.  EVENT is an event change's :event plist.  Birth and death key on the
+chronicle subject; positions add the office QID; marriage keys on the sorted
+pair of both participants' prefixed QIDs so it is symmetric."
+  (let ((kind (plist-get event :kind))
+        (obj (plist-get event :object-qid)))
+    (pcase kind
+      ("marriage"
+       (and subject-qid obj
+            (format "marriage:%s"
+                    (mapconcat #'identity
+                               (sort (list (concat "wd:" subject-qid)
+                                           (concat "wd:" obj))
+                                     #'string<)
+                               ":"))))
+      ("position"
+       (and obj (format "position:%s:wd:%s" subject-orgid obj)))
+      (_ (and subject-orgid (format "%s:%s" kind subject-orgid))))))
+
+
 
 
 ;;;###autoload

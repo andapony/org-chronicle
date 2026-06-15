@@ -444,6 +444,27 @@
       (should (equal (plist-get (plist-get marriage :event) :object-qid) "Q336789"))
       (should (equal (plist-get (plist-get pos :event) :object-qid) "Q18810745")))))
 
+(ert-deftest org-chronicle-wikidata-test-event-key ()
+  (should (equal (org-chronicle-wikidata--event-key
+                  (list :kind "birth") "ABC" "Q7259") "birth:ABC"))
+  (should (equal (org-chronicle-wikidata--event-key
+                  (list :kind "death") "ABC" "Q7259") "death:ABC"))
+  (should (equal (org-chronicle-wikidata--event-key
+                  (list :kind "position" :object-qid "Q30") "ABC" "Q7259")
+                 "position:ABC:wd:Q30"))
+  (should (equal (org-chronicle-wikidata--event-key
+                  (list :kind "marriage" :object-qid "Q123") "ABC" "Q7259")
+                 (org-chronicle-wikidata--event-key
+                  (list :kind "marriage" :object-qid "Q7259") "XYZ" "Q123")))
+  (should (equal (org-chronicle-wikidata--event-key
+                  (list :kind "marriage" :object-qid "Q123") "ABC" "Q7259")
+                 "marriage:wd:Q123:wd:Q7259"))
+  (should (null (org-chronicle-wikidata--event-key
+                 (list :kind "marriage") "ABC" "Q7259")))
+  (should (null (org-chronicle-wikidata--event-key
+                 (list :kind "position") "ABC" "Q7259"))))
+
+
 
 
 
