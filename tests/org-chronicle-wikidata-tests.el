@@ -171,6 +171,14 @@
                               :test (lambda (_ k) (equal k "position")))))
         (should (null (plist-get curated :default)))))))
 
+(ert-deftest org-chronicle-wikidata-test-classify ()
+  "Test classification of a change against the current heading value."
+  (let ((change (list :target 'entity :property "BORN" :value "1815-12-10")))
+    (should (eq (org-chronicle-wikidata--classify change nil) 'new))
+    (should (eq (org-chronicle-wikidata--classify change "1815-12-10") 'same))
+    (should (eq (org-chronicle-wikidata--classify change "1900-01-01") 'conflict))))
+
+
 
 
 

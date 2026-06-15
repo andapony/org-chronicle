@@ -325,5 +325,15 @@ See the data contract in the package commentary for field names."
               changes)))
     (nreverse changes)))
 
+(defun org-chronicle-wikidata--classify (change current)
+  "Classify CHANGE against the CURRENT local value string (or nil).
+Return `new' when CURRENT is empty, `same' when it equals the change value,
+or `conflict' otherwise."
+  (let ((value (plist-get change :value)))
+    (cond
+     ((or (null current) (string-empty-p current)) 'new)
+     ((equal (string-trim current) (string-trim value)) 'same)
+     (t 'conflict))))
+
 (provide 'org-chronicle-wikidata)
 ;;; org-chronicle-wikidata.el ends here
