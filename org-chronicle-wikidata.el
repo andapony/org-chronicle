@@ -375,6 +375,30 @@ to the chronicle timeline file via `org-chronicle--append-event'."
       ('event (org-chronicle--append-event
                (org-chronicle-wikidata--event-change-string change))))))
 
+(defun org-chronicle-wikidata--candidate-line (cand)
+  "Format candidate plist CAND as a completion line."
+  (format "%s — %s (%s)"
+          (plist-get cand :label)
+          (plist-get cand :description)
+          (plist-get cand :qid)))
+
+(defun org-chronicle-wikidata--resolve (seed)
+  "Resolve SEED (a name) to a confirmed Wikidata QID.
+Read a term defaulting to SEED; a pasted QID/URL short-circuits search,
+otherwise present search candidates for selection.  Return the QID string."
+  (let* ((term (read-string "Wikidata search (or paste QID/URL): " seed))
+         (pasted (org-chronicle-wikidata--parse-qid term)))
+    (or pasted
+        (let* ((cands (org-chronicle-wikidata--search-request term))
+               (lines (mapcar #'org-chronicle-wikidata--candidate-line cands))
+               (table (cl-mapcar #'cons lines cands)))
+          (unless cands (user-error "No Wikidata matches for %S" term))
+          (let* ((choice (completing-read "Select item: " lines nil t))
+                 (cand (cdr (assoc choice table))))
+            (plist-get cand :qid))))))
+
+
+
 
 
 

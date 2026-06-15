@@ -210,6 +210,35 @@
             (should (string-match-p ":LIFE-EVENT: birth" tl))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-wikidata-test-candidate-line ()
+  "Test formatting a candidate plist as a completion line."
+  (should (equal (org-chronicle-wikidata--candidate-line
+                  (list :qid "Q7259" :label "Ada Lovelace"
+                        :description "English mathematician"))
+                 "Ada Lovelace — English mathematician (Q7259)")))
+
+(ert-deftest org-chronicle-wikidata-test-resolve-paste ()
+  "Test that pasting a QID short-circuits search."
+  (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Q42"))
+            ((symbol-function 'org-chronicle-wikidata--search-request)
+             (lambda (&rest _) (error "should not search"))))
+    (should (equal (org-chronicle-wikidata--resolve "anything") "Q42"))))
+
+(ert-deftest org-chronicle-wikidata-test-resolve-pick ()
+  "Test that a name term searches and presents candidates for selection."
+  (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Ada Lovelace"))
+            ((symbol-function 'org-chronicle-wikidata--search-request)
+             (lambda (&rest _)
+               (list (list :qid "Q7259" :label "Ada Lovelace"
+                           :description "mathematician"))))
+            ((symbol-function 'completing-read)
+             (lambda (_prompt collection &rest _)
+               (car (if (functionp collection) (funcall collection "" nil t) collection)))))
+    (should (equal (org-chronicle-wikidata--resolve "Ada Lovelace") "Q7259"))))
+
+
+
+
 
 
 
