@@ -144,7 +144,7 @@ events.  Capture them with =M-x org-chronicle-add-life-event=, which asks
 the kind and adapts its prompts (one subject for birth/death/name-change,
 two for marriage; births also prompt for parents).  A person's lifespan,
 birthplace/deathplace, and spouse are derived from these events, falling
-back to the =:BORN:=/=:DIED:=/=:BIRTHPLACE:=/=:DEATHPLACE:=/=:SPOUSE:=
+back to the =:BORN:= / =:DIED:= / =:BIRTHPLACE:= / =:DEATHPLACE:= / =:SPOUSE:=
 properties when no event exists.  =org-chronicle-add-person= offers to
 create a birth event after filing the person.
 
@@ -205,7 +205,7 @@ to free-text input.  There is no hard dependency on =org-reading-list=.
 
 Tie creative prose to the timeline and check it for continuity with the
 historical record.  A *scene* is any heading carrying =:EVENT:=,
-=:AFTER:=/=:BEFORE:=, a fictional own =:DATE:=, or an inline =chronicle:=
+=:AFTER:= / =:BEFORE:=, a fictional own =:DATE:=, or an inline =chronicle:=
 link.  Because a scene is just a property on a heading you already have, this
 composes with org-novelist and binder layouts and stays invisible in the
 exported manuscript.  (fountain-mode files are not Org, so scene markup does
@@ -234,7 +234,7 @@ A scene may instead *define a fictional event* by carrying its own =:DATE:=
 
 - =M-x org-chronicle-insert-reference= inserts an inline =chronicle:= link.
 - =M-x org-chronicle-set-event= / =org-chronicle-add-constraint= set the
-  =:EVENT:= / =:AFTER:=/=:BEFORE:= properties with completion.
+  =:EVENT:= / =:AFTER:= / =:BEFORE:= properties with completion.
 - =M-x org-chronicle-lint-scenes= reports each scene's continuity findings and
   its *feasible window* — the range in which every reference and constraint is
   satisfied.  Floating (undated) scenes are surfaced with their window; an
