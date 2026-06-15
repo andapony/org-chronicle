@@ -1452,12 +1452,12 @@ scene (the deepest heading whose subtree contains the link)."
   "Return the scene plist for the heading at point, or a bare scene if none.
 Falls back to `org-chronicle--heading-scene-props' with no refs so an
 unmarked heading can still be treated as a (constraint-free) scene."
-  (save-excursion
-    (org-back-to-heading t)
-    (let ((pos (point)))
-      (or (cl-find pos (org-chronicle--buffer-scenes)
-                   :key (lambda (s) (plist-get s :begin)) :test #'=)
-          (append (org-chronicle--heading-scene-props) (list :refs nil))))))
+  (org-with-wide-buffer
+   (org-back-to-heading t)
+   (let ((pos (point)))
+     (or (cl-find pos (org-chronicle--buffer-scenes)
+                  :key (lambda (s) (plist-get s :begin)) :test #'=)
+         (append (org-chronicle--heading-scene-props) (list :refs nil))))))
 
 
 ;;;; (sections added by later tasks)
