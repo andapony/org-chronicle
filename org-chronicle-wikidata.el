@@ -335,5 +335,48 @@ or `conflict' otherwise."
      ((equal (string-trim current) (string-trim value)) 'same)
      (t 'conflict))))
 
+(defun org-chronicle-wikidata--apply-entity-change (change)
+  "Set the entity property named in CHANGE at the heading at point.
+Also records the provenance URL in SOURCES and marks TRUTH historical."
+  (org-set-property (plist-get change :property) (plist-get change :value))
+  (org-set-property "SOURCES" (plist-get change :provenance))
+  (unless (org-entry-get nil "TRUTH")
+    (org-set-property "TRUTH" "historical")))
+
+(defun org-chronicle-wikidata--event-change-string (change)
+  "Return the Org heading text for the event in CHANGE.
+The heading carries LIFE-EVENT, SUBJECT, and NEW-NAME as applicable."
+  (let* ((ev (plist-get change :event))
+         (base (org-chronicle--event-string
+                :title (plist-get ev :title)
+                :truth "historical"
+                :date (plist-get ev :date)
+                :date-end (plist-get ev :date-end)
+                :people (plist-get ev :people)
+                :location (plist-get ev :location)
+                :sources (plist-get change :provenance))))
+    (replace-regexp-in-string
+     ":END:\n"
+     (concat
+      (format ":LIFE-EVENT: %s\n" (plist-get ev :life-event))
+      (when (plist-get ev :subject)
+        (format ":SUBJECT:  %s\n" (org-chronicle--join (plist-get ev :subject))))
+      ":END:\n")
+     base t t)))
+
+(defun org-chronicle-wikidata--apply-changes (changes)
+  "Apply each plist in CHANGES at the entity heading at point.
+Entity changes set properties on the heading; event changes are appended
+to the chronicle timeline file via `org-chronicle--append-event'."
+  (org-back-to-heading t)
+  (dolist (change changes)
+    (pcase (plist-get change :target)
+      ('entity (org-chronicle-wikidata--apply-entity-change change))
+      ('event (org-chronicle--append-event
+               (org-chronicle-wikidata--event-change-string change))))))
+
+
+
+
 (provide 'org-chronicle-wikidata)
 ;;; org-chronicle-wikidata.el ends here
