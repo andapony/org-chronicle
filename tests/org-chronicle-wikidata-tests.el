@@ -57,6 +57,47 @@
     (should (= (org-chronicle-wikidata--cell-int (car rows) "n") 11))
     (should (null (org-chronicle-wikidata--cell-int (car rows) "a")))))
 
+(defvar org-chronicle-wikidata-test--directory
+  (file-name-directory (or load-file-name buffer-file-name))
+  "Directory containing the wikidata test file, captured at load time.")
+
+
+(defun org-chronicle-wikidata-test--fixture (name)
+  "Return the contents of fixture NAME under tests/fixtures/."
+  (with-temp-buffer
+    (insert-file-contents
+     (expand-file-name (format "fixtures/%s" name)
+                       org-chronicle-wikidata-test--directory))
+    (buffer-string)))
+
+(ert-deftest org-chronicle-wikidata-test-record ()
+  "Test assembling a person record from parsed Wikidata binding rows."
+  (let* ((rec (org-chronicle-wikidata--rows->record
+               "Q7259"
+               (org-chronicle-wikidata--bindings
+                (org-chronicle-wikidata-test--fixture "lovelace-vitals.json"))
+               (org-chronicle-wikidata--bindings
+                (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
+               (org-chronicle-wikidata--bindings
+                (org-chronicle-wikidata-test--fixture "lovelace-events.json")))))
+    (should (equal (plist-get rec :qid) "Q7259"))
+    (should (equal (plist-get (plist-get rec :born) :year) 1815))
+    (should (equal (plist-get (plist-get rec :died) :year) 1852))
+    (should (equal (plist-get rec :birthplace) "London"))
+    (should (equal (plist-get rec :deathplace) "Marylebone"))
+    (should (equal (plist-get rec :father) "Lord Byron"))
+    (should (equal (plist-get rec :mother) "Anne Isabella Byron"))
+    (should (equal (plist-get rec :aliases) '("Augusta Ada King" "Ada King")))
+    (let ((sp (car (plist-get rec :spouses))))
+      (should (string-prefix-p "William King-Noel" (plist-get sp :name)))
+      (should (equal (plist-get (plist-get sp :date) :year) 1835)))
+    (let ((ev (car (plist-get rec :events))))
+      (should (equal (plist-get ev :title) "Countess of Lovelace"))
+      (should (equal (plist-get ev :kind) "position"))
+      (should (equal (plist-get (plist-get ev :date) :year) 1838)))))
+
+
+
 
 
 

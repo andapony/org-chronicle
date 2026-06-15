@@ -72,6 +72,48 @@ VAR is a string variable name."
   (let ((v (org-chronicle-wikidata--cell row var)))
     (and v (string-match-p "\\`[0-9]+\\'" v) (string-to-number v))))
 
+(defconst org-chronicle-wikidata--alias-separator "\x1f"
+  "Separator used in SPARQL GROUP_CONCAT of aliases.")
+
+(defun org-chronicle-wikidata--row-date (row val-var prec-var)
+  "Build a date plist from VAL-VAR and PREC-VAR cells of ROW, or nil."
+  (org-chronicle-wikidata--time->date
+   (org-chronicle-wikidata--cell row val-var)
+   (org-chronicle-wikidata--cell-int row prec-var)))
+
+(defun org-chronicle-wikidata--rows->record (qid vitals spouses events)
+  "Assemble a person record for QID from parsed binding lists.
+VITALS is the (single) vitals row list, SPOUSES and EVENTS are row lists.
+Returns a plist; unrepresentable dates are dropped (see
+`org-chronicle-wikidata--time->date')."
+  (let* ((v (car vitals))
+         (alias-str (and v (org-chronicle-wikidata--cell v "aliases"))))
+    (list
+     :qid qid
+     :born (and v (org-chronicle-wikidata--row-date v "born" "bornPrec"))
+     :died (and v (org-chronicle-wikidata--row-date v "died" "diedPrec"))
+     :birthplace (and v (org-chronicle-wikidata--cell v "birthPlaceLabel"))
+     :deathplace (and v (org-chronicle-wikidata--cell v "deathPlaceLabel"))
+     :father (and v (org-chronicle-wikidata--cell v "fatherLabel"))
+     :mother (and v (org-chronicle-wikidata--cell v "motherLabel"))
+     :aliases (and alias-str (not (string-empty-p alias-str))
+                   (split-string alias-str org-chronicle-wikidata--alias-separator t))
+     :spouses (mapcar (lambda (row)
+                        (list :name (org-chronicle-wikidata--cell row "spouseLabel")
+                              :date (org-chronicle-wikidata--row-date row "start" "startPrec")
+                              :end (org-chronicle-wikidata--row-date row "end" "endPrec")))
+                      spouses)
+     :events (mapcar (lambda (row)
+                       (list :kind "position"
+                             :title (org-chronicle-wikidata--cell row "title")
+                             :date (org-chronicle-wikidata--row-date row "start" "startPrec")
+                             :date-end (org-chronicle-wikidata--row-date row "end" "endPrec")
+                             :location nil))
+                     events))))
+
+
+
+
 
 
 
