@@ -1,0 +1,363 @@
+#+TITLE: Knowledge-graph data sources for org-chronicle
+#+DATE: <2026-06-15>
+#+OPTIONS: toc:2 num:t
+#+STARTUP: overview
+#+CHRONICLE: ignore
+
+# This file is project background material, not chronicle data.  The
+# `#+CHRONICLE: ignore' keyword above keeps org-chronicle from scanning the
+# illustrative headings in the source blocks below as real events/entities,
+# even if you drop this file under `org-chronicle-root'.
+
+* Purpose and scope
+
+  This document surveys public *linked-data / knowledge-graph* sources that
+  can seed an =org-chronicle= project with accurate historical events,
+  people, places, and existence spans, and gives concrete recommendations
+  for wiring each one into the package's schema.  The through-line example is
+  a San Francisco history project, but nothing here is SF-specific.
+
+  Every source below exposes its data as RDF triples queryable with *SPARQL*
+  (the few exceptions are noted).  That means a single import shape applies
+  across all of them: run a query, get rows back, and emit one =org-chronicle=
+  heading per row.  The rest of this document is mostly about getting that
+  emission *right* — matching the schema in =doc/chronicle-schema.org= so the
+  swimlane view and, especially, the anachronism lint do useful work on the
+  imported material.
+
+* How knowledge-graph data maps onto the schema
+
+  The central observation: a knowledge-graph "fact about a dated thing" is
+  almost exactly an =org-chronicle= event, and a "fact about a person/place"
+  is almost exactly an entity.  The mapping is close to one-to-one.
+
+** Events
+   :PROPERTIES:
+   :CUSTOM_ID: event-mapping
+   :END:
+
+   | org-chronicle | Wikidata source (typical)                        | Notes                                  |
+   |---------------+--------------------------------------------------+----------------------------------------|
+   | =ID=          | the item's QID, prefixed (e.g. =wd-Q1234=)       | makes re-import idempotent (see below) |
+   | =TRUTH=       | constant =historical=                            | everything imported is real-world      |
+   | =DATE=        | =P585= point in time, or =P580= start time       | Org timestamp; precision handling below |
+   | =DATE-END=    | =P582= end time                                  | for events with a duration             |
+   | =PEOPLE=      | =P710= participant / =P1344= participant in      | join multiple with =; =                |
+   | =LOCATION=    | =P276= location, or =P131= admin entity          | a plain place name string              |
+   | =TOPICS=      | =P31= instance of / your own thematic mapping    | becomes a swimlane; map to your topics |
+   | =SOURCES=     | the QID URL, or an =id:= link to a reading entry | provenance; see Provenance below       |
+
+** Entities (existence spans drive the lint)
+   :PROPERTIES:
+   :CUSTOM_ID: entity-mapping
+   :END:
+
+   Importing accurate spans is what gives =org-chronicle-lint= teeth: a
+   fictional scene that puts a real figure somewhere before =BORN= or after
+   =DIED=, or in a place before =BUILT= / after =RAZED=, gets flagged
+   automatically.  This is the single strongest reason to wire a graph in.
+
+   | Kind     | Span start (chronicle) | Span end | Wikidata source                       |
+   |----------+------------------------+----------+---------------------------------------|
+   | =person= | =BORN=                 | =DIED=   | =P569= date of birth / =P570= of death |
+   | =place=  | =BUILT=                | =RAZED=  | =P571= inception / =P576= dissolved    |
+   | =group=  | =FOUNDED=              | =DISBANDED= | =P571= inception / =P576= dissolved |
+
+   Plus, for people: =BIRTHPLACE= ← =P19=, =DEATHPLACE= ← =P20=, =SPOUSE= ←
+   =P26=, =ALIASES= ← =skos:altLabel= / =P1449= nickname.
+
+** Life events
+   The schema treats birth/death/marriage/name-change as ordinary events
+   carrying =LIFE-EVENT= and =SUBJECT=.  Two natural ways to populate them:
+
+   - Derive entity *properties* (=BORN=/=DIED=/=SPOUSE=) directly, and let
+     the package synthesize spans — lighter weight, good default.
+   - Or *explode* them into standalone life-event headings (=LIFE-EVENT:
+     birth=, =SUBJECT:= ..., =DATE:= ...), which then appear on the timeline
+     and in swimlanes.  Marriage is the interesting one: on Wikidata it is
+     the =P26= spouse statement with a =P580= start-time *qualifier*, so you
+     reach it through the statement node (=p:P26 / pq:P580=), not a direct
+     =wdt:= predicate.
+
+** Truth, IDs, and idempotent re-import
+   - *Truth.* Tag every imported event/entity =TRUTH: historical=.  Keep your
+     invented material (=fictionalized= / =fictional=) in *separate files* so a
+     re-import never clobbers hand-authored headings.  A practical layout:
+     authored events in =timeline.org=; imported events in
+     =imported/wikidata.org= (still under the root, still scanned — do *not*
+     mark it =#+CHRONICLE: ignore=).
+   - *Stable IDs.* Use the QID as the =ID= (e.g. =wd-Q62= for San Francisco).
+     Re-running the query then *updates in place* instead of duplicating, and
+     gives you a free =SOURCES= back-link.  This is the key to treating the
+     import as a refreshable cache rather than a one-shot dump.
+   - *Drafts.* Use =org-chronicle-exclude= (e.g. ='("/drafts/")=) for prose in
+     progress; use =#+CHRONICLE: ignore= for one-off non-data files like this
+     survey.
+
+* The data sources
+
+** Wikidata — the primary feed
+   :PROPERTIES:
+   :CUSTOM_ID: wikidata
+   :END:
+
+   Endpoint: =https://query.wikidata.org/sparql= (also a browser UI at
+   =query.wikidata.org=).  License: CC0.
+
+   The broadest live source, and the one with the best coverage of people and
+   their life events, so make it your default.  Each statement can carry a
+   precision qualifier and multiple competing values with references, which is
+   exactly the nuance you want when deciding a =DATE=.
+
+   A pragmatic "events located in San Francisco, with a date" query — the
+   locator predicate is a heuristic and usually needs widening:
+
+   #+begin_src sparql
+     SELECT ?event ?eventLabel ?date ?coord WHERE {
+       ?event wdt:P585 ?date .                 # has a point in time
+       ?event (wdt:P276|wdt:P131) wd:Q62 .      # in San Francisco (Q62)
+       OPTIONAL { ?event wdt:P625 ?coord . }
+       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+     }
+     ORDER BY ?date
+   #+end_src
+
+   People born in San Francisco, ready to become =person= entities with
+   spans — this row maps straight onto =BORN= / =DIED= / =BIRTHPLACE= /
+   =DEATHPLACE=:
+
+   #+begin_src sparql
+     SELECT ?person ?personLabel ?dob ?dod ?bplaceLabel ?dplaceLabel WHERE {
+       ?person wdt:P31 wd:Q5 ; wdt:P19 wd:Q62 .
+       OPTIONAL { ?person wdt:P569 ?dob. }
+       OPTIONAL { ?person wdt:P570 ?dod. }
+       OPTIONAL { ?person wdt:P19 ?bplace. }
+       OPTIONAL { ?person wdt:P20 ?dplace. }
+       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+     }
+     ORDER BY ?dob
+   #+end_src
+
+   Which would emit, per row, an entity heading like:
+
+   #+begin_src org
+     ,* Jack London
+     :PROPERTIES:
+     :ID:         wd-Q45765
+     :KIND:       person
+     :BORN:       <1876-01-12>
+     :DIED:       <1916-11-22>
+     :BIRTHPLACE: San Francisco, California
+     :DEATHPLACE: Glen Ellen, California
+     :SOURCES:    [[https://www.wikidata.org/wiki/Q45765][Wikidata Q45765]]
+     :END:
+   #+end_src
+
+   /Caveat:/ the P/Q identifiers above are the common, stable ones, but
+   Wikidata's *event* modeling is heterogeneous (there is no single clean
+   "is an event" predicate), so confirm and widen the patterns against live
+   results before a bulk run.
+
+** DBpedia and YAGO — cross-check and temporal scoping
+   :PROPERTIES:
+   :CUSTOM_ID: dbpedia-yago
+   :END:
+
+   - *DBpedia* (=https://dbpedia.org/sparql=) extracts from Wikipedia
+     infoboxes via the =dbo:= ontology (=dbo:birthDate=, =dbo:deathDate=,
+     =dbo:birthPlace dbr:San_Francisco=).  Use it as a *cross-check* and to
+     catch infobox facts Wikidata happens not to carry.  Overlaps heavily
+     with Wikidata otherwise.
+   - *YAGO* (=https://yago-knowledge.org/=; uses =schema.org= predicates such
+     as =schema:birthDate=).  Worth knowing specifically because it was
+     designed around *spatio-temporal* anchoring — facts are scoped to when
+     and where they held true — which is a cleaner model for "what was the
+     case in 1880" than bolting qualifiers onto otherwise timeless
+     statements.  Endpoint availability varies between releases; treat it as
+     a periodic bulk source rather than a guaranteed live service.
+
+   Recommendation: don't run three feeds in parallel by default.  Make
+   Wikidata canonical, and reach for DBpedia/YAGO only to *resolve a
+   conflict* or *fill a gap* the lint or your own review surfaces.
+
+** EventKG — bulk seeding of a period
+   :PROPERTIES:
+   :CUSTOM_ID: eventkg
+   :END:
+
+   A multilingual *event-centric* temporal knowledge graph (L3S Research
+   Center, Hannover) that integrates events and temporal relations from
+   Wikidata, DBpedia, YAGO, and Wikipedia event lists.  Published figures put
+   it at roughly 690k events and 2.3M temporal relations; it models events
+   with the Simple Event Model (=sem:Event=, =sem:hasBeginTimeStamp=,
+   =sem:hasEndTimeStamp=).
+
+   It exists precisely because the general graphs are thin on events, so it
+   is the best choice when you want *dense event coverage of a bounded
+   period* in one shot — e.g. "everything EventKG knows in 1849–1906."
+   Practical caveat: it is distributed primarily as downloadable dumps (a
+   public SPARQL endpoint has existed but is intermittent), so treat it as a
+   *bulk seed-then-prune* source rather than a live lookup.  Import into a
+   staging file, review, keep what is relevant, and let your QID-keyed IDs
+   dedupe it against the Wikidata feed.
+
+** FactGrid — your own research, round-tripped
+   :PROPERTIES:
+   :CUSTOM_ID: factgrid
+   :END:
+
+   Endpoint: =https://database.factgrid.de/= (SPARQL at
+   =/sparql=).  License: CC0.  A Wikibase instance — same software, triple
+   model, and SPARQL as Wikidata — run by the Gotha Research Centre and the
+   University of Erfurt *specifically as a database for historians*.
+
+   The differentiator: unlike Wikidata it has *no notability bar* and
+   explicitly welcomes original research under real-name accounts.  That
+   makes it the natural home for your *own* San Francisco research collection
+   — the minor figures, addresses, and events that would never clear
+   Wikidata's threshold.  You can publish your findings there, then query
+   them back into =org-chronicle= through the identical pipeline, so your
+   primary-source work and the big public graphs land in the same timeline.
+   It also ships timeline and map visualizations natively.
+
+   /Note:/ FactGrid defines its *own* property IDs (its =P=-numbers differ
+   from Wikidata's), so the queries above are schematic for it — look up the
+   project's date and participant properties in its property registry.
+
+** Gazetteers — place and era normalization (not event feeds)
+   :PROPERTIES:
+   :CUSTOM_ID: gazetteers
+   :END:
+
+   These don't feed events; they make the *entities* and *topics* coherent.
+
+   - *Getty TGN* (Thesaurus of Geographic Names; SPARQL at
+     =https://vocab.getty.edu/sparql=).  Authoritative place names *with
+     historical name changes*.  Use it to resolve and alias place entities —
+     populate =ALIASES= on a =place= so the lint's name-validity check accepts
+     period-correct names.
+   - *PeriodO* (=https://perio.do/=).  A gazetteer of scholarly *period
+     definitions* — when various authorities say an era begins and ends, with
+     spatial scope, in EDTF.  More a vocabulary to *define your =TOPICS=* and
+     era brackets consistently than a source of events.  Distributed as a
+     JSON-LD dataset rather than a SPARQL endpoint.
+   - *Pleiades* (=https://pleiades.stoa.org/=).  Ancient-world places with
+     temporal attestation.  Almost certainly out of scope for an SF project;
+     listed for completeness if a chronicle ever reaches into antiquity.
+     (Note: Org timestamps don't represent BCE dates cleanly, so deep-time
+     gazetteers are a poor fit for the =DATE= property regardless.)
+
+** OpenHistoricalMap — spatial-temporal context
+   :PROPERTIES:
+   :CUSTOM_ID: ohm
+   :END:
+
+   =https://www.openhistoricalmap.org/= — OpenStreetMap with a time
+   dimension; features carry =start_date= / =end_date= tags.  Not SPARQL and
+   not an event feed, but a good source for *place existence spans*
+   (=BUILT= / =RAZED=) and for a period-correct map backdrop when you want to
+   see where events sat at a given date.  Query via its OSM-style API rather
+   than SPARQL.
+
+** Visualization tools — sanity-check, not pipeline
+   :PROPERTIES:
+   :CUSTOM_ID: viz
+   :END:
+
+   Neither feeds =org-chronicle=, but both are useful for *vetting an import
+   set before you commit it*:
+
+   - *Histropedia* (=http://histropedia.com/=) builds interactive timelines
+     directly off Wikidata — a fast way to eyeball whether a query's result
+     set looks right.
+   - *GT-Viz* takes any SPARQL query plus an endpoint (Wikidata or FactGrid)
+     and renders the results on an interactive map with a timeline — a useful
+     preview of exactly the data you're about to turn into headings.
+
+* A recommended import pipeline in Emacs
+
+  Keep the whole import reproducible and reviewable inside Org itself.
+
+  1. *Query in place.*  Use =ob-sparql= to run the query in an Org Babel
+     block, results to a table you can read:
+
+     #+begin_src org
+       ,#+begin_src sparql :url https://query.wikidata.org/sparql :format raw
+         SELECT ?person ?personLabel ?dob ?dod WHERE { ... }
+       ,#+end_src
+     #+end_src
+
+  2. *Transform to headings.*  Map result rows to =org-chronicle= headings.
+     Two options, in order of robustness:
+     - *Elisp transform (recommended).*  A small =rjd/=-prefixed function that
+       takes the result rows and writes headings, formatting timestamps and
+       joining =; =-separated fields itself.  This is where precision logic
+       (below) lives, and it keeps the messy formatting out of SPARQL.
+     - *SPARQL-side =CONCAT= (quick cases).*  For exact full dates you can
+       =BIND= an Org timestamp string directly in the query and emit a nearly
+       paste-ready column.  Fine for prototypes; awkward once precision and
+       padding enter the picture.
+
+  3. *File and key.*  Write into =imported/wikidata.org= (scanned, not
+     ignored), each heading keyed =ID: wd-<QID>= so the next run updates in
+     place.  Cache the raw query output (JSON/TSV) alongside so re-runs are
+     diffable and the provenance is concrete.
+
+  4. *Lint.*  Run =org-chronicle-lint= / =org-chronicle-lint-scenes=.  With
+     real spans imported, this now catches genuine anachronisms in your
+     fiction against the historical record — the payoff for all of the above.
+
+* Date precision and provenance caveats
+
+** Precision
+   Knowledge-graph dates are not all day-precise.  Wikidata exposes a
+   precision on each time statement (reachable as =wikibase:timePrecision= via
+   the statement node); branch on it when formatting =DATE=:
+   - *day* (precision 11) → exact =DATE:= =<YYYY-MM-DD>=.
+   - *month* (10) / *year* (9) → choose a convention.  A schema-faithful
+     trick is to encode the uncertainty as a *span*: =DATE: <YYYY-01-01>= +
+     =DATE-END: <YYYY-12-31>= for a year-only date, which reads honestly in
+     the timeline rather than pretending to a false day.  Record the original
+     precision in =SOURCES= or a custom property if you want to preserve it.
+   - *decade/century* → usually too coarse for a useful timeline row; prefer
+     leaving it off the timeline and noting it on the entity instead.
+
+** Provenance
+   Always populate =SOURCES= on imported headings.  The cheapest durable form
+   is the QID URL; if you keep an =org-reading-list=, an =id:= link into it
+   (with a locator) integrates with =org-chronicle-add-source= and keeps
+   machine-imported and hand-cited material in one citation system.
+
+** Conflicts
+   When two graphs disagree on a date, that is signal, not noise — surface it
+   in review rather than silently picking one.  VIAF-style clustering across
+   national authorities (for biographical dates specifically) and a
+   DBpedia/YAGO cross-check (for events) are the practical tie-breakers.
+
+* Quick-reference comparison
+
+  | Source       | Live SPARQL | Best for                          | Feeds chronicle as |
+  |--------------+-------------+-----------------------------------+--------------------|
+  | Wikidata     | yes         | people, life events, notable events | events + entities  |
+  | DBpedia      | yes         | gap-fill / cross-check            | events + entities  |
+  | YAGO         | varies      | clean temporal scoping            | events + entities  |
+  | EventKG      | dumps       | dense events for a bounded period | events (bulk seed) |
+  | FactGrid     | yes         | your own research, minor figures  | events + entities  |
+  | Getty TGN    | yes         | historical place names / aliases  | place entities     |
+  | PeriodO      | no (JSON-LD) | era / topic definitions          | topics (vocab)     |
+  | Pleiades     | no (dumps)  | ancient places (out of scope)     | place entities     |
+  | OpenHistoricalMap | no (API) | place spans, map backdrop        | place entities     |
+
+* Sources and further reading
+
+  - Wikidata Query Service: =https://query.wikidata.org=
+  - DBpedia SPARQL: =https://dbpedia.org/sparql=
+  - YAGO: =https://yago-knowledge.org=
+  - EventKG (Gottschalk & Demidova, L3S Hannover): project page at
+    =http://eventkg.l3s.uni-hannover.de=; figures from the 2018/2019 papers.
+  - FactGrid: =https://database.factgrid.de= ; blog =https://blog.factgrid.de=
+  - Getty vocabularies (TGN/ULAN/AAT): =https://vocab.getty.edu=
+  - PeriodO: =https://perio.do=
+  - Pleiades: =https://pleiades.stoa.org=
+  - OpenHistoricalMap: =https://www.openhistoricalmap.org=
+  - ob-sparql / sparql-mode (Emacs): available on MELPA.

@@ -1,0 +1,413 @@
+#+TITLE: Knowledge-graph integration — assessment and roadmap
+#+DATE: <2026-06-15>
+#+OPTIONS: toc:2 num:t
+#+STARTUP: overview
+#+CHRONICLE: ignore
+
+# Project background material, not chronicle data.  `#+CHRONICLE: ignore'
+# keeps org-chronicle from scanning the illustrative headings below even if
+# this file lands under `org-chronicle-root'.  This document is a response to
+# `doc/knowledge-graph-sources.org': it grounds that survey against what is
+# actually shipped today and proposes an incremental roadmap.
+
+* Purpose
+
+  =doc/knowledge-graph-sources.org= surveys the linked-data landscape and
+  sketches an ideal import pipeline.  This companion does the complementary
+  job: it pins that vision to the *code that exists today* (the
+  =org-chronicle-wikidata.el= module merged to =main= on 2026-06-15), names
+  precisely where the two meet and diverge, and lays out a phased roadmap in
+  which each step ships working, testable value and reduces risk before the
+  next step amplifies it.
+
+  Read the survey first for the "why" and the source catalogue.  Read this for
+  "where we are, what to fix, and in what order."
+
+* What is actually shipped today
+  :PROPERTIES:
+  :CUSTOM_ID: shipped
+  :END:
+
+  Ground truth, so the rest of this document is concrete rather than
+  aspirational.  The module exposes two interactive commands.
+
+  - =org-chronicle-wikidata-import= — *single-person, resolve-or-create*.
+    With point on a person entity heading it enriches that entity; on a
+    =PARENTS=/=SPOUSE= property value, or a non-entity heading, it creates a
+    minimal =person= heading in the people file and enriches that.  It
+    resolves a QID (reuse a stored one, paste a QID/URL, or pick from a
+    =wbsearchentities= search), fetches with three SPARQL queries
+    (vitals / spouses / positions), maps the result to a flat list of proposed
+    *changes*, shows them in a review buffer (=TAB= toggles a row, =RET=
+    applies the selected set, =q= cancels), and writes the approved set.
+  - =org-chronicle-wikidata-reconcile= — re-query the stored QID and present
+    *entity-property* drift (missing / changed-upstream / locally-diverged) as
+    opt-in pulls.
+
+  Salient implementation facts that the roadmap below leans on:
+
+  | Area | Today |
+  |------+-------|
+  | Sources | Wikidata only.  Endpoint is a =defcustom= (=org-chronicle-wikidata-sparql-endpoint=) |
+  | Entity kinds | =person= only.  =place= / =group= not imported |
+  | Property IDs | Hardcoded in the query builders (=P569=, =P570=, =P19=, =P20=, =P22=, =P25=, =P26=, =P39=, =P580=, =P582=) |
+  | Identity key | The QID is stored in a =WIKIDATA= property; the org =ID= stays a normal UUID |
+  | Vitals selection | Takes an arbitrary =(car vitals)= row when Wikidata carries competing values |
+  | Dates | =--time->date= keeps day/month/year precision; drops decade/century and BCE/pre-1000 (flagged, never faked) |
+  | Truth / provenance | Imported headings get =TRUTH: historical= and =SOURCES= = the Wikidata wiki URL (appended, not clobbered) |
+  | Event writing | Life events routed through core =org-chronicle--life-event-string=; positions through =--event-string=; both appended via =org-chronicle--append-event= |
+  | File layout | Entities → the people file; events → the timeline file.  *Mixed with hand-authored headings* |
+  | Tests | Offline (network stubbed); one =:wikidata-live= test excluded from =make= |
+
+* Alignment with the survey
+  :PROPERTIES:
+  :CUSTOM_ID: alignment
+  :END:
+
+  The survey's schema mapping is, gratifyingly, the one already implemented.
+  =P569/P570= → =BORN/DIED=, =P19/P20= → =BIRTHPLACE/DEATHPLACE=, =P26= →
+  =SPOUSE=, =skos:altLabel= → =ALIASES=, =TRUTH: historical= on everything
+  imported, and — the subtle part — reaching marriage dates through the
+  *statement node* (=p:P26 / pq:P580=) rather than a direct =wdt:= predicate.
+  The precision guidance (branch on =wikibase:timePrecision=; 11/10/9 →
+  day/month/year; decade/century and BCE are not honestly representable)
+  matches =--time->date= and the deliberate drop-and-flag decision.
+
+  So on the survey's stated core goal — "getting the emission right so the
+  swimlane and the anachronism lint do useful work" — the single-entity slice
+  is faithful.  What follows is everything the survey reaches for that the
+  slice does *not* yet cover, ordered by how much it matters.
+
+* Divergences, and two bugs-in-waiting
+  :PROPERTIES:
+  :CUSTOM_ID: divergences
+  :END:
+
+** Event-level idempotency is missing (highest-priority)
+   :PROPERTIES:
+   :CUSTOM_ID: idempotency
+   :END:
+
+   The survey keys imports on =ID: wd-<QID>= so a re-run "updates in place
+   instead of duplicating."  Our =reconcile= reaches the same *refreshable
+   cache* goal for *entity properties* (it re-queries the stored =WIKIDATA=
+   QID, diffs, and pulls) because property writes use =org-set-property=,
+   which is idempotent by construction.
+
+   *Events are not.*  =--apply-changes= writes life events through
+   =org-chronicle--append-event=, which unconditionally appends a new heading
+   and mints a fresh org id.  Re-running =import= on an already-imported
+   person therefore *duplicates* the birth/death/marriage headings.  The
+   review buffer will not catch it: change classification (=--classify=) only
+   runs on entity targets, so event rows always render as new.
+
+   This is the single most important thing the survey surfaces, and it is
+   better treated as a correctness bug than a future feature: today the safe
+   usage pattern is "import once, never again," which undercuts the whole
+   reconcile story.
+
+   *Recommended fix.*  Give every imported event a stable, source-qualified
+   key in a dedicated property, e.g.
+
+   #+begin_src org
+     ,* Birth of Ada Lovelace
+     :PROPERTIES:
+     :IMPORT-KEY:  wd:Q7259:birth
+     :LIFE-EVENT:  birth
+     :SUBJECT:     Ada Lovelace
+     :DATE:        <1815-12-10>
+     :SOURCES:     https://www.wikidata.org/wiki/Q7259
+     :END:
+   #+end_src
+
+   On write, search the import file for an existing heading carrying that
+   =IMPORT-KEY= and *update it* rather than append; only append when absent.
+   Prefer a dedicated property over overloading the org =ID= (see
+   [[#id-strategy]]).  This generalizes cleanly to marriages
+   (=wd:Q7259:marriage:Q123=) and to positions (=wd:Q7259:P39:Q...=).
+
+** Imported data is co-mingled with hand-authored data
+   :PROPERTIES:
+   :CUSTOM_ID: quarantine
+   :END:
+
+   The survey insists imported material live in its *own* file
+   (=imported/wikidata.org=, scanned but not =#+CHRONICLE: ignore=d), separate
+   from authored =timeline.org=, so a re-import never clobbers fiction.  We
+   currently write events into the configured timeline file and entities into
+   the people file, interleaved with authored headings.
+
+   Combined with the missing event idempotency above, this is exactly the
+   failure mode the survey warns against: a refresh that scatters duplicates
+   through the file you hand-write in.  The fix is small and high-leverage —
+   a =defcustom org-chronicle-wikidata-file= (default =imported/wikidata.org=
+   under the root) that both commands write to — and it is a prerequisite for
+   any *bulk* import, where the blast radius of getting this wrong is large.
+
+** Year/month precision: reduced-precision timestamp vs. honest span
+   :PROPERTIES:
+   :CUSTOM_ID: precision-rep
+   :END:
+
+   We store a reduced-precision single timestamp (e.g. =DATE: 1838=), relying
+   on the core's precision-aware formatting to avoid a false day.  The survey
+   proposes the alternative of encoding a year as a *span* (=DATE:
+   <1838-01-01>= + =DATE-END: <1838-12-31>=).  Both avoid faking precision,
+   but they read differently to the *lint*: a full-year span satisfies a
+   feasibility window for any day in the year, whereas a year-precision point
+   is a single sort key.  This is a real semantic choice (see open questions),
+   not a formatting detail — worth deciding deliberately rather than letting
+   the two representations drift apart across import vs. authored data.
+
+** Provenance could be richer
+   We store the bare QID URL in =SOURCES=.  The survey wants the option of an
+   =id:= link into an =org-reading-list= entry via =org-chronicle-add-source=,
+   so machine-imported and hand-cited material share one citation system.
+   That ties into the separate =org-reading-list= project and is a natural
+   later integration rather than an urgent gap.
+
+* The conceptual gap: single-entity vs. set-based
+  :PROPERTIES:
+  :CUSTOM_ID: gap
+  :END:
+
+  The survey is mostly about *seeding a whole project* — "run one query, emit
+  one heading per row" for all people born in a city, all events located in
+  it.  What we built is the inverse: *enrich one person I already care about*.
+  These are complementary, and the lower layers we shipped (the transport, the
+  binding accessors, =--time->date=, the query builders) are largely reusable
+  for a bulk path — but the =resolve → single marker → review → apply= flow is
+  intrinsically one-entity.  Bulk import is simply not a capability today.
+
+  Two sub-gaps fall out of the same root:
+
+  - *Places and groups.*  The survey treats =place=/=group= spans
+    (=P571/P576= → =BUILT/RAZED=, =FOUNDED/DISBANDED=) as first-class and
+    frames accurate existence spans as *the* payoff for wiring in a graph — it
+    is what gives =org-chronicle-lint= teeth against fiction.  We import only
+    persons.  Extending to places/groups is mostly the person pipeline with a
+    different span/property map, and it is the change that most directly
+    increases the lint's value.
+  - *Multi-source cross-check.*  The survey's "when two graphs disagree, that
+    is signal" — DBpedia/YAGO cross-check, VIAF clustering for biographical
+    dates — has no analog in our single-source reconcile.  It is a sharper
+    version of our known limitation that the vitals query takes an arbitrary
+    =(car vitals)= row when Wikidata itself carries competing, differently-
+    ranked values.
+
+* Design decisions to lock down first
+  :PROPERTIES:
+  :CUSTOM_ID: decisions
+  :END:
+
+  Three choices gate the roadmap; making them explicitly now avoids rework.
+
+** Identity key: =WIKIDATA= property, not QID-as-org-ID
+   :PROPERTIES:
+   :CUSTOM_ID: id-strategy
+   :END:
+
+   The survey uses the QID *as* the org =ID= (=wd-Q62=).  It is tempting —
+   one field does idempotency and back-linking.  Recommendation: *do not*.
+   The org =ID= has its own semantics (link targets, =org-id= databases,
+   =org-id-get-create= minting UUIDs), and mixing =wd-=-keyed entities with
+   UUID-keyed authored ones is inconsistent and brittle.  More importantly, a
+   dedicated key generalizes to *multiple sources*: a single heading can carry
+   both =WIKIDATA: Q62= and =FACTGRID: Q1234= without either fighting the org
+   =ID=.  Keep =WIKIDATA= (and future per-source properties) as the
+   source-of-truth keys; build event idempotency on the derived =IMPORT-KEY=
+   ([[#idempotency]]); leave org =ID= alone.
+
+** File layout: a dedicated, scanned import file
+   Settle on =imported/wikidata.org= (configurable) now, even before bulk
+   import, because both the idempotency and quarantine fixes write to it.  It
+   stays under the root and is *not* =#+CHRONICLE: ignore=d — imported facts
+   must be visible to the lint.
+
+** Property mapping: data, not code
+   The hardcoded P-numbers are the chief obstacle to every additional source.
+   Lift them into a per-source mapping (an alist or small struct: span-start /
+   span-end / birthplace / spouse / participant / point-in-time / start /
+   end), and have the query builders consume it.  This single refactor is what
+   turns "Wikidata" into "any Wikibase," and later "any SPARQL ontology."
+
+* Roadmap
+  :PROPERTIES:
+  :CUSTOM_ID: roadmap
+  :END:
+
+  Sequenced so each phase is independently shippable and testable, earlier
+  phases de-risk later ones, and correctness precedes scale.  Phase sizes are
+  rough relative effort, not estimates.
+
+** Phase 0 — Harden the single-entity importer (correctness)  [S]
+   :PROPERTIES:
+   :CUSTOM_ID: phase-0
+   :END:
+
+   Make repeated =import=/=reconcile= safe before doing anything bigger.
+
+   1. Add =org-chronicle-wikidata-file= (default =imported/wikidata.org=);
+      route both entity and event writes there ([[#quarantine]]).
+   2. Stamp every imported event with =IMPORT-KEY=; make the writer
+      update-in-place by key instead of always appending ([[#idempotency]]).
+   3. Extend change classification to event targets so the review buffer shows
+      =new/same/conflict= for events too (today only entity rows are classed).
+
+   *Exit:* importing the same person twice produces no duplicates; the second
+   run's review shows everything as =same=.  Pure-function tests for the key
+   derivation and the update-vs-append decision; a temp-file writer test that
+   asserts idempotency across two applies.
+
+** Phase 1 — Reconcile completeness and value selection  [S–M]
+   :PROPERTIES:
+   :CUSTOM_ID: phase-1
+   :END:
+
+   1. With event keys in place, let =reconcile= detect event drift
+      (changed-upstream, removed) — not just entity properties.
+   2. Replace =(car vitals)= with deliberate selection: prefer by Wikidata
+      statement rank, then by precision; carry the alternates so the review
+      can show "Wikidata also lists …" ([[#gap]], conflict-as-signal).
+   3. Optional: richer =SOURCES= via =org-chronicle-add-source= / =id:= links
+      into =org-reading-list= ([[#quarantine]] sibling concern).
+
+   *Exit:* reconcile round-trips a person with multiple competing birth dates
+   without silently picking; the chosen value and its basis are visible.
+
+** Phase 2 — Places and groups  [M]
+   :PROPERTIES:
+   :CUSTOM_ID: phase-2
+   :END:
+
+   Generalize entity import to =place= (=P571/P576= → =BUILT/RAZED=) and
+   =group= (=FOUNDED/DISBANDED=).  This is the highest-value extension for the
+   *lint*, since place/era spans are what catch "a building that did not exist
+   yet" anachronisms.  Forces the [[#decisions]] property-map refactor, so do
+   that here if not already done.  Getty TGN (place names / =ALIASES=) and
+   OpenHistoricalMap (place spans) become relevant supplementary sources at
+   this point, though both are out-of-band (TGN via its own SPARQL; OHM via
+   an OSM-style API).
+
+   *Exit:* a =place= can be imported and enriched the same way a person can;
+   the lint flags a fictional scene set before =BUILT= / after =RAZED=.
+
+** Phase 3 — Configurable sources; FactGrid  [M]
+   :PROPERTIES:
+   :CUSTOM_ID: phase-3
+   :END:
+
+   With property mapping already data-driven, add *FactGrid* — a Wikibase
+   instance with the identical triple/SPARQL model, its own endpoint, and its
+   own P-numbers.  It is the natural home for original SF research that would
+   never clear Wikidata's notability bar, round-tripped back through the same
+   pipeline.  Mechanically this is: a source registry (endpoint + property
+   map + key property), and a source argument threaded through resolve / fetch
+   / write.  This also lays the groundwork for non-Wikibase SPARQL sources
+   (DBpedia =dbo:=, YAGO =schema.org=) as *cross-check* feeds later.
+
+   *Exit:* the same commands import from FactGrid by configuration alone; a
+   heading can carry independent =WIKIDATA= and =FACTGRID= keys.
+
+** Phase 4 — Set/category bulk import  [L]
+   :PROPERTIES:
+   :CUSTOM_ID: phase-4
+   :END:
+
+   The survey's headline workflow: query a whole category ("people born in
+   Q62", "events located in Q62 with a date") and emit many headings in one
+   pass.  *Depends on Phase 0* — bulk amplifies the duplication and
+   co-mingling risks that Phase 0 closes.  Design notes:
+
+   - Keep it reviewable in Org, per the survey: an =ob-sparql= block (or an
+     elisp runner) produces rows; a bulk review surface (a table, or the
+     existing review buffer scaled up) lets the user prune before writing.
+   - Cache the raw query output (JSON/TSV) beside the import file so re-runs
+     are diffable and provenance is concrete — this *also* de-risks the
+     standing caveat that the offline test suite never sees real response
+     shapes.
+   - Idempotency from Phase 0 makes a bulk re-run a *refresh* (update keyed
+     rows, add new ones, optionally flag rows that vanished upstream) rather
+     than a dump.
+
+   EventKG (dense events for a bounded period, distributed as dumps) slots in
+   here as a *bulk seed-then-prune* source, deduped against the Wikidata feed
+   by =IMPORT-KEY=.
+
+   *Exit:* "seed everything known about people born in <place>" produces a
+   reviewed, de-duplicated, refreshable import file.
+
+** Phase 5 — Multi-source cross-check and conflict resolution  [L]
+   :PROPERTIES:
+   :CUSTOM_ID: phase-5
+   :END:
+
+   Use the source registry from Phase 3 to *cross-check*: DBpedia/YAGO for
+   events, VIAF-style clustering for biographical dates.  Surface
+   disagreements in review rather than silently choosing.  This is the
+   survey's "conflict is signal" elevated to a feature, and it depends on both
+   the multi-source plumbing (Phase 3) and the value-selection groundwork
+   (Phase 1).
+
+   *Exit:* when two sources disagree on a date, the review shows both with
+   their provenance and lets the author decide.
+
+** Parallel track — Fuzzy / coarse dates in the core model  [L, independent]
+   :PROPERTIES:
+   :CUSTOM_ID: fuzzy-dates
+   :END:
+
+   Orthogonal to all the source plumbing: a change to the *core* date model
+   (=--date-parse=, =--date-format=, the sort key, span containment, the lint,
+   and the scene solver) to represent decade/century precision, "fl. 1880",
+   and BCE/pre-1000.  It is a prerequisite for honestly importing
+   ancient/medieval subjects (and for deep-time gazetteers like Pleiades), and
+   it is the reason the current integration targets mostly-modern,
+   precisely-dated material.  Deserves its *own* brainstorm → spec → plan
+   cycle.  Schedule it when the corpus demands coarse dates; until then the
+   drop-and-flag behaviour is the right stopgap.  Note it also subsumes the
+   open precision-representation question ([[#precision-rep]]): once the model
+   can express "year precision" first-class, the span-vs-point hack disappears.
+
+* Open questions to resolve per phase
+  :PROPERTIES:
+  :CUSTOM_ID: questions
+  :END:
+
+  - *Precision representation* ([[#precision-rep]]): year-precision point vs.
+    full-year span — which does the lint want?  (Resolved for free by the
+    fuzzy-dates track, but a decision is needed before then if Phase 4 imports
+    many year-only dates.)
+  - *Removed-upstream policy*: when a refresh finds a previously-imported fact
+    gone from the source, delete the heading, tombstone it, or just flag it?
+    Authored edits on an imported heading complicate this.
+  - *Authored edits on imported headings*: if a user hand-edits an imported
+    fact, does a refresh overwrite, skip, or conflict?  (=reconcile='s opt-in
+    model already leans toward "never silently overwrite" — extend that rule
+    to bulk refresh.)
+  - *Bulk review ergonomics*: does the current review buffer scale to hundreds
+    of rows, or does bulk need a table/agenda-style surface with filtering?
+
+* Quick reference — survey sources mapped to phases
+  :PROPERTIES:
+  :CUSTOM_ID: source-phase-map
+  :END:
+
+  | Source | Role | Lands in phase |
+  |--------+------+----------------|
+  | Wikidata | canonical live feed (already shipped) | 0–1 (harden), 4 (bulk) |
+  | FactGrid | own research, minor figures; same Wikibase model | 3 |
+  | DBpedia / YAGO | cross-check, gap-fill | 5 |
+  | EventKG | dense events for a bounded period (dumps) | 4 |
+  | Getty TGN | historical place names → =ALIASES= | 2 |
+  | OpenHistoricalMap | place existence spans (=BUILT/RAZED=) | 2 |
+  | PeriodO | era / =TOPICS= vocabulary (JSON-LD) | later (topic work) |
+  | Pleiades | ancient places | gated on fuzzy-dates track |
+
+* Recommended immediate next step
+
+  Do *Phase 0* next, as a single brainstorm → spec → plan → implement cycle.
+  It is small, it is pure correctness, and it converts the shipped feature
+  from "import once" into the refreshable cache the whole design implies —
+  which is the foundation every later phase stands on.  Everything else can
+  then be scheduled against appetite and the demands of a real corpus.
