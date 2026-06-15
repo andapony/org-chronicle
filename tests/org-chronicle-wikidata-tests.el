@@ -481,6 +481,19 @@
               (should (equal (org-entry-get nil "IMPORT-KEY") "birth:ABC")))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-wikidata-test-classify-event ()
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Birth of X\n:PROPERTIES:\n:DATE: <1815-12-10>\n:LOCATION: London\n:END:\n")
+    (goto-char (point-min))
+    (let ((m (point-marker))
+          (same (list :event (list :date "1815-12-10" :location "London")))
+          (confl (list :event (list :date "1900-01-01" :location "London"))))
+      (should (eq (org-chronicle-wikidata--classify-event same m) 'same))
+      (should (eq (org-chronicle-wikidata--classify-event confl m) 'conflict))
+      (should (eq (org-chronicle-wikidata--classify-event same nil) 'new)))))
+
+
 
 
 

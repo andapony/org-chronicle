@@ -696,6 +696,34 @@ Creates the file's directory if needed, assigns an id, normalizes, and saves."
       (save-buffer)
       (when key (puthash key (point-marker) index)))))
 
+(defun org-chronicle-wikidata--field-equal-p (prop proposed date-p)
+  "Non-nil if PROP at point equals PROPOSED (a string or nil).
+Empty and nil are equal; compare as dates when DATE-P is non-nil."
+  (let* ((cur (org-entry-get nil prop))
+         (cur (and cur (not (string-empty-p cur)) cur))
+         (proposed (and proposed (not (string-empty-p proposed)) proposed)))
+    (cond
+     ((and (null cur) (null proposed)) t)
+     ((or (null cur) (null proposed)) nil)
+     (date-p (org-chronicle-wikidata--dates-equal-p cur proposed))
+     (t (equal (string-trim cur) (string-trim proposed))))))
+
+(defun org-chronicle-wikidata--classify-event (change existing)
+  "Classify event CHANGE against the EXISTING marker (or nil).
+Return `new' when EXISTING is nil, `same' when the managed date and location
+fields match, or `conflict' otherwise."
+  (if (null existing)
+      'new
+    (let ((ev (plist-get change :event)))
+      (org-with-point-at existing
+        (if (and (org-chronicle-wikidata--field-equal-p "DATE" (plist-get ev :date) t)
+                 (org-chronicle-wikidata--field-equal-p "DATE-END" (plist-get ev :date-end) t)
+                 (org-chronicle-wikidata--field-equal-p "LOCATION" (plist-get ev :location) nil))
+            'same
+          'conflict)))))
+
+
+
 
 
 
