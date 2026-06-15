@@ -1498,6 +1498,64 @@ Returns a plist with :entities :idx :events :index :adoption :events-by-id."
     (list :entities entities :idx idx :events events :index index
           :adoption adoption :events-by-id by-id)))
 
+;;;; Scenes: window and anchor
+
+(defun org-chronicle--scene-window (scene ctx)
+  "Return the feasible window for SCENE as (LO . HI), or :empty.
+LO and HI are date plists or nil (open).  Bounds come from referenced entity
+existence spans, name-validity onsets, and AFTER/BEFORE constraints, all read
+against current dates in CTX.  Undated referents contribute no bound."
+  (let ((lo nil) (hi nil)
+        (entities (plist-get ctx :entities))
+        (idx (plist-get ctx :idx))
+        (index (plist-get ctx :index))
+        (adoption (plist-get ctx :adoption))
+        (by-id (plist-get ctx :events-by-id)))
+    (dolist (ref (plist-get scene :refs))
+      (let ((ent (org-chronicle--entity-by-id (plist-get ref :id) entities)))
+        (when ent
+          (let ((span (org-chronicle--span-for-name
+                       (plist-get ent :name) entities idx index)))
+            (when span
+              (setq lo (org-chronicle--date-max lo (car span)))
+              (setq hi (org-chronicle--date-min hi (cdr span)))))
+          (let* ((name (plist-get ref :name))
+                 (adopt (and name (gethash (cons (plist-get ent :name)
+                                                 (downcase name))
+                                           adoption))))
+            (when adopt (setq lo (org-chronicle--date-max lo adopt)))))))
+    (dolist (id (plist-get scene :after-ids))
+      (let ((ev (gethash id by-id)))
+        (when ev
+          (let ((d (or (plist-get ev :date-end) (plist-get ev :date))))
+            (when d (setq lo (org-chronicle--date-max lo d)))))))
+    (dolist (id (plist-get scene :before-ids))
+      (let ((ev (gethash id by-id)))
+        (when ev
+          (let ((d (plist-get ev :date)))
+            (when d (setq hi (org-chronicle--date-min hi d)))))))
+    (if (and lo hi (org-chronicle--date-lessp hi lo)) :empty (cons lo hi))))
+
+(defun org-chronicle--scene-anchor (scene ctx)
+  "Return SCENE's temporal anchor as (START . END) date plists, or nil.
+Own DATE (with optional DATE-END) wins; else the span across EVENT events;
+else nil (floating)."
+  (cond
+   ((plist-get scene :own-date)
+    (cons (plist-get scene :own-date)
+          (or (plist-get scene :own-date-end) (plist-get scene :own-date))))
+   ((plist-get scene :event-ids)
+    (let ((by-id (plist-get ctx :events-by-id)) (starts '()) (ends '()))
+      (dolist (id (plist-get scene :event-ids))
+        (let ((ev (gethash id by-id)))
+          (when (and ev (plist-get ev :date))
+            (push (plist-get ev :date) starts)
+            (push (or (plist-get ev :date-end) (plist-get ev :date)) ends))))
+      (when starts
+        (cons (cl-reduce #'org-chronicle--date-min starts)
+              (cl-reduce #'org-chronicle--date-max ends)))))
+   (t nil)))
+
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)

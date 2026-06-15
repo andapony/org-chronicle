@@ -936,5 +936,84 @@ global root differs."
     (should (equal (gethash (cons "Eliza Dent" "mrs. grant") adopt)
                    (org-chronicle--date-parse "1863-08-22")))))
 
+(defconst org-chronicle-test--scene-root
+  '(("people.org" . "\
+* Eliza Dent
+:PROPERTIES:
+:ID:      eliza
+:KIND:    person
+:BORN:    <1826-01-26>
+:DIED:    <1902-12-14>
+:ALIASES: Mrs. Grant
+:END:
+* Marek
+:PROPERTIES:
+:ID:    marek
+:KIND:  person
+:BORN:  <1870-01-01>
+:END:
+")
+    ("events.org" . "\
+* Vicksburg
+:PROPERTIES:
+:ID:    vicksburg
+:DATE:  <1863-07-04>
+:END:
+* Appomattox
+:PROPERTIES:
+:ID:    appomattox
+:DATE:  <1865-04-09>
+:END:
+* Eliza renamed
+:PROPERTIES:
+:LIFE-EVENT: name-change
+:SUBJECT:    Eliza Dent
+:NEW-NAME:   Mrs. Grant
+:DATE:       <1863-08-22>
+:END:
+"))
+  "A self-contained root used by scene-window/finding tests.")
+
+(ert-deftest org-chronicle-test-scene-window-bounded ()
+  "An entity reference plus AFTER/BEFORE constraints intersect to a window."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let* ((ctx (org-chronicle--scene-context))
+           (scene (list :refs (list (list :id "eliza" :name nil))
+                        :after-ids '("vicksburg") :before-ids '("appomattox")))
+           (w (org-chronicle--scene-window scene ctx)))
+      (should (equal (car w) (org-chronicle--date-parse "1863-07-04")))
+      (should (equal (cdr w) (org-chronicle--date-parse "1865-04-09"))))))
+
+(ert-deftest org-chronicle-test-scene-window-empty ()
+  "A lower bound later than an upper bound yields :empty.
+Marek is born 1870, but BEFORE Vicksburg (1863) caps the window earlier."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let ((ctx (org-chronicle--scene-context)))
+      (should (eq (org-chronicle--scene-window
+                   (list :refs (list (list :id "marek" :name nil))
+                         :before-ids '("vicksburg"))
+                   ctx)
+                  :empty)))))
+
+(ert-deftest org-chronicle-test-scene-window-unbounded ()
+  "A scene with no resolvable bounds is unbounded (nil . nil)."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let ((ctx (org-chronicle--scene-context)))
+      (should (equal (org-chronicle--scene-window (list :refs nil) ctx) '(nil))))))
+
+(ert-deftest org-chronicle-test-scene-anchor ()
+  "Own DATE wins; else the EVENT span; else nil."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (let ((ctx (org-chronicle--scene-context)))
+      (should (equal (car (org-chronicle--scene-anchor
+                           (list :own-date (org-chronicle--date-parse "1864")) ctx))
+                     (org-chronicle--date-parse "1864")))
+      (should (equal (car (org-chronicle--scene-anchor
+                           (list :event-ids '("vicksburg")) ctx))
+                     (org-chronicle--date-parse "1863-07-04")))
+      (should (null (org-chronicle--scene-anchor (list :refs nil) ctx))))))
+
+
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
