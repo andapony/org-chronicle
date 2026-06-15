@@ -289,6 +289,15 @@ dates before the year 1000 CE are not representable by the
 =org-chronicle= date model and are dropped rather than approximated.
 Affected fields are silently omitted from the proposed change set.
 
+** Testing
+
+The module ships an offline test suite that runs with =make test= (or =make
+all=, which additionally byte-compiles and runs checkdoc).  An opt-in live
+suite can be run with =make test-live=; it exercises the HTTP fetch layer and
+performs an end-to-end import against the real Wikidata SPARQL endpoint.  The
+live suite is never invoked by =make all=, and individual tests skip rather
+than fail when Wikidata is unreachable.
+
 * Writing: scenes & continuity
 
 Tie creative prose to the timeline and check it for continuity with the
