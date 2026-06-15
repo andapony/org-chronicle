@@ -126,5 +126,30 @@ Assertion failures in the caller still fail normally."
               (lambda () (org-chronicle-wikidata--fetch-person "Q6691")))))
     (should (null (plist-get rec :born)))))
 
+(ert-deftest org-chronicle-wikidata-test-live-place-sutro ()
+  "Live: Sutro Baths (Q3505806) imports as a place with a BUILT span."
+  :tags '(:wikidata-live)
+  (let ((rec (org-chronicle-wikidata-live--fetch-or-skip
+              (lambda () (org-chronicle-wikidata--fetch-record "Q3505806" 'place)))))
+    (should (eq (plist-get rec :kind) 'place))
+    (should (equal (plist-get (plist-get rec :start) :year) 1896))
+    (should (null (plist-get rec :end)))))
+
+(ert-deftest org-chronicle-wikidata-test-live-group-panam ()
+  "Live: Pan Am (Q8681) imports as a group with a FOUNDED/DISBANDED span."
+  :tags '(:wikidata-live)
+  (let* ((rec (org-chronicle-wikidata-live--fetch-or-skip
+               (lambda () (org-chronicle-wikidata--fetch-record "Q8681" 'group))))
+         (start (plist-get rec :start)) (end (plist-get rec :end)))
+    (should (eq (plist-get rec :kind) 'group))
+    (should (equal (plist-get start :year) 1927))
+    (should (equal (plist-get start :month) 3))
+    (should (equal (plist-get start :day) 14))
+    (should (equal (plist-get end :year) 1991))
+    (should (equal (plist-get end :month) 12))
+    (should (equal (plist-get end :day) 4))))
+
+
+
 (provide 'org-chronicle-wikidata-live-tests)
 ;;; org-chronicle-wikidata-live-tests.el ends here

@@ -286,6 +286,17 @@ upstream are not yet detected.)
 The command requires a =WIKIDATA= property on the heading; if none is
 present it directs you to run =org-chronicle-wikidata-import= first.
 
+** Places and groups
+
+Import and reconcile work for =place= and =group= entities, not just people.  On a
+heading carrying =KIND: place= or =KIND: group=, the commands fill the entity's
+existence span — =BUILT= / =RAZED= for places, =FOUNDED= / =DISBANDED= for groups —
+from Wikidata's inception property (=P571=) and dissolved property (=P576=), together
+with =ALIASES=.  Creating a new entity from the Wikidata import flow prompts for the
+kind before filing the heading.  These spans are what give the anachronism lint real
+bounds to check fiction against: a scene set before a building was built or after a
+group disbanded is flagged the same way as a scene that misplaces a person's lifespan.
+
 ** Date coverage
 
 The integration targets mostly-modern, precisely-dated subjects.  Dates
