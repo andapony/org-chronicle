@@ -1315,24 +1315,51 @@ the event's date.  IDX is the alias index.  Empty list means clean."
       (goto-char (point-min))
       (pop-to-buffer (current-buffer)))))
 
+;;;; Scenes: the chronicle link type
 
+(defface org-chronicle-reference '((t :inherit org-link))
+  "Face for inline chronicle: scene references."
+  :group 'org-chronicle)
 
+(defun org-chronicle--reference-title (id)
+  "Return the heading title for ID among events and entities, or nil."
+  (or (cl-loop for e in (org-chronicle--all-events)
+               when (equal (plist-get e :id) id) return (plist-get e :title))
+      (cl-loop for e in (org-chronicle--all-entities)
+               when (equal (plist-get e :id) id) return (plist-get e :name))))
 
+(defun org-chronicle--reference-targets ()
+  "Return an alist of (DISPLAY . ID) for events and entities carrying an id."
+  (append
+   (cl-loop for e in (org-chronicle--all-entities)
+            for id = (plist-get e :id)
+            when id collect (cons (plist-get e :name) id))
+   (cl-loop for e in (org-chronicle--all-events)
+            for id = (plist-get e :id)
+            when id collect (cons (plist-get e :title) id))))
 
+(defun org-chronicle--link-follow (path &optional _arg)
+  "Follow a chronicle: link by visiting the heading whose id is PATH."
+  (org-id-goto path))
 
+(defun org-chronicle--link-export (path desc &optional _backend _info)
+  "Export a chronicle: link as DESC, else the target title, else PATH."
+  (or (and desc (not (string-blank-p desc)) desc)
+      (org-chronicle--reference-title path)
+      path))
 
+(defun org-chronicle--link-complete (&optional _arg)
+  "Completion for inserting a chronicle: link; return \"chronicle:ID\"."
+  (let* ((targets (org-chronicle--reference-targets))
+         (name (completing-read "Reference: " targets nil t)))
+    (concat "chronicle:" (cdr (assoc name targets)))))
 
-
-
-
-
-
-
-
-
-
-
-
+(org-link-set-parameters
+ "chronicle"
+ :follow #'org-chronicle--link-follow
+ :export #'org-chronicle--link-export
+ :complete #'org-chronicle--link-complete
+ :face 'org-chronicle-reference)
 
 ;;;; (sections added by later tasks)
 

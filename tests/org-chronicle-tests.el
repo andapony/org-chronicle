@@ -840,5 +840,22 @@ global root differs."
             ((symbol-function 'completing-read) (lambda (&rest _) "Unlisted clipping")))
     (should (equal (org-chronicle--read-source) "Unlisted clipping"))))
 
+(ert-deftest org-chronicle-test-link-export-uses-description ()
+  "A chronicle: link exports as its description text."
+  (should (equal (org-chronicle--link-export "any-id" "Mrs. Grant" 'html)
+                 "Mrs. Grant")))
+
+(ert-deftest org-chronicle-test-link-export-falls-back-to-path ()
+  "With no description the export falls back to the raw path."
+  (cl-letf (((symbol-function 'org-chronicle--reference-title) (lambda (_) nil)))
+    (should (equal (org-chronicle--link-export "evt-x" nil 'html) "evt-x"))))
+
+(ert-deftest org-chronicle-test-link-registered ()
+  "The chronicle link type is registered with org."
+  (should (org-link-get-parameter "chronicle" :follow)))
+
+
+
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
