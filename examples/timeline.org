@@ -2,10 +2,12 @@
 #+CATEGORY: chronicle
 
 # A small example mixing real and invented 19th-century U.S. events.
-# Point `org-chronicle-timeline-file' at a copy of this file, then try
+# Point `org-chronicle-root' at a copy of the examples/ directory, then try
 #   M-x org-chronicle-timeline   (e.g. people = Ulysses S. Grant, Eliza Harlan)
 #   (topics work as lanes too, e.g. military, politics)
 #   M-x org-chronicle-lint
+# Entity files (people.org, places.org, topics.org) live alongside this file
+# so the examples/ directory works as a self-contained root.
 # Each heading mirrors its TRUTH value as a tag, as org-chronicle-normalize
 # would set it.  See doc/chronicle-schema.org for the full schema.
 

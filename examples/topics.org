@@ -1,0 +1,14 @@
+#+TITLE: Chronicle topics
+
+* military
+:PROPERTIES:
+:KIND:      topic
+:ALIASES:   mil
+:END:
+Military campaigns, battles, and troop movements during the Civil War.
+
+* politics
+:PROPERTIES:
+:KIND:      topic
+:END:
+Political decisions, speeches, and governmental actions.

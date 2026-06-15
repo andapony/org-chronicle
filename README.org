@@ -3,10 +3,10 @@
 =org-chronicle= is an Emacs package for capturing, maintaining, and
 viewing a timeline of events for a historical-fiction project.  Events
 are Org headings with property drawers (truth flag, date, participants,
-location, sources) in a single timeline file; people, places, and groups
-can be promoted to entity headings that carry aliases, existence spans,
-and kinship — then the package's swimlane view and anachronism lint
-cross-reference them automatically.
+location, sources) gathered from all =*.org= files under a project root
+directory; people, places, and groups can be promoted to entity headings
+that carry aliases, existence spans, and kinship — then the package's
+swimlane view and anachronism lint cross-reference them automatically.
 
 * Installation
 
@@ -38,10 +38,7 @@ data-file locations:
              org-chronicle-timeline
              org-chronicle-lint)
   :custom
-  (org-chronicle-timeline-file "~/org/timeline.org")
-  (org-chronicle-entities-files '("~/org/people.org" "~/org/places.org"))
-  (org-chronicle-people-file "~/org/people.org")
-  (org-chronicle-places-file "~/org/places.org")
+  (org-chronicle-root "~/org/chronicle/")
   (org-chronicle-lane-column-width 24))
 #+end_src
 
@@ -60,27 +57,62 @@ declaration instead.  (Note: =:vc= is *not* recognized by the
 Or, if you prefer a manual clone, add =:load-path "/path/to/org-chronicle"=
 to the =use-package= form instead of installing from the URL.
 
-To explore the package before wiring up your own files, point
-=org-chronicle-timeline-file= at the bundled =examples/timeline.org= and
-run =M-x org-chronicle-timeline=.
+To explore the package before wiring up your own files, copy the
+bundled =examples/= directory somewhere and set =org-chronicle-root= to
+that copy, then run =M-x org-chronicle-timeline=.
 
 * Configuration
 
 All paths and display options are customizable via =M-x customize-group
 RET org-chronicle RET=.  The key variables are:
 
-- =org-chronicle-timeline-file= :: Org file holding one heading per
-  timeline event (default =~/org/timeline.org=).
-- =org-chronicle-entities-files= :: List of Org files holding promoted
-  person, place, and group entities (default =("~/org/people.org"
-  "~/org/places.org")=).
+#+begin_quote
+*Breaking change:* =org-chronicle-entities-files= has been removed.
+Reading is now done by recursive directory scan of =org-chronicle-root=;
+=org-chronicle-timeline-file= is now a write target only.
+#+end_quote
+
+** Read sources
+
+- =org-chronicle-root= :: Root directory scanned recursively for
+  =*.org= files.  Every file found contributes both events and entities
+  unless excluded (default =nil=, which you must set before use).
+- =org-chronicle-exclude= :: List of regular expressions.  A candidate
+  file whose path relative to the root — with a leading =/= prepended —
+  matches any regexp is skipped entirely.  Example: =("/drafts/")=
+  excludes every file under a =drafts/= subdirectory.
+
+  Both =org-chronicle-root= and =org-chronicle-exclude= are declared
+  =safe-local-variable=, so you can set them per-project in
+  =.dir-locals.el=:
+
+  #+begin_src emacs-lisp
+  ((nil . ((org-chronicle-root . "~/writing/novel/")
+           (org-chronicle-exclude . ("/drafts/")))))
+  #+end_src
+
+- =#+CHRONICLE: ignore= :: Place this keyword anywhere in an Org file
+  to make that single file contribute no events or entities, without
+  adding it to =org-chronicle-exclude=.
+
+** Write targets
+
+These variables control where new headings are filed.  Each defaults to
+=nil=, which resolves to the named file directly under
+=org-chronicle-root= (e.g. =timeline.org=, =people.org=).  Set them
+only when you want a non-default location.
+
+- =org-chronicle-timeline-file= :: File where new events are appended
+  (default: =timeline.org= under the root).
 - =org-chronicle-people-file= :: File where new person and group
-  entities are filed (default =~/org/people.org=).
+  entities are filed (default: =people.org= under the root).
 - =org-chronicle-places-file= :: File where new place entities are
-  filed (default =~/org/places.org=).
+  filed (default: =places.org= under the root).
 - =org-chronicle-topics-file= :: File where new topic entities are
-  filed (default =~/org/topics.org=); included in the default value of
-  =org-chronicle-entities-files=.
+  filed (default: =topics.org= under the root).
+
+** Display
+
 - =org-chronicle-topic-glyphs= :: Alist mapping topic names to glyph
   strings shown in that topic's timeline column (default =nil=).
 - =org-chronicle-topic-faces= :: Alist mapping topic names to faces
@@ -125,8 +157,9 @@ like =:PEOPLE:=).
 
 Create a topic entity with =M-x org-chronicle-add-topic=, which prompts
 for a name, optional aliases, and an optional description, then files the
-heading into =org-chronicle-topics-file= (default =~/org/topics.org=).
-That file is automatically included in =org-chronicle-entities-files=.
+heading into =org-chronicle-topics-file= (default =topics.org= under the
+root).  The file is picked up automatically on the next scan of
+=org-chronicle-root=.
 
 In the timeline view, each topic becomes its own swimlane column.  Pass
 topic names interactively via the "Topics (lanes): " prompt, or set the
@@ -170,5 +203,5 @@ to free-text input.  There is no hard dependency on =org-reading-list=.
 
 * Schema reference
 
-See =doc/chronicle-schema.org= for the full property schema for both
-events and entities.
+See =doc/chronicle-schema.org= for the full property schema for events
+and entities, and for notes on how files are gathered from the root.

@@ -1,5 +1,13 @@
 #+TITLE: org-chronicle schema
 
+* Sources
+  Events and entities are gathered from every =*.org= file found by
+  recursively scanning =org-chronicle-root=, minus any path whose
+  root-relative form (a leading =/= is prepended before matching) matches
+  a regexp in =org-chronicle-exclude=, and minus any file that carries a
+  =#+CHRONICLE: ignore= keyword.  Entities are no longer tied to a fixed
+  file list; any file under the root may contain entity headings.
+
 * Events (timeline file)
   One heading per event; identified by a non-empty =DATE= property.
   | Property  | Meaning                                            |
@@ -14,8 +22,9 @@
   | SOURCES   | semicolon-separated id links and/or free text       |
   TRUTH is mirrored to a tag of the same name by =org-chronicle-normalize=.
 
-* Entities (people/places files)
-  One heading per entity; identified by a =KIND= property.
+* Entities
+  One heading per entity; identified by a =KIND= property.  Entity
+  headings may appear in any =*.org= file under =org-chronicle-root=.
   | Property   | Meaning                                    |
   |------------+--------------------------------------------|
   | KIND       | person \vert place \vert group \vert topic |

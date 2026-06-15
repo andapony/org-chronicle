@@ -1,0 +1,17 @@
+#+TITLE: Chronicle places
+
+* Vicksburg, Mississippi
+:PROPERTIES:
+:KIND:      place
+:ALIASES:   Vicksburg
+:END:
+Confederate river fortress whose fall on 4 July 1863 gave the Union
+control of the Mississippi.
+
+* Gettysburg, Pennsylvania
+:PROPERTIES:
+:KIND:      place
+:ALIASES:   Gettysburg
+:END:
+Site of the three-day battle of July 1863 and Lincoln's dedicatory
+address at the soldiers' cemetery.

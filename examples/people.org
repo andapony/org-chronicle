@@ -1,0 +1,21 @@
+#+TITLE: Chronicle people
+
+* Ulysses S. Grant
+:PROPERTIES:
+:KIND:      person
+:ALIASES:   Grant; U.S. Grant
+:BORN:      <1822-04-27>
+:BIRTHPLACE: Point Pleasant, Ohio
+:DIED:      <1885-07-23>
+:DEATHPLACE: Mount McGregor, New York
+:SPOUSE:    Julia Dent
+:END:
+Union general and eighteenth President of the United States.
+
+* Eliza Harlan
+:PROPERTIES:
+:KIND:      person
+:ALIASES:   Harlan
+:END:
+Fictional: a scout and cipher clerk attached to Grant's headquarters
+during the Vicksburg campaign.
