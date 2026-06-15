@@ -1363,6 +1363,40 @@ the event's date.  IDX is the alias index.  Empty list means clean."
  :complete #'org-chronicle--link-complete
  :face 'org-chronicle-reference)
 
+;;;; Scenes: parsing references
+
+(defun org-chronicle--extract-ids (value)
+  "Return the ids referenced by id: links in property VALUE.
+A bare (unlinked) id value is split on the multi-value separator instead."
+  (when (and (stringp value) (not (string-blank-p value)))
+    (if (string-match-p "\\[\\[id:" value)
+        (let ((ids '()) (start 0))
+          (while (string-match "\\[\\[id:\\([^]]+?\\)\\]" value start)
+            (push (match-string 1 value) ids)
+            (setq start (match-end 0)))
+          (nreverse ids))
+      (org-chronicle--split value))))
+
+(defconst org-chronicle--reference-regexp
+  "\\[\\[chronicle:\\([^]]+?\\)\\]\\(?:\\[\\([^]]*\\)\\]\\)?\\]"
+  "Regexp matching an inline chronicle: link.
+Group 1 is the id, group 2 the optional description.")
+
+(defun org-chronicle--scan-references ()
+  "Return inline chronicle references in the current buffer, in order.
+Each element is a plist (:id ID :name DESC-or-nil :pos POS :marker MARKER)."
+  (let ((refs '()))
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward org-chronicle--reference-regexp nil t)
+        (let ((desc (match-string-no-properties 2)))
+          (push (list :id (match-string-no-properties 1)
+                      :name (and desc (not (string-blank-p desc)) desc)
+                      :pos (match-beginning 0)
+                      :marker (copy-marker (match-beginning 0)))
+                refs))))
+    (nreverse refs)))
+
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)

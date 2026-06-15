@@ -871,5 +871,29 @@ global root differs."
     (should (equal (org-chronicle--reference-title "e1") "Vicksburg"))
     (should (null (org-chronicle--reference-title "missing")))))
 
+(ert-deftest org-chronicle-test-extract-ids-from-links ()
+  "Ids are pulled out of id: links in a property value."
+  (should (equal (org-chronicle--extract-ids "[[id:abc]]; [[id:def]]")
+                 '("abc" "def"))))
+
+(ert-deftest org-chronicle-test-extract-ids-bare ()
+  "A bare (unlinked) id value is accepted."
+  (should (equal (org-chronicle--extract-ids "abc") '("abc")))
+  (should (equal (org-chronicle--extract-ids nil) nil))
+  (should (equal (org-chronicle--extract-ids "  ") nil)))
+
+(ert-deftest org-chronicle-test-scan-references ()
+  "Inline chronicle: links are scanned with id and description."
+  (org-chronicle-test--with-org
+      "Prose [[chronicle:eliza][Mrs. Grant]] then [[chronicle:fort-wade]] end.\n"
+    (let ((refs (org-chronicle--scan-references)))
+      (should (equal (mapcar (lambda (r) (plist-get r :id)) refs)
+                     '("eliza" "fort-wade")))
+      (should (equal (plist-get (car refs) :name) "Mrs. Grant"))
+      (should (null (plist-get (cadr refs) :name))))))
+
+
+
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
