@@ -1083,8 +1083,7 @@ Does nothing but message when SUBJECT is not a promoted entity."
                  subject new-name)
       (let ((id (plist-get ent :id))
             (canon (plist-get ent :name)))
-        (cl-loop for file in org-chronicle-entities-files
-                 when (file-exists-p (expand-file-name file)) do
+        (cl-loop for file in (org-chronicle--source-files) do
                  (with-current-buffer (find-file-noselect file)
                    (org-with-wide-buffer
                     (let ((pos (org-find-property "ID" id)))
