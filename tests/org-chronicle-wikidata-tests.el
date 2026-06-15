@@ -493,6 +493,38 @@
       (should (eq (org-chronicle-wikidata--classify-event confl m) 'conflict))
       (should (eq (org-chronicle-wikidata--classify-event same nil) 'new)))))
 
+(ert-deftest org-chronicle-wikidata-test-apply-event-idempotent ()
+  (let* ((root (make-temp-file "octw-root" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
+         (change (list :target 'event :key "birth:ABC"
+                       :provenance "https://www.wikidata.org/wiki/Q7259"
+                       :event (list :life-event "birth" :title "Birth of Ada Lovelace"
+                                    :date "1815-12-10" :subject (list "Ada Lovelace")
+                                    :location "London"))))
+    (unwind-protect
+        (let ((index (org-chronicle-wikidata--events-index)))
+          (org-chronicle-wikidata--apply-event-change change index)
+          (org-chronicle-wikidata--apply-event-change change index)
+          (let ((body (with-temp-buffer
+                        (insert-file-contents org-chronicle-wikidata-file)
+                        (buffer-string))))
+            (should (= 1 (cl-count ?* body)))
+            (should (string-match-p ":IMPORT-KEY: birth:ABC" body))
+            (should (string-match-p "Birth of Ada Lovelace" body)))
+          (let ((change2 (copy-sequence change)))
+            (plist-put change2 :event (list :life-event "birth" :title "Birth of Ada Lovelace"
+                                            :date "1816-01-01" :subject (list "Ada Lovelace")))
+            (org-chronicle-wikidata--apply-event-change change2 index))
+          (let ((body (with-temp-buffer
+                        (insert-file-contents org-chronicle-wikidata-file)
+                        (buffer-string))))
+            (should (= 1 (cl-count ?* body)))
+            (should (string-match-p "1816-01-01" body))))
+      (delete-directory root t))))
+
+
 
 
 

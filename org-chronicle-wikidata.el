@@ -722,6 +722,31 @@ fields match, or `conflict' otherwise."
             'same
           'conflict)))))
 
+(defun org-chronicle-wikidata--apply-event-change (change index)
+  "Apply event CHANGE idempotently using INDEX (IMPORT-KEY -> marker).
+Update the keyed heading's managed properties in place when it exists,
+otherwise append a new heading carrying the key."
+  (let* ((key (plist-get change :key))
+         (existing (and key (gethash key index)))
+         (ev (plist-get change :event)))
+    (if existing
+        (org-with-point-at existing
+          (org-set-property "DATE" (org-chronicle--ts (plist-get ev :date)))
+          (if (plist-get ev :date-end)
+              (org-set-property "DATE-END" (org-chronicle--ts (plist-get ev :date-end)))
+            (org-delete-property "DATE-END"))
+          (if (and (plist-get ev :location)
+                   (not (string-empty-p (plist-get ev :location))))
+              (org-set-property "LOCATION" (plist-get ev :location))
+            (org-delete-property "LOCATION"))
+          (org-chronicle-wikidata--add-source (plist-get change :provenance))
+          (unless (org-entry-get nil "TRUTH")
+            (org-set-property "TRUTH" "historical"))
+          (save-buffer))
+      (org-chronicle-wikidata--append-to-events-file
+       (org-chronicle-wikidata--event-change-string change) key index))))
+
+
 
 
 
