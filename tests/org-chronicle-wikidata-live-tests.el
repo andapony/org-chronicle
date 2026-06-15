@@ -103,5 +103,30 @@ Assertion failures in the caller still fail normally."
             (should (string-match-p ":DATE: *<?1815-12-10" events))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-wikidata-test-live-newton-ranks ()
+  "Live: Newton (Q935) resolves competing date statements by rank and precision."
+  :tags '(:wikidata-live)
+  (let* ((rec (org-chronicle-wikidata-live--fetch-or-skip
+               (lambda () (org-chronicle-wikidata--fetch-person "Q935"))))
+         (born (plist-get rec :born))
+         (died (plist-get rec :died)))
+    (should (equal (plist-get born :year) 1643))
+    (should (equal (plist-get born :month) 1))
+    (should (equal (plist-get born :day) 4))
+    (should (member "1642" (plist-get rec :born-alternates)))
+    (should (equal (plist-get died :year) 1727))
+    (should (equal (plist-get died :month) 3))
+    (should (equal (plist-get died :day) 31))
+    (should (member "1727" (plist-get rec :died-alternates)))))
+
+(ert-deftest org-chronicle-wikidata-test-live-homer-coarse ()
+  "Live: Homer (Q6691) has a century-precision BCE birth, dropped as unrepresentable."
+  :tags '(:wikidata-live)
+  (let ((rec (org-chronicle-wikidata-live--fetch-or-skip
+              (lambda () (org-chronicle-wikidata--fetch-person "Q6691")))))
+    (should (null (plist-get rec :born)))))
+
+
+
 (provide 'org-chronicle-wikidata-live-tests)
 ;;; org-chronicle-wikidata-live-tests.el ends here

@@ -294,6 +294,22 @@ dates before the year 1000 CE are not representable by the
 =org-chronicle= date model and are dropped rather than approximated.
 Affected fields are silently omitted from the proposed change set.
 
+When Wikidata holds competing birth or death statements — for example
+because the Old Style / New Style calendar ambiguity gives a subject two
+equally-cited dates — the importer selects a single value by statement
+rank (preferred over normal; deprecated dropped) and then by precision,
+choosing the most precise representable date among the surviving
+candidates.  Rejected values appear in the review buffer as an informational
+note on the same row, e.g.:
+
+#+begin_example
+BORN         <1643-01-04>  (Wikidata also lists: 1642)
+#+end_example
+
+Nothing is lost silently: the alternates are visible at review time so you
+can see what was set aside.  All dates follow the proleptic Gregorian
+calendar as stored by Wikidata.
+
 ** Testing
 
 The module ships an offline test suite that runs with =make test= (or =make
