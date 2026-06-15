@@ -408,6 +408,26 @@
       (should (equal (org-chronicle-wikidata--events-file)
                      "/tmp/elsewhere.org")))))
 
+(ert-deftest org-chronicle-wikidata-test-record-object-qids ()
+  (let ((rec (org-chronicle-wikidata--rows->record
+              "Q7259"
+              (org-chronicle-wikidata--bindings
+               (org-chronicle-wikidata-test--fixture "lovelace-vitals.json"))
+              (org-chronicle-wikidata--bindings
+               (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
+              (org-chronicle-wikidata--bindings
+               (org-chronicle-wikidata-test--fixture "lovelace-events.json")))))
+    (should (equal (plist-get (car (plist-get rec :spouses)) :qid) "Q336789"))
+    (should (equal (plist-get (car (plist-get rec :events)) :qid) "Q18810745"))))
+
+(ert-deftest org-chronicle-wikidata-test-queries-select-object-ids ()
+  (should (string-match-p "?spouse"
+                          (org-chronicle-wikidata--spouses-query "Q7259")))
+  (should (string-match-p "?pos"
+                          (org-chronicle-wikidata--events-query "Q7259"))))
+
+
+
 
 
 

@@ -172,7 +172,7 @@ GROUP BY ?born ?bornPrec ?died ?diedPrec ?birthPlaceLabel ?deathPlaceLabel \
 
 (defun org-chronicle-wikidata--spouses-query (qid)
   "Return the SPARQL spouses query for QID (one row per spouse)."
-  (format "SELECT ?spouseLabel ?start ?startPrec ?end ?endPrec WHERE { \
+  (format "SELECT ?spouse ?spouseLabel ?start ?startPrec ?end ?endPrec WHERE { \
 wd:%s p:P26 ?st. ?st ps:P26 ?spouse. \
 OPTIONAL { ?st pqv:P580 ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
 OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } \
@@ -180,7 +180,7 @@ SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } }" qid))
 
 (defun org-chronicle-wikidata--events-query (qid)
   "Return the SPARQL positions-held query for QID (one row per position)."
-  (format "SELECT ?title ?start ?startPrec ?end ?endPrec WHERE { \
+  (format "SELECT ?pos ?title ?start ?startPrec ?end ?endPrec WHERE { \
 wd:%s p:P39 ?st. ?st ps:P39 ?pos. \
 ?pos rdfs:label ?title. FILTER(LANG(?title)=\"en\") \
 OPTIONAL { ?st pqv:P580 ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
@@ -225,12 +225,16 @@ Returns a plist; unrepresentable dates are dropped (see
      :aliases (and alias-str (not (string-empty-p alias-str))
                    (split-string alias-str org-chronicle-wikidata--alias-separator t))
      :spouses (mapcar (lambda (row)
-                        (list :name (org-chronicle-wikidata--cell row "spouseLabel")
+                        (list :qid (org-chronicle-wikidata--parse-qid
+                                    (org-chronicle-wikidata--cell row "spouse"))
+                              :name (org-chronicle-wikidata--cell row "spouseLabel")
                               :date (org-chronicle-wikidata--row-date row "start" "startPrec")
                               :end (org-chronicle-wikidata--row-date row "end" "endPrec")))
                       spouses)
      :events (mapcar (lambda (row)
                        (list :kind "position"
+                             :qid (org-chronicle-wikidata--parse-qid
+                                   (org-chronicle-wikidata--cell row "pos"))
                              :title (org-chronicle-wikidata--cell row "title")
                              :date (org-chronicle-wikidata--row-date row "start" "startPrec")
                              :date-end (org-chronicle-wikidata--row-date row "end" "endPrec")
