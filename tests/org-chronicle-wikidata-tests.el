@@ -700,6 +700,36 @@
     (should (string-match-p "P570" q))
     (should (string-match-p "wikibase:rank" q))))
 
+(ert-deftest org-chronicle-wikidata-test-kind-profile ()
+  (should (equal (org-chronicle-wikidata--kind-span-pids 'place) '("P571" . "P576")))
+  (should (equal (org-chronicle-wikidata--kind-span-props 'group) '("FOUNDED" . "DISBANDED")))
+  (should (equal (org-chronicle-wikidata--kind-span-props 'person) '("BORN" . "DIED"))))
+
+(ert-deftest org-chronicle-wikidata-test-span-query ()
+  (let ((q (org-chronicle-wikidata--span-query "Q1" "P571" "P576")))
+    (should (string-match-p "p:P571" q))
+    (should (string-match-p "p:P576" q))
+    (should (string-match-p "\"start\"" q))
+    (should (string-match-p "\"end\"" q))
+    (should (string-match-p "wikibase:rank" q))))
+
+(ert-deftest org-chronicle-wikidata-test-span-select ()
+  (let* ((json "{\"results\":{\"bindings\":[\
+{\"prop\":{\"value\":\"start\"},\"value\":{\"value\":\"1896-01-01T00:00:00Z\"},\"prec\":{\"value\":\"9\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#NormalRank\"}}]}}")
+         (sp (org-chronicle-wikidata--span-select
+              (org-chronicle-wikidata--bindings json))))
+    (should (equal (plist-get (plist-get sp :start) :year) 1896))
+    (should (null (plist-get sp :end)))))
+
+(ert-deftest org-chronicle-wikidata-test-classify-span-dates ()
+  (let ((change (list :target 'entity :property "BUILT" :value "<1896>")))
+    (should (eq (org-chronicle-wikidata--classify change "1896") 'same))
+    (should (eq (org-chronicle-wikidata--classify change "1900") 'conflict))))
+
+
+
+
+
 (ert-deftest org-chronicle-wikidata-test-dates->candidates ()
   (let* ((json "{\"results\":{\"bindings\":[\
 {\"prop\":{\"value\":\"born\"},\"value\":{\"value\":\"1643-01-04T00:00:00Z\"},\"prec\":{\"value\":\"11\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#PreferredRank\"}},\

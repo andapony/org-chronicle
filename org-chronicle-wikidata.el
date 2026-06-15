@@ -215,6 +215,68 @@ wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"died\" AS ?prop) }
                     (org-chronicle-wikidata--cell row "rank")))))
    rows))
 
+(defconst org-chronicle-wikidata--kind-profiles
+  '((person :start-pid "P569" :end-pid "P570" :start-prop "BORN" :end-prop "DIED")
+    (place  :start-pid "P571" :end-pid "P576" :start-prop "BUILT" :end-prop "RAZED")
+    (group  :start-pid "P571" :end-pid "P576" :start-prop "FOUNDED" :end-prop "DISBANDED"))
+  "Per-KIND Wikidata span PIDs and chronicle span property names.")
+
+(defun org-chronicle-wikidata--kind-span-pids (kind)
+  "Return (START-PID . END-PID) Wikidata property ids for KIND."
+  (let ((p (alist-get kind org-chronicle-wikidata--kind-profiles)))
+    (cons (plist-get p :start-pid) (plist-get p :end-pid))))
+
+(defun org-chronicle-wikidata--kind-span-props (kind)
+  "Return (START-PROP . END-PROP) chronicle property names for KIND."
+  (let ((p (alist-get kind org-chronicle-wikidata--kind-profiles)))
+    (cons (plist-get p :start-prop) (plist-get p :end-prop))))
+
+(defun org-chronicle-wikidata--kind-file (kind)
+  "Return the file new KIND entities are written to."
+  (if (eq kind 'place) (org-chronicle--places-file) (org-chronicle--people-file)))
+
+(defun org-chronicle-wikidata--span-query (qid start-pid end-pid)
+  "Return a SPARQL query for QID's START-PID and END-PID date statements.
+One row per statement, tagged ?prop \"start\"/\"end\", with value, precision,
+and rank."
+  (format "SELECT ?prop ?value ?prec ?rank WHERE { \
+{ wd:%s p:%s ?st. ?st psv:%s ?n. ?n wikibase:timeValue ?value; \
+wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"start\" AS ?prop) } \
+UNION \
+{ wd:%s p:%s ?st. ?st psv:%s ?n. ?n wikibase:timeValue ?value; \
+wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"end\" AS ?prop) } }"
+          qid start-pid start-pid qid end-pid end-pid))
+
+(defun org-chronicle-wikidata--span-select (rows)
+  "Select start and end dates from span-query ROWS (parsed bindings).
+Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
+  (let* ((cands (org-chronicle-wikidata--dates->candidates rows))
+         (start (org-chronicle-wikidata--select-candidate
+                 (cl-remove-if-not (lambda (c) (equal (plist-get c :prop) "start")) cands)))
+         (end (org-chronicle-wikidata--select-candidate
+               (cl-remove-if-not (lambda (c) (equal (plist-get c :prop) "end")) cands))))
+    (list :start (plist-get start :date) :start-alternates (plist-get start :alternates)
+          :end (plist-get end :date) :end-alternates (plist-get end :alternates))))
+
+(defun org-chronicle-wikidata--create-entity (name kind)
+  "Create a minimal KIND entity NAME in the kind's file; return a marker."
+  (with-current-buffer (find-file-noselect (org-chronicle-wikidata--kind-file kind))
+    (goto-char (point-max))
+    (unless (bolp) (insert "\n"))
+    (insert (org-chronicle--entity-string :name name :kind kind))
+    (forward-line -1)
+    (org-back-to-heading t)
+    (org-id-get-create)
+    (save-buffer)
+    (point-marker)))
+
+
+
+
+
+
+
+
 (defun org-chronicle-wikidata--fetch-person (qid)
   "Fetch QID from Wikidata and return a normalized person record."
   (org-chronicle-wikidata--rows->record
@@ -438,7 +500,7 @@ Return `new' when CURRENT is empty, `same' when it matches the change value
         (prop (plist-get change :property)))
     (cond
      ((or (null current) (string-empty-p current)) 'new)
-     ((if (member prop '("BORN" "DIED"))
+     ((if (member prop '("BORN" "DIED" "BUILT" "RAZED" "FOUNDED" "DISBANDED"))
           (org-chronicle-wikidata--dates-equal-p current value)
         (equal (string-trim current) (string-trim value)))
       'same)
