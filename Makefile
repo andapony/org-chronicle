@@ -15,7 +15,7 @@ checkdoc:
 	$(BATCH) --eval "(checkdoc-file \"org-chronicle-wikidata.el\")"
 
 test:
-	$(BATCH) -l tests/org-chronicle-tests.el -l tests/org-chronicle-wikidata-tests.el -f ert-run-tests-batch-and-exit
+	$(BATCH) -l tests/org-chronicle-tests.el -l tests/org-chronicle-wikidata-tests.el --eval "(ert-run-tests-batch-and-exit '(not (tag :wikidata-live)))"
 
 package-lint:
 	$(BATCH) --eval "(progn (require 'package) (add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t) (package-initialize) (unless (package-installed-p 'package-lint) (package-refresh-contents) (package-install 'package-lint)))" -f package-lint-batch-and-exit org-chronicle.el
