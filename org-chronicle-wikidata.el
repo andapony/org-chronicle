@@ -321,6 +321,7 @@ See the data contract in the package commentary for field names."
       (when (plist-get s :date)
         (push (list :target 'event :group 'relations :provenance url :default t
                     :event (list :kind "marriage" :life-event "marriage"
+                                 :object-qid (plist-get s :qid)
                                  :title (format "Marriage of %s and %s"
                                                 name (plist-get s :name))
                                  :date (org-chronicle--date-format (plist-get s :date))
@@ -331,6 +332,7 @@ See the data contract in the package commentary for field names."
       (when (plist-get ev :date)
         (push (list :target 'event :group 'events :provenance url :default nil
                     :event (list :kind (plist-get ev :kind)
+                                 :object-qid (plist-get ev :qid)
                                  :title (plist-get ev :title)
                                  :date (org-chronicle--date-format (plist-get ev :date))
                                  :date-end (and (plist-get ev :date-end)

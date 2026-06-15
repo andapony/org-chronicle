@@ -426,6 +426,25 @@
   (should (string-match-p "?pos"
                           (org-chronicle-wikidata--events-query "Q7259"))))
 
+(ert-deftest org-chronicle-wikidata-test-changes-object-qid ()
+  (let* ((rec (list :qid "Q7259"
+                    :spouses (list (list :name "William King-Noel" :qid "Q336789"
+                                         :date (org-chronicle--date-parse "1835-07-08")))
+                    :events (list (list :kind "position" :title "Countess of Lovelace"
+                                        :qid "Q18810745"
+                                        :date (org-chronicle--date-parse "1838")))))
+         (changes (org-chronicle-wikidata--record->changes rec "Ada Lovelace"))
+         (events (cl-remove-if-not (lambda (c) (eq (plist-get c :target) 'event)) changes)))
+    (let ((marriage (cl-find "marriage" events
+                             :key (lambda (c) (plist-get (plist-get c :event) :kind))
+                             :test #'equal))
+          (pos (cl-find "position" events
+                        :key (lambda (c) (plist-get (plist-get c :event) :kind))
+                        :test #'equal)))
+      (should (equal (plist-get (plist-get marriage :event) :object-qid) "Q336789"))
+      (should (equal (plist-get (plist-get pos :event) :object-qid) "Q18810745")))))
+
+
 
 
 
