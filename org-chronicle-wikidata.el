@@ -154,19 +154,18 @@ Each candidate is (:qid :label :description)."
 
 (defun org-chronicle-wikidata--vitals-query (qid)
   "Return the SPARQL vitals query for QID (single result row)."
-  (format "SELECT ?born ?bornPrec ?died ?diedPrec ?birthPlaceLabel \
-?deathPlaceLabel ?fatherLabel ?motherLabel ?label \
+  (format "SELECT ?label (SAMPLE(?bpl) AS ?birthPlaceLabel) \
+(SAMPLE(?dpl) AS ?deathPlaceLabel) (SAMPLE(?fl) AS ?fatherLabel) \
+(SAMPLE(?ml) AS ?motherLabel) \
 (GROUP_CONCAT(DISTINCT ?alias; separator=\"\\u001f\") AS ?aliases) WHERE { \
 BIND(wd:%s AS ?p) \
-OPTIONAL { ?p p:P569/psv:P569 ?bn. ?bn wikibase:timeValue ?born; wikibase:timePrecision ?bornPrec. } \
-OPTIONAL { ?p p:P570/psv:P570 ?dn. ?dn wikibase:timeValue ?died; wikibase:timePrecision ?diedPrec. } \
-OPTIONAL { ?p wdt:P19 ?birthPlace. } OPTIONAL { ?p wdt:P20 ?deathPlace. } \
-OPTIONAL { ?p wdt:P22 ?father. } OPTIONAL { ?p wdt:P25 ?mother. } \
-OPTIONAL { ?p skos:altLabel ?alias. FILTER(LANG(?alias)=\"en\") } \
 ?p rdfs:label ?label. FILTER(LANG(?label)=\"en\") \
-SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } } \
-GROUP BY ?born ?bornPrec ?died ?diedPrec ?birthPlaceLabel ?deathPlaceLabel \
-?fatherLabel ?motherLabel ?label" qid))
+OPTIONAL { ?p wdt:P19 ?bp. ?bp rdfs:label ?bpl. FILTER(LANG(?bpl)=\"en\") } \
+OPTIONAL { ?p wdt:P20 ?dp. ?dp rdfs:label ?dpl. FILTER(LANG(?dpl)=\"en\") } \
+OPTIONAL { ?p wdt:P22 ?f. ?f rdfs:label ?fl. FILTER(LANG(?fl)=\"en\") } \
+OPTIONAL { ?p wdt:P25 ?m. ?m rdfs:label ?ml. FILTER(LANG(?ml)=\"en\") } \
+OPTIONAL { ?p skos:altLabel ?alias. FILTER(LANG(?alias)=\"en\") } } \
+GROUP BY ?label" qid))
 
 (defun org-chronicle-wikidata--spouses-query (qid)
   "Return the SPARQL spouses query for QID (one row per spouse)."
@@ -224,6 +223,7 @@ wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"died\" AS ?prop) }
   (org-chronicle-wikidata--rows->record
    qid
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--vitals-query qid))
+   (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--dates-query qid))
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--spouses-query qid))
    (org-chronicle-wikidata--sparql-request (org-chronicle-wikidata--events-query qid))))
 
@@ -286,18 +286,26 @@ where alternates are the other distinct values as display strings."
 
 
 
-(defun org-chronicle-wikidata--rows->record (qid vitals spouses events)
+(defun org-chronicle-wikidata--rows->record (qid vitals dates spouses events)
   "Assemble a person record for QID from parsed binding lists.
-VITALS is the (single) vitals row list, SPOUSES and EVENTS are row lists.
-Returns a plist; unrepresentable dates are dropped (see
-`org-chronicle-wikidata--time->date')."
+VITALS is the single vitals row list; DATES, SPOUSES, EVENTS are row lists.
+Returns a plist; unrepresentable dates are dropped and competing date
+statements are resolved by rank then precision (see
+`org-chronicle-wikidata--select-candidate')."
   (let* ((v (car vitals))
-         (alias-str (and v (org-chronicle-wikidata--cell v "aliases"))))
+         (alias-str (and v (org-chronicle-wikidata--cell v "aliases")))
+         (cands (org-chronicle-wikidata--dates->candidates dates))
+         (born-sel (org-chronicle-wikidata--select-candidate
+                    (cl-remove-if-not (lambda (c) (equal (plist-get c :prop) "born")) cands)))
+         (died-sel (org-chronicle-wikidata--select-candidate
+                    (cl-remove-if-not (lambda (c) (equal (plist-get c :prop) "died")) cands))))
     (list
      :qid qid
      :label (and v (org-chronicle-wikidata--cell v "label"))
-     :born (and v (org-chronicle-wikidata--row-date v "born" "bornPrec"))
-     :died (and v (org-chronicle-wikidata--row-date v "died" "diedPrec"))
+     :born (plist-get born-sel :date)
+     :born-alternates (plist-get born-sel :alternates)
+     :died (plist-get died-sel :date)
+     :died-alternates (plist-get died-sel :alternates)
      :birthplace (and v (org-chronicle-wikidata--cell v "birthPlaceLabel"))
      :deathplace (and v (org-chronicle-wikidata--cell v "deathPlaceLabel"))
      :father (and v (org-chronicle-wikidata--cell v "fatherLabel"))
@@ -305,17 +313,17 @@ Returns a plist; unrepresentable dates are dropped (see
      :aliases (and alias-str (not (string-empty-p alias-str))
                    (split-string alias-str org-chronicle-wikidata--alias-separator t))
      :spouses (mapcar (lambda (row)
-                        (list :qid (org-chronicle-wikidata--parse-qid
+                        (list :name (org-chronicle-wikidata--cell row "spouseLabel")
+                              :qid (org-chronicle-wikidata--parse-qid
                                     (org-chronicle-wikidata--cell row "spouse"))
-                              :name (org-chronicle-wikidata--cell row "spouseLabel")
                               :date (org-chronicle-wikidata--row-date row "start" "startPrec")
                               :end (org-chronicle-wikidata--row-date row "end" "endPrec")))
                       spouses)
      :events (mapcar (lambda (row)
                        (list :kind "position"
+                             :title (org-chronicle-wikidata--cell row "title")
                              :qid (org-chronicle-wikidata--parse-qid
                                    (org-chronicle-wikidata--cell row "pos"))
-                             :title (org-chronicle-wikidata--cell row "title")
                              :date (org-chronicle-wikidata--row-date row "start" "startPrec")
                              :date-end (org-chronicle-wikidata--row-date row "end" "endPrec")
                              :location nil))

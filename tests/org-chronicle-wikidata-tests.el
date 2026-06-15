@@ -95,7 +95,9 @@
   (cl-letf (((symbol-function 'org-chronicle-wikidata--sparql-request)
              (lambda (q)
                (org-chronicle-wikidata--bindings
-                (cond ((string-match-p "P26" q)
+                (cond ((string-match-p "P569" q)
+                       (org-chronicle-wikidata-test--fixture "lovelace-dates.json"))
+                      ((string-match-p "P26" q)
                        (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
                       ((string-match-p "P39" q)
                        (org-chronicle-wikidata-test--fixture "lovelace-events.json"))
@@ -119,6 +121,8 @@
                "Q7259"
                (org-chronicle-wikidata--bindings
                 (org-chronicle-wikidata-test--fixture "lovelace-vitals.json"))
+               (org-chronicle-wikidata--bindings
+                (org-chronicle-wikidata-test--fixture "lovelace-dates.json"))
                (org-chronicle-wikidata--bindings
                 (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
                (org-chronicle-wikidata--bindings
@@ -397,6 +401,8 @@
               "Q7259"
               (org-chronicle-wikidata--bindings
                (org-chronicle-wikidata-test--fixture "lovelace-vitals.json"))
+              (org-chronicle-wikidata--bindings
+               (org-chronicle-wikidata-test--fixture "lovelace-dates.json"))
               (org-chronicle-wikidata--bindings
                (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
               (org-chronicle-wikidata--bindings

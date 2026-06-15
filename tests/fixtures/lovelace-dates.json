@@ -1,0 +1,4 @@
+{"results":{"bindings":[
+{"prop":{"value":"born"},"value":{"value":"1815-12-10T00:00:00Z"},"prec":{"value":"11"},"rank":{"value":"http://wikiba.se/ontology#NormalRank"}},
+{"prop":{"value":"died"},"value":{"value":"1852-11-27T00:00:00Z"},"prec":{"value":"11"},"rank":{"value":"http://wikiba.se/ontology#NormalRank"}}
+]}}
