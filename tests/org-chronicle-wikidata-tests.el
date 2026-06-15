@@ -35,6 +35,12 @@
     (should (equal (plist-get d :month) 12))
     (should (equal (plist-get d :day) 10))
     (should (eq (plist-get d :precision) 'day)))
+  ;; The live SPARQL endpoint returns ISO 8601 without a leading '+'.
+  (let ((d (org-chronicle-wikidata--time->date "1815-12-10T00:00:00Z" 11)))
+    (should (equal (plist-get d :year) 1815))
+    (should (equal (plist-get d :month) 12))
+    (should (equal (plist-get d :day) 10))
+    (should (eq (plist-get d :precision) 'day)))
   (should (eq (plist-get (org-chronicle-wikidata--time->date
                           "+1815-12-01T00:00:00Z" 10) :precision)
               'month))
