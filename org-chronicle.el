@@ -1699,6 +1699,95 @@ V one of `dangling', `empty', `out-of-window', `floating'."
                 :reasons (org-chronicle--scene-violation-reasons
                           scene ctx astart))))))))
 
+;;;; Scenes: the lint command
+
+(declare-function org-chronicle-set-scene-date "org-chronicle")
+
+(defun org-chronicle--all-scene-findings ()
+  "Return (FILE . FINDING) pairs across all source files, in document order."
+  (let ((ctx (org-chronicle--scene-context)) (out '()))
+    (dolist (file (org-chronicle--source-files))
+      (when (file-exists-p file)
+        (with-current-buffer (find-file-noselect file)
+          (unless (org-chronicle--file-ignored-p)
+            (dolist (scene (org-chronicle--buffer-scenes))
+              (let ((f (org-chronicle--scene-findings scene ctx)))
+                (when f (push (cons file f) out))))))))
+    (nreverse out)))
+
+(defun org-chronicle--window-string (window)
+  "Format WINDOW (a (LO . HI) cons or :empty) for display."
+  (cond ((eq window :empty) "empty")
+        ((and (null (car window)) (null (cdr window))) "unbounded")
+        (t (format "%s .. %s"
+                   (if (car window) (org-chronicle--date-format (car window)) "…")
+                   (if (cdr window) (org-chronicle--date-format (cdr window)) "…")))))
+
+(defun org-chronicle--scene-verdict-line (f)
+  "Return the one-line verdict summary for finding F."
+  (let ((window (plist-get f :window)) (anchor (plist-get f :anchor)))
+    (pcase (plist-get f :verdict)
+      ('dangling "unresolved reference(s)")
+      ('empty "empty window — references cannot co-exist")
+      ('floating (format "floating — needs placing; valid in %s"
+                         (org-chronicle--window-string window)))
+      ('out-of-window
+       (format "date %s outside feasible window %s"
+               (org-chronicle--date-format (car anchor))
+               (org-chronicle--window-string window))))))
+
+(defun org-chronicle--scene-verdict-glyph (verdict)
+  "Return the severity glyph for VERDICT."
+  (if (eq verdict 'floating) "○" "✗"))
+
+(defvar org-chronicle-scene-lint-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map org-chronicle-view-mode-map)
+    (define-key map (kbd "g") #'org-chronicle-lint-scenes)
+    (define-key map (kbd "s") #'org-chronicle-set-scene-date)
+    map)
+  "Keymap for `org-chronicle-scene-lint-mode'.")
+
+(define-derived-mode org-chronicle-scene-lint-mode org-chronicle-view-mode
+  "Chronicle-Scenes"
+  "Major mode for the scene continuity lint buffer.")
+
+;;;###autoload
+(defun org-chronicle-lint-scenes ()
+  "Report scenes whose references or constraints conflict with the timeline."
+  (interactive)
+  (let ((root (expand-file-name org-chronicle-root))
+        (findings (org-chronicle--all-scene-findings)))
+    (with-current-buffer (get-buffer-create "*org-chronicle-lint-scenes*")
+      (org-chronicle-scene-lint-mode)
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (if (null findings)
+            (insert "No scene issues found.\n")
+          (insert (format "%d scene issue(s):\n\n" (length findings)))
+          (dolist (cell findings)
+            (let* ((file (car cell)) (f (cdr cell))
+                   (scene (plist-get f :scene))
+                   (m (plist-get scene :marker)))
+              (insert (propertize
+                       (format "%s %S  (%s)\n"
+                               (org-chronicle--scene-verdict-glyph
+                                (plist-get f :verdict))
+                               (plist-get scene :title)
+                               (file-relative-name file root))
+                       'org-chronicle-marker m))
+              (insert (propertize (format "    %s\n"
+                                          (org-chronicle--scene-verdict-line f))
+                                  'org-chronicle-marker m))
+              (dolist (r (plist-get f :reasons))
+                (insert (propertize (format "    · %s\n" (car r))
+                                    'org-chronicle-marker (cdr r))))
+              (insert "\n")))))
+      (goto-char (point-min))
+      (pop-to-buffer (current-buffer)))))
+
+
+
 
 
 

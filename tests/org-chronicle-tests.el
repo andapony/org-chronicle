@@ -1054,6 +1054,34 @@ Marek is born 1870, but BEFORE Vicksburg (1863) caps the window earlier."
                                           :marker (point-marker))))))
       (should (null (org-chronicle--scene-findings scene ctx))))))
 
+(ert-deftest org-chronicle-test-lint-scenes-reports ()
+  "The command lists an out-of-window scene and a clean run says so."
+  (org-chronicle-test--with-root
+      (append org-chronicle-test--scene-root
+              '(("chapters/01.org" . "\
+* The siege begins
+:PROPERTIES:
+:EVENT: [[id:vicksburg]]
+:DATE:  <1862-01-01>
+:TRUTH: fictional
+:END:
+Eliza, called [[chronicle:eliza][Mrs. Grant]], watched.
+")))
+    (org-chronicle-lint-scenes)
+    (with-current-buffer "*org-chronicle-lint-scenes*"
+      (should (string-match-p "The siege begins" (buffer-string)))
+      (should (string-match-p "not adopted" (buffer-string)))
+      (should (eq major-mode 'org-chronicle-scene-lint-mode)))))
+
+(ert-deftest org-chronicle-test-lint-scenes-clean ()
+  "A root with no scene issues reports a clean result."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (org-chronicle-lint-scenes)
+    (with-current-buffer "*org-chronicle-lint-scenes*"
+      (should (string-match-p "No scene issues found" (buffer-string))))))
+
+
+
 
 
 
