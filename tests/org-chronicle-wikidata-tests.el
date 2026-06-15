@@ -304,7 +304,9 @@
     (should (cl-find "BIRTHPLACE" drift
                      :key (lambda (d) (plist-get d :property)) :test #'equal))
     (should-not (cl-find "BORN" drift
-                         :key (lambda (d) (plist-get d :property)) :test #'equal))))(ert-deftest org-chronicle-wikidata-test-event-change-string ()
+                         :key (lambda (d) (plist-get d :property)) :test #'equal))))
+
+(ert-deftest org-chronicle-wikidata-test-event-change-string ()
   "Life events use life-event-string; position events use event-string."
   (let ((life (org-chronicle-wikidata--event-change-string
                (list :provenance "u"

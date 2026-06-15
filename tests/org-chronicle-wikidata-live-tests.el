@@ -77,7 +77,8 @@ Assertion failures in the caller still fail normally."
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file (expand-file-name "people.org" root))
          (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
-         (org-chronicle-timeline-file (expand-file-name "timeline.org" root)))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
+         (org-id-locations-file (expand-file-name ".org-id-locations" root)))
     (unwind-protect
         (progn
           (with-temp-file org-chronicle-people-file
@@ -101,10 +102,6 @@ Assertion failures in the caller still fail normally."
             (should (string-match-p ":IMPORT-KEY: *birth:" events))
             (should (string-match-p ":DATE: *<?1815-12-10" events))))
       (delete-directory root t))))
-
-
-
-
 
 (provide 'org-chronicle-wikidata-live-tests)
 ;;; org-chronicle-wikidata-live-tests.el ends here
