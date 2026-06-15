@@ -23,5 +23,16 @@
   "Wikidata integration for org-chronicle."
   :group 'org-chronicle)
 
+(defun org-chronicle-wikidata--parse-qid (s)
+  "Return the canonical Wikidata QID in string S, or nil.
+S may be a bare QID, a wiki URL, or an entity URI, case-insensitively."
+  (when (stringp s)
+    (let ((trimmed (string-trim s)))
+      (when (string-match
+             "\\(?:^\\|/\\)\\([Qq][0-9]+\\)\\(?:$\\|[/?#]\\)?"
+             trimmed)
+        (upcase (match-string 1 trimmed))))))
+
+
 (provide 'org-chronicle-wikidata)
 ;;; org-chronicle-wikidata.el ends here
