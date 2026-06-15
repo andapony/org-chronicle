@@ -288,24 +288,6 @@
               (should (string-match-p ":WIKIDATA:.*Q7259" content)))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-diff ()
-  (let* ((changes
-          (list (list :target 'entity :property "BORN" :value "1815-12-10")
-                (list :target 'entity :property "DIED" :value "1852-11-27")
-                (list :target 'entity :property "BIRTHPLACE" :value "London")))
-         (current (lambda (p) (pcase p
-                                ("BORN" "1815-12-10")
-                                ("DIED" "1900-01-01")
-                                (_ nil))))
-         (drift (org-chronicle-wikidata--diff changes current)))
-    (should (= (length drift) 2))
-    (should (cl-find "DIED" drift
-                     :key (lambda (d) (plist-get d :property)) :test #'equal))
-    (should (cl-find "BIRTHPLACE" drift
-                     :key (lambda (d) (plist-get d :property)) :test #'equal))
-    (should-not (cl-find "BORN" drift
-                         :key (lambda (d) (plist-get d :property)) :test #'equal))))
-
 (ert-deftest org-chronicle-wikidata-test-event-change-string ()
   "Life events use life-event-string; position events use event-string."
   (let ((life (org-chronicle-wikidata--event-change-string
@@ -625,6 +607,49 @@
           (let ((be (event-of "birth")))
             (should (equal (plist-get be :key) "birth:ADA"))
             (should (eq (plist-get be :status) 'same))))))))
+
+(ert-deftest org-chronicle-wikidata-test-reconcile-event-drift ()
+  (let* ((root (make-temp-file "octw-rec" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file (expand-file-name "people.org" root))
+         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
+         (org-id-locations-file (expand-file-name ".org-id-locations" root))
+         captured)
+    (unwind-protect
+        (progn
+          (with-temp-file org-chronicle-people-file
+            (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:WIKIDATA: Q7259\n:ID: ADA-ID\n:BORN: <1815-12-10>\n:END:\n"))
+          (make-directory (file-name-directory org-chronicle-wikidata-file) t)
+          (with-temp-file org-chronicle-wikidata-file
+            (insert "* Birth of Ada Lovelace\n:PROPERTIES:\n:IMPORT-KEY: birth:ADA-ID\n:LIFE-EVENT: birth\n:DATE: <1800-01-01>\n:END:\n"))
+          (cl-letf (((symbol-function 'org-chronicle-wikidata--fetch-person)
+                     (lambda (_qid)
+                       (list :qid "Q7259"
+                             :born (org-chronicle--date-parse "1815-12-10")
+                             :died (org-chronicle--date-parse "1852-11-27"))))
+                    ((symbol-function 'org-chronicle-wikidata--review)
+                     (lambda (drift on-confirm) (setq captured drift) (funcall on-confirm drift))))
+            (with-current-buffer (find-file-noselect org-chronicle-people-file)
+              (goto-char (point-min))
+              (org-chronicle-wikidata-reconcile)))
+          (cl-flet ((event-of (k) (cl-find k captured
+                                           :key (lambda (c) (and (eq (plist-get c :target) 'event)
+                                                                 (plist-get (plist-get c :event) :kind)))
+                                           :test (lambda (a b) (equal a b)))))
+            (should (eq (plist-get (event-of "birth") :status) 'conflict))
+            (should (eq (plist-get (event-of "death") :status) 'new))
+            (should-not (cl-find 'same captured :key (lambda (c) (plist-get c :status)))))
+          (let ((events (with-temp-buffer
+                          (insert-file-contents org-chronicle-wikidata-file)
+                          (buffer-string))))
+            (should (= 1 (cl-count-if (lambda (l) (string-match-p "Birth of Ada Lovelace" l))
+                                      (split-string events "\n"))))
+            (should (string-match-p "1815-12-10" events))
+            (should-not (string-match-p "1800-01-01" events))
+            (should (string-match-p "Death of Ada Lovelace" events))))
+      (delete-directory root t))))
+
 
 
 (provide 'org-chronicle-wikidata-tests)

@@ -596,23 +596,6 @@ SUBJECT-ORGID/SUBJECT-QID."
                   c)))))
          changes)))
 
-
-(defun org-chronicle-wikidata--diff (changes current-fn)
-  "Return entity edits that drift from local values via CURRENT-FN.
-CHANGES is the proposed change list; CURRENT-FN takes a property name and
-returns the current local value (or nil).
-Same-valued changes are excluded; new and conflicting ones are returned, each
-annotated with :status and :current."
-  (delq nil
-        (mapcar
-         (lambda (c)
-           (when (eq (plist-get c :target) 'entity)
-             (let* ((cur (funcall current-fn (plist-get c :property)))
-                    (status (org-chronicle-wikidata--classify c cur)))
-               (unless (eq status 'same)
-                 (append (list :status status :current cur) c)))))
-         changes)))
-
 (defcustom org-chronicle-wikidata-file nil
   "File where imported Wikidata events are filed.
 When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
@@ -648,26 +631,31 @@ pair of both participants' prefixed QIDs so it is symmetric."
 
 ;;;###autoload
 (defun org-chronicle-wikidata-reconcile ()
-  "Re-query the stored Wikidata item and present drift as opt-in pulls."
+  "Re-query the stored Wikidata item and present entity and event drift.
+Drift is shown as opt-in pulls; nothing is overwritten without selection."
   (interactive)
   (org-back-to-heading t)
   (let ((qid (org-entry-get nil "WIKIDATA")))
     (unless qid
       (user-error "No WIKIDATA property here; run org-chronicle-wikidata-import first"))
     (let* ((name (org-get-heading t t t t))
+           (marker (point-marker))
+           (subject-orgid (org-with-point-at marker (org-id-get-create)))
+           (index (org-chronicle-wikidata--events-index))
            (rec (org-chronicle-wikidata--fetch-person qid))
-           (changes (org-chronicle-wikidata--record->changes rec name))
-           (drift (org-chronicle-wikidata--diff
-                   changes (lambda (p) (org-entry-get nil p))))
-           (marker (point-marker)))
+           (changes (org-chronicle-wikidata--classify-changes
+                     (org-chronicle-wikidata--record->changes rec name)
+                     marker subject-orgid qid index))
+           (drift (cl-remove-if (lambda (c) (eq (plist-get c :status) 'same)) changes)))
       (when (seq-empty-p drift)
         (user-error "No drift from Wikidata for %s (%s)" name qid))
       (org-chronicle-wikidata--review
        drift
        (lambda (selected)
          (org-with-point-at marker
-                            (org-chronicle-wikidata--apply-changes selected (make-hash-table :test 'equal))
-                            (message "Reconciled %d field(s) for %s" (length selected) name)))))))
+			    (org-chronicle-wikidata--apply-changes selected index)
+			    (when (buffer-file-name) (save-buffer))
+			    (message "Reconciled %d change(s) for %s" (length selected) name)))))))
 
 (defun org-chronicle-wikidata--events-index ()
   "Return a hash mapping each IMPORT-KEY to a marker in the events file.
