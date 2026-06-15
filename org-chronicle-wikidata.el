@@ -237,8 +237,93 @@ Returns a plist; unrepresentable dates are dropped (see
 
 
 
+(defun org-chronicle-wikidata--url (qid)
+  "Return the canonical Wikidata item URL for QID."
+  (concat "https://www.wikidata.org/wiki/" qid))
 
+(defun org-chronicle-wikidata--entity-change (group property value url)
+  "Build an entity change plist for PROPERTY=VALUE in GROUP, sourced to URL.
+Return nil when VALUE is nil or empty."
+  (and value (not (string-empty-p value))
+       (list :target 'entity :group group :property property :value value
+             :provenance url :default t)))
 
+(defun org-chronicle-wikidata--record->changes (rec name)
+  "Map person record REC (for person NAME) to a list of change plists.
+Each change targets either an entity property or an event entry.
+See the data contract in the package commentary for field names."
+  (let* ((qid (plist-get rec :qid))
+         (url (org-chronicle-wikidata--url qid))
+         (born (plist-get rec :born))
+         (died (plist-get rec :died))
+         (parents (delq nil (list (plist-get rec :father) (plist-get rec :mother))))
+         (spouses (plist-get rec :spouses))
+         changes)
+    (dolist (c (list
+                (org-chronicle-wikidata--entity-change
+                 'vitals "BORN" (and born (org-chronicle--date-format born)) url)
+                (org-chronicle-wikidata--entity-change
+                 'vitals "DIED" (and died (org-chronicle--date-format died)) url)
+                (org-chronicle-wikidata--entity-change
+                 'vitals "BIRTHPLACE" (plist-get rec :birthplace) url)
+                (org-chronicle-wikidata--entity-change
+                 'vitals "DEATHPLACE" (plist-get rec :deathplace) url)
+                (org-chronicle-wikidata--entity-change
+                 'vitals "WIKIDATA" qid url)))
+      (when c (push c changes)))
+    (dolist (c (list
+                (org-chronicle-wikidata--entity-change
+                 'relations "PARENTS"
+                 (and parents (org-chronicle--join parents)) url)
+                (org-chronicle-wikidata--entity-change
+                 'relations "SPOUSE"
+                 (and spouses (org-chronicle--join
+                               (mapcar (lambda (s) (plist-get s :name)) spouses)))
+                 url)
+                (org-chronicle-wikidata--entity-change
+                 'relations "ALIASES"
+                 (and (plist-get rec :aliases)
+                      (org-chronicle--join (plist-get rec :aliases)))
+                 url)))
+      (when c (push c changes)))
+    (when born
+      (push (list :target 'event :group 'vitals :provenance url :default t
+                  :event (list :kind "birth" :life-event "birth"
+                               :title (format "Birth of %s" name)
+                               :date (org-chronicle--date-format born)
+                               :subject (list name)
+                               :location (plist-get rec :birthplace)))
+            changes))
+    (when died
+      (push (list :target 'event :group 'vitals :provenance url :default t
+                  :event (list :kind "death" :life-event "death"
+                               :title (format "Death of %s" name)
+                               :date (org-chronicle--date-format died)
+                               :subject (list name)
+                               :location (plist-get rec :deathplace)))
+            changes))
+    (dolist (s spouses)
+      (when (plist-get s :date)
+        (push (list :target 'event :group 'relations :provenance url :default t
+                    :event (list :kind "marriage" :life-event "marriage"
+                                 :title (format "Marriage of %s and %s"
+                                                name (plist-get s :name))
+                                 :date (org-chronicle--date-format (plist-get s :date))
+                                 :people (list name (plist-get s :name))))
+              changes)))
+    (dolist (ev (plist-get rec :events))
+      (when (plist-get ev :date)
+        (push (list :target 'event :group 'events :provenance url :default nil
+                    :event (list :kind (plist-get ev :kind)
+                                 :title (plist-get ev :title)
+                                 :date (org-chronicle--date-format (plist-get ev :date))
+                                 :date-end (and (plist-get ev :date-end)
+                                                (org-chronicle--date-format
+                                                 (plist-get ev :date-end)))
+                                 :people (list name)
+                                 :location (plist-get ev :location)))
+              changes)))
+    (nreverse changes)))
 
 (provide 'org-chronicle-wikidata)
 ;;; org-chronicle-wikidata.el ends here

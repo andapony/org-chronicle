@@ -138,6 +138,40 @@
       (should (equal (plist-get ev :kind) "position"))
       (should (equal (plist-get (plist-get ev :date) :year) 1838)))))
 
+(ert-deftest org-chronicle-wikidata-test-record->changes ()
+  "Test that a person record produces the expected set of change plists."
+  (let* ((rec (list :qid "Q7259"
+                    :born (org-chronicle--date-parse "1815-12-10")
+                    :died (org-chronicle--date-parse "1852-11-27")
+                    :birthplace "London" :deathplace "Marylebone"
+                    :father "Lord Byron" :mother "Anne Isabella Byron"
+                    :aliases '("Augusta Ada King")
+                    :spouses (list (list :name "William King-Noel"
+                                         :date (org-chronicle--date-parse "1835-07-08")
+                                         :end nil))
+                    :events (list (list :kind "position" :title "Countess of Lovelace"
+                                        :date (org-chronicle--date-parse "1838")
+                                        :date-end nil :location nil))))
+         (changes (org-chronicle-wikidata--record->changes rec "Ada Lovelace")))
+    (cl-flet ((prop (p) (cl-find-if (lambda (c)
+                                      (and (eq (plist-get c :target) 'entity)
+                                           (equal (plist-get c :property) p)))
+                                    changes)))
+      (should (equal (plist-get (prop "BORN") :value) "1815-12-10"))
+      (should (equal (plist-get (prop "BIRTHPLACE") :value) "London"))
+      (should (equal (plist-get (prop "PARENTS") :value) "Lord Byron; Anne Isabella Byron"))
+      (should (equal (plist-get (prop "SPOUSE") :value) "William King-Noel"))
+      (should (equal (plist-get (prop "ALIASES") :value) "Augusta Ada King"))
+      (should (equal (plist-get (prop "WIKIDATA") :value) "Q7259"))
+      (should (plist-get (prop "BORN") :default)))
+    (let ((events (cl-remove-if-not (lambda (c) (eq (plist-get c :target) 'event)) changes)))
+      (should (= (length events) 4))
+      (let ((curated (cl-find "position" events
+                              :key (lambda (c) (plist-get (plist-get c :event) :kind))
+                              :test (lambda (_ k) (equal k "position")))))
+        (should (null (plist-get curated :default)))))))
+
+
 
 
 
