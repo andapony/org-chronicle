@@ -1701,8 +1701,6 @@ V one of `dangling', `empty', `out-of-window', `floating'."
 
 ;;;; Scenes: the lint command
 
-(declare-function org-chronicle-set-scene-date "org-chronicle")
-
 (defun org-chronicle--all-scene-findings ()
   "Return (FILE . FINDING) pairs across all source files, in document order."
   (let ((ctx (org-chronicle--scene-context)) (out '()))
@@ -1822,6 +1820,45 @@ KIND is the symbol `after' or `before'."
      prop (if (and existing (not (string-blank-p existing)))
               (org-chronicle--join (list existing link))
             link))))
+
+;;;; Scenes: solving the date
+
+(defun org-chronicle--set-scene-date-here ()
+  "Set the :DATE: of the scene heading at point, prompting within its window."
+  (org-back-to-heading t)
+  (let* ((ctx (org-chronicle--scene-context))
+         (scene (org-chronicle--scene-at-point))
+         (window (org-chronicle--scene-window scene ctx)))
+    (when (eq window :empty)
+      (user-error "Over-constrained — resolve conflicting references first"))
+    (let* ((default (and (car window) (org-chronicle--date-format (car window))))
+           (prompt (if (or (car window) (cdr window))
+                       (format "Date (window %s): "
+                               (org-chronicle--window-string window))
+                     "Date: "))
+           (value (read-string prompt nil nil default)))
+      (when (string-blank-p value)
+        (user-error "A date is required"))
+      (org-set-property "DATE" (org-chronicle--ts value))
+      (unless (or (plist-get scene :event-ids) (org-entry-get nil "TRUTH"))
+        (org-set-property "TRUTH" "fictional")))))
+
+;;;###autoload
+(defun org-chronicle-set-scene-date ()
+  "Set a scene's :DATE: to a value within its feasible window.
+At point in prose, act on the scene heading at point.  In the scene-lint
+buffer, act on the scene at the finding under point, then refresh the lint."
+  (interactive)
+  (let ((marker (and (derived-mode-p 'org-chronicle-scene-lint-mode)
+                     (get-text-property (point) 'org-chronicle-marker))))
+    (if (and marker (marker-buffer marker))
+        (progn
+          (with-current-buffer (marker-buffer marker)
+            (save-excursion
+              (goto-char marker)
+              (org-chronicle--set-scene-date-here)))
+          (org-chronicle-lint-scenes))
+      (org-chronicle--set-scene-date-here))))
 
 ;;;; (sections added by later tasks)
 

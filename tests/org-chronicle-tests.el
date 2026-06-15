@@ -1110,5 +1110,24 @@ Eliza, called [[chronicle:eliza][Mrs. Grant]], watched.
         (should (equal (org-entry-get nil "AFTER")
                        "[[id:vicksburg]]; [[id:appomattox]]"))))))
 
+(ert-deftest org-chronicle-test-set-scene-date-bounded ()
+  "Setting a self-defining scene's date writes DATE and stamps TRUTH fictional."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (&rest _) "1864-01-01")))
+      (org-chronicle-test--with-org
+          "* A scene\n:PROPERTIES:\n:AFTER: [[id:vicksburg]]\n:END:\nbody\n"
+        (org-chronicle-set-scene-date)
+        (should (equal (org-entry-get nil "DATE") "<1864-01-01>"))
+        (should (equal (org-entry-get nil "TRUTH") "fictional"))))))
+
+(ert-deftest org-chronicle-test-set-scene-date-empty-refuses ()
+  "An over-constrained scene refuses with a user-error."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (org-chronicle-test--with-org
+        (concat "* A scene\n:PROPERTIES:\n:BEFORE: [[id:vicksburg]]\n:END:\n"
+                "ref [[chronicle:marek][Marek]]\n")
+      (should-error (org-chronicle-set-scene-date) :type 'user-error))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
