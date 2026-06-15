@@ -892,8 +892,5 @@ global root differs."
       (should (equal (plist-get (car refs) :name) "Mrs. Grant"))
       (should (null (plist-get (cadr refs) :name))))))
 
-
-
-
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
