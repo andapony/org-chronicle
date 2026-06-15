@@ -1080,10 +1080,35 @@ Eliza, called [[chronicle:eliza][Mrs. Grant]], watched.
     (with-current-buffer "*org-chronicle-lint-scenes*"
       (should (string-match-p "No scene issues found" (buffer-string))))))
 
+(ert-deftest org-chronicle-test-insert-reference ()
+  "Inserting a reference writes a chronicle: link with the chosen name."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "Eliza Dent")))
+      (with-temp-buffer
+        (org-mode)
+        (org-chronicle-insert-reference)
+        (should (equal (buffer-string) "[[chronicle:eliza][Eliza Dent]]"))))))
 
+(ert-deftest org-chronicle-test-set-event ()
+  "Setting the event writes an :EVENT: id link on the heading."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "Vicksburg")))
+      (org-chronicle-test--with-org "* A scene\nbody\n"
+        (org-chronicle-set-event)
+        (should (equal (org-entry-get nil "EVENT") "[[id:vicksburg]]"))))))
 
-
-
+(ert-deftest org-chronicle-test-add-constraint-appends ()
+  "Adding a second AFTER constraint appends to the existing value."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "Appomattox")))
+      (org-chronicle-test--with-org
+          "* A scene\n:PROPERTIES:\n:AFTER: [[id:vicksburg]]\n:END:\nbody\n"
+        (org-chronicle-add-constraint 'after)
+        (should (equal (org-entry-get nil "AFTER")
+                       "[[id:vicksburg]]; [[id:appomattox]]"))))))
 
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

@@ -1786,12 +1786,42 @@ V one of `dangling', `empty', `out-of-window', `floating'."
       (goto-char (point-min))
       (pop-to-buffer (current-buffer)))))
 
+;;;; Scenes: authoring commands
 
+(defun org-chronicle--read-reference ()
+  "Read an event/entity target with completion; return (ID . NAME)."
+  (let* ((targets (org-chronicle--reference-targets))
+         (name (completing-read "Reference: " targets nil t)))
+    (cons (cdr (assoc name targets)) name)))
 
+;;;###autoload
+(defun org-chronicle-insert-reference ()
+  "Insert an inline chronicle: link to an event or entity at point."
+  (interactive)
+  (let ((target (org-chronicle--read-reference)))
+    (insert (format "[[chronicle:%s][%s]]" (car target) (cdr target)))))
 
+;;;###autoload
+(defun org-chronicle-set-event ()
+  "Set the :EVENT: property of the heading at point to a chosen event."
+  (interactive)
+  (let ((target (org-chronicle--read-reference)))
+    (org-set-property "EVENT" (format "[[id:%s]]" (car target)))))
 
-
-
+;;;###autoload
+(defun org-chronicle-add-constraint (kind)
+  "Add an :AFTER: or :BEFORE: ordering constraint to the heading at point.
+KIND is the symbol `after' or `before'."
+  (interactive
+   (list (intern (completing-read "Constraint: " '("after" "before") nil t))))
+  (let* ((prop (upcase (symbol-name kind)))
+         (target (org-chronicle--read-reference))
+         (existing (org-entry-get nil prop))
+         (link (format "[[id:%s]]" (car target))))
+    (org-set-property
+     prop (if (and existing (not (string-blank-p existing)))
+              (org-chronicle--join (list existing link))
+            link))))
 
 ;;;; (sections added by later tasks)
 
