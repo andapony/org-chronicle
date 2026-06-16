@@ -2,6 +2,7 @@
 
 * Vicksburg, Mississippi
 :PROPERTIES:
+:ID:        ent-vicksburg
 :KIND:      place
 :ALIASES:   Vicksburg
 :END:
@@ -10,8 +11,51 @@ control of the Mississippi.
 
 * Gettysburg, Pennsylvania
 :PROPERTIES:
+:ID:        ent-gettysburg
 :KIND:      place
 :ALIASES:   Gettysburg
 :END:
 Site of the three-day battle of July 1863 and Lincoln's dedicatory
 address at the soldiers' cemetery.
+
+* Fort Donelson, Tennessee
+:PROPERTIES:
+:ID:        ent-fort-donelson
+:KIND:      place
+:ALIASES:   Fort Donelson
+:END:
+Confederate fort on the Cumberland River; its February 1862 surrender to
+Grant opened Tennessee to Union advance.
+
+* Grand Gulf, Mississippi
+:PROPERTIES:
+:ID:        ent-grand-gulf
+:KIND:      place
+:ALIASES:   Grand Gulf
+:END:
+River town below Vicksburg; a staging point during Grant's 1863 march
+inland from Bruinsburg.
+
+* Point Pleasant, Ohio
+:PROPERTIES:
+:ID:        ent-point-pleasant
+:KIND:      place
+:ALIASES:   Point Pleasant
+:END:
+Ohio River village; birthplace of Ulysses S. Grant.
+
+* St. Louis, Missouri
+:PROPERTIES:
+:ID:        ent-st-louis
+:KIND:      place
+:ALIASES:   St. Louis
+:END:
+Mississippi River city where Grant married Julia Dent in 1848.
+
+* Mount McGregor, New York
+:PROPERTIES:
+:ID:        ent-mount-mcgregor
+:KIND:      place
+:ALIASES:   Mount McGregor
+:END:
+Adirondack retreat where Grant finished his memoirs and died in 1885.
