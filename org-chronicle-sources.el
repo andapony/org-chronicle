@@ -422,5 +422,51 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
 (define-obsolete-function-alias 'org-chronicle-wikidata-reconcile
   'org-chronicle-reconcile "org-chronicle 0.5")
 
+(defconst org-chronicle-sources--registry
+  '((wikidata
+     :label "Wikidata"
+     :adapter wikibase
+     :base-uri "http://www.wikidata.org"
+     :key-property "WIKIDATA"
+     :curie "wd:"
+     :item-url-format "https://www.wikidata.org/wiki/%s"
+     :label-language ("en")
+     :property-map ( :span  ((person "P569" . "P570")
+                             (place  "P571" . "P576")
+                             (group  "P571" . "P576"))
+                     :birthplace "P19" :deathplace "P20"
+                     :father "P22" :mother "P25"
+                     :spouse "P26" :position "P39"
+                     :qual-start "P580" :qual-end "P582" )))
+  "Registry of import sources, keyed by source id symbol.")
+
+(defcustom org-chronicle-default-source 'wikidata
+  "Default import source id, used as the prompt default in `org-chronicle-import'."
+  :type 'symbol
+  :group 'org-chronicle)
+
+(defun org-chronicle-sources--get (id)
+  "Return the source plist for ID, or nil when unregistered."
+  (alist-get id org-chronicle-sources--registry))
+
+(defun org-chronicle-sources--ids ()
+  "Return the list of registered source id symbols."
+  (mapcar #'car org-chronicle-sources--registry))
+
+(defun org-chronicle-sources--pid (source role)
+  "Return the property id string for ROLE in SOURCE's property map."
+  (plist-get (plist-get source :property-map) role))
+
+(defun org-chronicle-sources--span-pids (source kind)
+  "Return (START-PID . END-PID) for KIND from SOURCE's property map."
+  (let ((cell (assq kind (plist-get (plist-get source :property-map) :span))))
+    (cons (cadr cell) (cddr cell))))
+
+
+
+
+
+
+
 (provide 'org-chronicle-sources)
 ;;; org-chronicle-sources.el ends here

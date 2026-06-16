@@ -488,5 +488,23 @@
     (should (string-match-p "also lists: 1642"
                             (org-chronicle-sources--change-label born)))))
 
+(ert-deftest org-chronicle-sources-test-registry-lookup ()
+  "The registry resolves a source plist and its fields by id."
+  (let ((s (org-chronicle-sources--get 'wikidata)))
+    (should (eq (plist-get s :adapter) 'wikibase))
+    (should (equal (plist-get s :key-property) "WIKIDATA"))
+    (should (equal (plist-get s :curie) "wd:"))
+    (should (equal (org-chronicle-sources--pid s :birthplace) "P19"))
+    (should (equal (org-chronicle-sources--span-pids s 'person)
+                   (cons "P569" "P570")))
+    (should (equal (org-chronicle-sources--span-pids s 'place)
+                   (cons "P571" "P576")))))
+
+(ert-deftest org-chronicle-sources-test-default-source ()
+  "The default source is a registered id."
+  (should (org-chronicle-sources--get org-chronicle-default-source)))
+
+
+
 (provide 'org-chronicle-sources-tests)
 ;;; org-chronicle-sources-tests.el ends here
