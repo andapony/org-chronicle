@@ -13,6 +13,20 @@
 :END:
 Union general and eighteenth President of the United States.
 
+* Abraham Lincoln
+:PROPERTIES:
+:ID:        ent-lincoln
+:KIND:      person
+:ALIASES:   Lincoln
+:BORN:      <1809-02-12>
+:BIRTHPLACE: Hodgenville, Kentucky
+:DIED:      <1865-04-15>
+:DEATHPLACE: Washington, D.C.
+:SPOUSE:    Mary Todd Lincoln
+:END:
+Sixteenth President of the United States; delivered the Gettysburg
+Address and led the Union through the Civil War.
+
 * Eliza Harlan
 :PROPERTIES:
 :ID:        ent-harlan
