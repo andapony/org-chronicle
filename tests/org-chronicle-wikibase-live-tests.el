@@ -14,6 +14,9 @@
 (require 'cl-lib)
 (require 'org-chronicle-wikibase)
 
+(require 'org-chronicle-sources)
+
+
 (defun org-chronicle-wikibase-live--fetch-or-skip (thunk)
   "Call THUNK; on a Wikidata transport error, skip the test instead of failing.
 Assertion failures in the caller still fail normally."
@@ -76,27 +79,27 @@ Assertion failures in the caller still fail normally."
   (let* ((root (make-temp-file "octw-live" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file (expand-file-name "people.org" root))
-         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
          (org-id-locations-file (expand-file-name ".org-id-locations" root)))
     (unwind-protect
         (progn
           (with-temp-file org-chronicle-people-file
             (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:WIKIDATA: Q7259\n:END:\n"))
-          (cl-letf (((symbol-function 'org-chronicle-wikibase--review)
+          (cl-letf (((symbol-function 'org-chronicle-sources--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
             (org-chronicle-wikibase-live--fetch-or-skip
              (lambda ()
                (with-current-buffer (find-file-noselect org-chronicle-people-file)
                  (goto-char (point-min))
-                 (org-chronicle-wikibase-import)))))
+                 (org-chronicle-import)))))
           (let ((people (with-temp-buffer
                           (insert-file-contents org-chronicle-people-file)
                           (buffer-string))))
             (should (string-match-p ":BORN: *<?1815-12-10" people))
             (should (string-match-p ":WIKIDATA: *Q7259" people)))
           (let ((events (with-temp-buffer
-                          (insert-file-contents org-chronicle-wikibase-file)
+                          (insert-file-contents org-chronicle-sources-events-file)
                           (buffer-string))))
             (should (string-match-p "Birth of Ada Lovelace" events))
             (should (string-match-p ":IMPORT-KEY: *birth:" events))

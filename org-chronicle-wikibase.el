@@ -8,8 +8,8 @@
 ;;; Commentary:
 
 ;; Import a person's vitals, relations, and curated events from Wikidata
-;; into an org-chronicle project.  See
-;; `org-chronicle-wikibase-import' and `org-chronicle-wikibase-reconcile'.
+;; into an org-chronicle project.  See `org-chronicle-import' and
+;; `org-chronicle-reconcile' (defined in `org-chronicle-sources').
 
 ;;; Code:
 
@@ -230,6 +230,61 @@ OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision
   (unless (assq kind org-chronicle-wikibase--kind-profiles)
     (user-error "Cannot import Wikidata for kind `%s' (supported: person, place, group)" kind)))
 
+(defun org-chronicle-wikibase--ordinal (n)
+  "Return N as an English ordinal string, e.g. 17 -> \"17th\"."
+  (let ((suffix (cond ((memq (% n 100) '(11 12 13)) "th")
+                      ((= (% n 10) 1) "st")
+                      ((= (% n 10) 2) "nd")
+                      ((= (% n 10) 3) "rd")
+                      (t "th"))))
+    (format "%d%s" n suffix)))
+
+(defun org-chronicle-wikibase--coarse-date-label (raw precision)
+  "Return a display label for an unrepresentable Wikidata time value RAW.
+PRECISION is the integer Wikidata precision; decade is 8 and century is 7."
+  (if (not (and (stringp raw) (string-match "\\`\\([-+]?\\)\\([0-9]+\\)" raw)))
+      (or raw "?")
+    (let ((bce (equal (match-string 1 raw) "-"))
+          (year (string-to-number (match-string 2 raw))))
+      (cond
+       (bce (format "%d BC" year))
+       ((eq precision 8) (format "%ds" (- year (% year 10))))
+       ((eq precision 7) (format "%s century"
+                                 (org-chronicle-wikibase--ordinal
+                                  (1+ (/ (1- year) 100)))))
+       (t (format "%d" year))))))
+
+(defun org-chronicle-wikibase--candidate-label (cand)
+  "Return a display string for date-candidate CAND."
+  (if (plist-get cand :date)
+      (org-chronicle--date-format (plist-get cand :date))
+    (org-chronicle-wikibase--coarse-date-label
+     (plist-get cand :raw) (plist-get cand :precision))))
+
+(defun org-chronicle-wikibase--select-candidate (candidates)
+  "Choose the best date among CANDIDATES (for one property).
+Drop deprecated, keep representable, prefer preferred rank, then highest
+precision.  Return a plist (:date CHOSEN-OR-NIL :alternates LIST-OF-STRINGS),
+where alternates are the other distinct values as display strings."
+  (let* ((live (cl-remove-if (lambda (c) (eq (plist-get c :rank) 'deprecated)) candidates))
+         (representable (cl-remove-if-not (lambda (c) (plist-get c :date)) live))
+         (preferred (cl-remove-if-not (lambda (c) (eq (plist-get c :rank) 'preferred))
+                                      representable))
+         (pool (if preferred preferred representable))
+         (chosen (car (sort (copy-sequence pool)
+                            (lambda (a b) (> (or (plist-get a :precision) 0)
+                                             (or (plist-get b :precision) 0))))))
+         (chosen-date (plist-get chosen :date))
+         (chosen-label (and chosen-date (org-chronicle--date-format chosen-date)))
+         (alternates
+          (delete-dups
+           (delq nil
+                 (mapcar (lambda (c)
+                           (let ((lbl (org-chronicle-wikibase--candidate-label c)))
+                             (unless (and chosen-label (equal lbl chosen-label)) lbl)))
+                         candidates)))))
+    (list :date chosen-date :alternates alternates)))
+
 (defun org-chronicle-wikibase--span-query (qid start-pid end-pid)
   "Return a SPARQL query for QID's START-PID and END-PID date statements.
 One row per statement, tagged ?prop \"start\"/\"end\", with value, precision,
@@ -290,61 +345,6 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
 (defun org-chronicle-wikibase--fetch-person (qid)
   "Fetch QID from Wikidata as a person record."
   (org-chronicle-wikibase--fetch-record qid 'person))
-
-(defun org-chronicle-wikibase--ordinal (n)
-  "Return N as an English ordinal string, e.g. 17 -> \"17th\"."
-  (let ((suffix (cond ((memq (% n 100) '(11 12 13)) "th")
-                      ((= (% n 10) 1) "st")
-                      ((= (% n 10) 2) "nd")
-                      ((= (% n 10) 3) "rd")
-                      (t "th"))))
-    (format "%d%s" n suffix)))
-
-(defun org-chronicle-wikibase--coarse-date-label (raw precision)
-  "Return a display label for an unrepresentable Wikidata time value RAW.
-PRECISION is the integer Wikidata precision; decade is 8 and century is 7."
-  (if (not (and (stringp raw) (string-match "\\`\\([-+]?\\)\\([0-9]+\\)" raw)))
-      (or raw "?")
-    (let ((bce (equal (match-string 1 raw) "-"))
-          (year (string-to-number (match-string 2 raw))))
-      (cond
-       (bce (format "%d BC" year))
-       ((eq precision 8) (format "%ds" (- year (% year 10))))
-       ((eq precision 7) (format "%s century"
-                                 (org-chronicle-wikibase--ordinal
-                                  (1+ (/ (1- year) 100)))))
-       (t (format "%d" year))))))
-
-(defun org-chronicle-wikibase--candidate-label (cand)
-  "Return a display string for date-candidate CAND."
-  (if (plist-get cand :date)
-      (org-chronicle--date-format (plist-get cand :date))
-    (org-chronicle-wikibase--coarse-date-label
-     (plist-get cand :raw) (plist-get cand :precision))))
-
-(defun org-chronicle-wikibase--select-candidate (candidates)
-  "Choose the best date among CANDIDATES (for one property).
-Drop deprecated, keep representable, prefer preferred rank, then highest
-precision.  Return a plist (:date CHOSEN-OR-NIL :alternates LIST-OF-STRINGS),
-where alternates are the other distinct values as display strings."
-  (let* ((live (cl-remove-if (lambda (c) (eq (plist-get c :rank) 'deprecated)) candidates))
-         (representable (cl-remove-if-not (lambda (c) (plist-get c :date)) live))
-         (preferred (cl-remove-if-not (lambda (c) (eq (plist-get c :rank) 'preferred))
-                                      representable))
-         (pool (if preferred preferred representable))
-         (chosen (car (sort (copy-sequence pool)
-                            (lambda (a b) (> (or (plist-get a :precision) 0)
-                                             (or (plist-get b :precision) 0))))))
-         (chosen-date (plist-get chosen :date))
-         (chosen-label (and chosen-date (org-chronicle--date-format chosen-date)))
-         (alternates
-          (delete-dups
-           (delq nil
-                 (mapcar (lambda (c)
-                           (let ((lbl (org-chronicle-wikibase--candidate-label c)))
-                             (unless (and chosen-label (equal lbl chosen-label)) lbl)))
-                         candidates)))))
-    (list :date chosen-date :alternates alternates)))
 
 (defun org-chronicle-wikibase--rows->record (qid vitals dates spouses events)
   "Assemble a person record for QID from parsed binding lists.
@@ -512,80 +512,6 @@ See the data contract in the package commentary for field names."
                 changes)))
       (nreverse changes))))
 
-(defun org-chronicle-wikibase--dates-equal-p (a b)
-  "Non-nil when date strings A and B denote the same Y/M/D after parsing."
-  (let ((da (org-chronicle--date-parse a))
-        (db (org-chronicle--date-parse b)))
-    (and da db
-         (equal (plist-get da :year) (plist-get db :year))
-         (equal (plist-get da :month) (plist-get db :month))
-         (equal (plist-get da :day) (plist-get db :day)))))
-
-(defun org-chronicle-wikibase--classify (change current)
-  "Classify CHANGE against the CURRENT local value string (or nil).
-Return `new' when CURRENT is empty, `same' when it matches the change value
-\(dates compared by parsed value), or `conflict' otherwise."
-  (let ((value (plist-get change :value))
-        (prop (plist-get change :property)))
-    (cond
-     ((or (null current) (string-empty-p current)) 'new)
-     ((if (member prop '("BORN" "DIED" "BUILT" "RAZED" "FOUNDED" "DISBANDED"))
-          (org-chronicle-wikibase--dates-equal-p current value)
-        (equal (string-trim current) (string-trim value)))
-      'same)
-     (t 'conflict))))
-
-(defun org-chronicle-wikibase--add-source (url)
-  "Add URL to the SOURCES property at point unless already present."
-  (let* ((existing (org-chronicle--split (org-entry-get nil "SOURCES")))
-         (merged (if (member url existing) existing (append existing (list url)))))
-    (org-set-property "SOURCES" (org-chronicle--join merged))))
-
-(defun org-chronicle-wikibase--apply-entity-change (change)
-  "Set the entity property named in CHANGE at the heading at point.
-Also records the provenance URL in SOURCES and marks TRUTH historical."
-  (org-set-property (plist-get change :property) (plist-get change :value))
-  (org-chronicle-wikibase--add-source (plist-get change :provenance))
-  (unless (org-entry-get nil "TRUTH")
-    (org-set-property "TRUTH" "historical")))
-
-(defun org-chronicle-wikibase--event-change-string (change)
-  "Return the Org heading text for the event in CHANGE.
-Life events (those with a :life-event kind) go through
-`org-chronicle--life-event-string'; other events use the generic
-`org-chronicle--event-string'."
-  (let* ((ev (plist-get change :event))
-         (kind (plist-get ev :life-event)))
-    (if kind
-        (org-chronicle--life-event-string
-         :title (plist-get ev :title)
-         :kind kind
-         :truth "historical"
-         :date (plist-get ev :date)
-         :subject (plist-get ev :subject)
-         :people (plist-get ev :people)
-         :location (plist-get ev :location)
-         :sources (plist-get change :provenance))
-      (org-chronicle--event-string
-       :title (plist-get ev :title)
-       :truth "historical"
-       :date (plist-get ev :date)
-       :date-end (plist-get ev :date-end)
-       :people (plist-get ev :people)
-       :location (plist-get ev :location)
-       :sources (plist-get change :provenance)))))
-
-(defun org-chronicle-wikibase--apply-changes (changes index)
-  "Write approved change plists to the chronicle at the heading at point.
-CHANGES is a list of change plists; INDEX maps IMPORT-KEY to markers in the
-events file.  Entity changes set properties on the heading; event changes are
-written idempotently to the events file."
-  (org-back-to-heading t)
-  (dolist (change changes)
-    (pcase (plist-get change :target)
-      ('entity (org-chronicle-wikibase--apply-entity-change change))
-      ('event (org-chronicle-wikibase--apply-event-change change index)))))
-
 (defun org-chronicle-wikibase--candidate-line (cand)
   "Format candidate plist CAND as a completion line."
   (format "%s — %s (%s)"
@@ -608,323 +534,13 @@ otherwise present search candidates for selection.  Return the QID string."
                  (cand (cdr (assoc choice table))))
             (plist-get cand :qid))))))
 
-(defun org-chronicle-wikibase--change-label (change)
-  "Return a one-line human label describing CHANGE."
-  (pcase (plist-get change :target)
-    ('entity (let ((alts (plist-get change :alternates)))
-               (format "%-12s %s%s"
-                       (plist-get change :property)
-                       (plist-get change :value)
-                       (if alts
-                           (format "  (Wikidata also lists: %s)"
-                                   (mapconcat #'identity alts "; "))
-                         ""))))
-    ('event (let ((ev (plist-get change :event)))
-              (format "event       %s [%s]" (plist-get ev :title)
-                      (plist-get ev :date))))))
+;; Backward-compatibility aliases for the pre-sources public commands.
+;; The commands now live in `org-chronicle-sources'.
+(define-obsolete-function-alias 'org-chronicle-wikibase-import
+  'org-chronicle-import "org-chronicle 0.5")
 
-(defun org-chronicle-wikibase--review-rows (changes)
-  "Build review rows from proposed change plists.
-CHANGES is a list of change plists.  Each row is a two-element list
-\(STATE plist): STATE has :selected (default proposals that are new) and
-:status (carried through)."
-  (mapcar (lambda (c)
-            (list (list :selected (and (plist-get c :default)
-                                       (eq (plist-get c :status) 'new))
-                        :status (plist-get c :status))
-                  c))
-          changes))
-
-(defun org-chronicle-wikibase--selected-changes (rows)
-  "Return the change plists from ROWS whose STATE has :selected non-nil."
-  (delq nil (mapcar (lambda (row)
-                      (when (plist-get (nth 0 row) :selected)
-                        (nth 1 row)))
-                    rows)))
-
-(defvar-local org-chronicle-wikibase--rows nil
-  "Review rows for the current review buffer.")
-
-(defvar-local org-chronicle-wikibase--on-confirm nil
-  "Function called with the selected changes when the review is confirmed.")
-
-(defun org-chronicle-wikibase-review-toggle ()
-  "Toggle selection of the row at point."
-  (interactive)
-  (let ((idx (- (line-number-at-pos) 3)))
-    (when (and (>= idx 0) (< idx (length org-chronicle-wikibase--rows)))
-      (let ((state (nth 0 (nth idx org-chronicle-wikibase--rows))))
-        (plist-put state :selected (not (plist-get state :selected))))
-      (org-chronicle-wikibase--render-review)
-      (forward-line (+ idx 3)))))
-
-(defun org-chronicle-wikibase-review-confirm ()
-  "Invoke the confirm callback with selected rows and close the review."
-  (interactive)
-  (let ((selected (org-chronicle-wikibase--selected-changes
-                   org-chronicle-wikibase--rows))
-        (cb org-chronicle-wikibase--on-confirm))
-    (quit-window)
-    (when cb (funcall cb selected))))
-
-(defvar org-chronicle-wikibase-review-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "TAB") #'org-chronicle-wikibase-review-toggle)
-    (define-key map (kbd "RET") #'org-chronicle-wikibase-review-confirm)
-    (define-key map (kbd "q") #'quit-window)
-    map)
-  "Keymap for `org-chronicle-wikibase-review-mode'.")
-
-(define-derived-mode org-chronicle-wikibase-review-mode special-mode
-  "WD-Review"
-  "Major mode for reviewing proposed Wikidata changes.")
-
-(defun org-chronicle-wikibase--render-review ()
-  "Render `org-chronicle-wikibase--rows' into the current buffer."
-  (let ((inhibit-read-only t))
-    (erase-buffer)
-    (insert "Wikidata import — TAB toggles, RET applies selected, q cancels\n\n")
-    (dolist (row org-chronicle-wikibase--rows)
-      (let* ((state (nth 0 row)) (change (nth 1 row)))
-        (insert (format "[%s] %-8s %s\n"
-                        (if (plist-get state :selected) "x" " ")
-                        (plist-get state :status)
-                        (org-chronicle-wikibase--change-label change)))))))
-
-(defun org-chronicle-wikibase--review (changes on-confirm)
-  "Open a review buffer; call ON-CONFIRM with the selected change plists.
-CHANGES is the list of proposed change plists to present."
-  (let ((buf (get-buffer-create "*Wikidata Import*")))
-    (with-current-buffer buf
-      (org-chronicle-wikibase-review-mode)
-      (setq org-chronicle-wikibase--rows
-            (org-chronicle-wikibase--review-rows changes))
-      (setq org-chronicle-wikibase--on-confirm on-confirm)
-      (org-chronicle-wikibase--render-review)
-      (goto-char (point-min)))
-    (pop-to-buffer buf)))
-
-(defun org-chronicle-wikibase--label-at-point ()
-  "Return a person label when point is on a PARENTS or SPOUSE property value.
-Return nil otherwise."
-  (let ((el (org-element-at-point)))
-    (when (eq (org-element-type el) 'node-property)
-      (let ((key (org-element-property :key el)))
-        (when (member key '("PARENTS" "SPOUSE"))
-          (car (org-chronicle--split (org-element-property :value el))))))))
-
-;;;###autoload
-(defun org-chronicle-wikibase-import ()
-  "Import Wikidata life events into the chronicle by kind.
-With point on a person entity heading, enrich that entity.  With point on a
-PARENTS or SPOUSE property value, or on a non-entity heading, create a new
-entity in the kind's file and enrich it.  In all cases, resolve the Wikidata
-item, review the proposed edits, and write the approved set."
-  (interactive)
-  (let* ((promote (org-chronicle-wikibase--label-at-point))
-         (heading-kind (unless promote
-                         (save-excursion (org-back-to-heading t) (org-entry-get nil "KIND"))))
-         (kind (cond (promote 'person)
-                     (heading-kind (intern heading-kind))
-                     (t (intern (completing-read "Kind: " '("person" "place" "group")
-                                                 nil t nil nil "person")))))
-         (seed (or promote
-                   (save-excursion (org-back-to-heading t) (org-get-heading t t t t))))
-         (stored (and heading-kind
-                      (save-excursion (org-back-to-heading t) (org-entry-get nil "WIKIDATA")))))
-    (org-chronicle-wikibase--check-kind kind)
-    (let* ((qid (or stored (org-chronicle-wikibase--resolve seed)))
-           (marker (if heading-kind
-                       (save-excursion (org-back-to-heading t) (point-marker))
-                     (org-chronicle-wikibase--create-entity seed kind)))
-           (rec (org-chronicle-wikibase--fetch-record qid kind))
-           (changes (org-chronicle-wikibase--record->changes rec seed)))
-      (when (seq-empty-p changes)
-        (user-error "Nothing to import for %s (%s)" seed qid))
-      (let* ((subject-qid qid)
-             (subject-orgid (org-with-point-at marker (org-id-get-create)))
-             (index (org-chronicle-wikibase--events-index)))
-        (setq changes
-              (org-chronicle-wikibase--classify-changes
-               changes marker subject-orgid subject-qid index))
-        (org-chronicle-wikibase--review
-         changes
-         (lambda (selected)
-           (org-with-point-at marker
-                              (org-chronicle-wikibase--apply-changes selected index)
-                              (when (buffer-file-name) (save-buffer))
-                              (message "Imported %d change(s) for %s" (length selected) seed))))))))
-
-(defun org-chronicle-wikibase--classify-changes (changes marker subject-orgid subject-qid index)
-  "Stamp each proposed change with :status (and event :key); drop keyless events.
-CHANGES is the raw change list.  Entity changes classify against the heading at
-MARKER; event changes classify against INDEX by their IMPORT-KEY derived from
-SUBJECT-ORGID/SUBJECT-QID."
-  (delq nil
-        (mapcar
-         (lambda (c)
-           (pcase (plist-get c :target)
-             ('entity
-              (plist-put c :status
-                         (org-chronicle-wikibase--classify
-                          c (org-with-point-at marker
-                                               (org-entry-get nil (plist-get c :property)))))
-              c)
-             ('event
-              (let ((key (org-chronicle-wikibase--event-key
-                          (plist-get c :event) subject-orgid subject-qid)))
-                (when key
-                  (plist-put c :key key)
-                  (plist-put c :status
-                             (org-chronicle-wikibase--classify-event
-                              c (gethash key index)))
-                  c)))))
-         changes)))
-
-(defcustom org-chronicle-wikibase-file nil
-  "File where imported Wikidata events are filed.
-When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
-  :type '(choice (const :tag "Default under root" nil) file)
-  :group 'org-chronicle-wikibase)
-
-(defun org-chronicle-wikibase--events-file ()
-  "Return the file imported events are written to.
-Defaults to \"imported/events.org\" under `org-chronicle-root'."
-  (or org-chronicle-wikibase-file
-      (expand-file-name "imported/events.org" org-chronicle-root)))
-
-(defun org-chronicle-wikibase--event-key (event subject-orgid subject-qid)
-  "Return the IMPORT-KEY for EVENT, or nil when a required id is missing.
-SUBJECT-ORGID is the chronicle entity's org id and SUBJECT-QID its Wikidata
-QID.  EVENT is an event change's :event plist.  Birth and death key on the
-chronicle subject; positions add the office QID; marriage keys on the sorted
-pair of both participants' prefixed QIDs so it is symmetric."
-  (let ((kind (plist-get event :kind))
-        (obj (plist-get event :object-qid)))
-    (pcase kind
-      ("marriage"
-       (and subject-qid obj
-            (format "marriage:%s"
-                    (mapconcat #'identity
-                               (sort (list (concat "wd:" subject-qid)
-                                           (concat "wd:" obj))
-                                     #'string<)
-                               ":"))))
-      ("position"
-       (and obj (format "position:%s:wd:%s" subject-orgid obj)))
-      (_ (and subject-orgid (format "%s:%s" kind subject-orgid))))))
-
-;;;###autoload
-(defun org-chronicle-wikibase-reconcile ()
-  "Re-query the stored Wikidata item and present entity and event drift.
-Drift is shown as opt-in pulls; nothing is overwritten without selection."
-  (interactive)
-  (org-back-to-heading t)
-  (let ((qid (org-entry-get nil "WIKIDATA")))
-    (unless qid
-      (user-error "No WIKIDATA property here; run org-chronicle-wikibase-import first"))
-    (let* ((name (org-get-heading t t t t))
-           (kind (let ((k (org-entry-get nil "KIND"))) (if k (intern k) 'person))))
-      (org-chronicle-wikibase--check-kind kind)
-      (let* ((marker (point-marker))
-             (subject-orgid (org-with-point-at marker (org-id-get-create)))
-             (index (org-chronicle-wikibase--events-index))
-             (rec (org-chronicle-wikibase--fetch-record qid kind))
-             (changes (org-chronicle-wikibase--classify-changes
-                       (org-chronicle-wikibase--record->changes rec name)
-                       marker subject-orgid qid index))
-             (drift (cl-remove-if (lambda (c) (eq (plist-get c :status) 'same)) changes)))
-        (when (seq-empty-p drift)
-          (user-error "No drift from Wikidata for %s (%s)" name qid))
-        (org-chronicle-wikibase--review
-         drift
-         (lambda (selected)
-           (org-with-point-at marker
-                              (org-chronicle-wikibase--apply-changes selected index)
-                              (when (buffer-file-name) (save-buffer))
-                              (message "Reconciled %d change(s) for %s" (length selected) name))))))))
-
-(defun org-chronicle-wikibase--events-index ()
-  "Return a hash mapping each IMPORT-KEY to a marker in the events file.
-Scans `org-chronicle-wikibase--events-file'; an absent file yields an empty
-table."
-  (let ((file (org-chronicle-wikibase--events-file))
-        (index (make-hash-table :test 'equal)))
-    (when (file-exists-p file)
-      (with-current-buffer (find-file-noselect file)
-        (org-with-wide-buffer
-         (org-map-entries
-          (lambda ()
-            (let ((key (org-entry-get nil "IMPORT-KEY")))
-              (when key (puthash key (point-marker) index))))))))
-    index))
-
-(defun org-chronicle-wikibase--append-to-events-file (text key index)
-  "Append heading TEXT to the events file, stamp KEY, and register it in INDEX.
-Creates the file's directory if needed, assigns an id, normalizes, and saves."
-  (let ((file (org-chronicle-wikibase--events-file)))
-    (make-directory (file-name-directory file) t)
-    (with-current-buffer (find-file-noselect file)
-      (goto-char (point-max))
-      (unless (bolp) (insert "\n"))
-      (insert text)
-      (forward-line -1)
-      (org-back-to-heading t)
-      (when key (org-set-property "IMPORT-KEY" key))
-      (org-id-get-create)
-      (org-chronicle-normalize)
-      (save-buffer)
-      (when key (puthash key (point-marker) index)))))
-
-(defun org-chronicle-wikibase--field-equal-p (prop proposed date-p)
-  "Non-nil if PROP at point equals PROPOSED (a string or nil).
-Empty and nil are equal; compare as dates when DATE-P is non-nil."
-  (let* ((cur (org-entry-get nil prop))
-         (cur (and cur (not (string-empty-p cur)) cur))
-         (proposed (and proposed (not (string-empty-p proposed)) proposed)))
-    (cond
-     ((and (null cur) (null proposed)) t)
-     ((or (null cur) (null proposed)) nil)
-     (date-p (org-chronicle-wikibase--dates-equal-p cur proposed))
-     (t (equal (string-trim cur) (string-trim proposed))))))
-
-(defun org-chronicle-wikibase--classify-event (change existing)
-  "Classify event CHANGE against the EXISTING marker (or nil).
-Return `new' when EXISTING is nil, `same' when the managed date and location
-fields match, or `conflict' otherwise."
-  (if (null existing)
-      'new
-    (let ((ev (plist-get change :event)))
-      (org-with-point-at existing
-        (if (and (org-chronicle-wikibase--field-equal-p "DATE" (plist-get ev :date) t)
-                 (org-chronicle-wikibase--field-equal-p "DATE-END" (plist-get ev :date-end) t)
-                 (org-chronicle-wikibase--field-equal-p "LOCATION" (plist-get ev :location) nil))
-            'same
-          'conflict)))))
-
-(defun org-chronicle-wikibase--apply-event-change (change index)
-  "Apply event CHANGE idempotently using INDEX (IMPORT-KEY -> marker).
-Update the keyed heading's managed properties in place when it exists,
-otherwise append a new heading carrying the key."
-  (let* ((key (plist-get change :key))
-         (existing (and key (gethash key index)))
-         (ev (plist-get change :event)))
-    (if existing
-        (org-with-point-at existing
-          (org-set-property "DATE" (org-chronicle--ts (plist-get ev :date)))
-          (if (plist-get ev :date-end)
-              (org-set-property "DATE-END" (org-chronicle--ts (plist-get ev :date-end)))
-            (org-delete-property "DATE-END"))
-          (if (and (plist-get ev :location)
-                   (not (string-empty-p (plist-get ev :location))))
-              (org-set-property "LOCATION" (plist-get ev :location))
-            (org-delete-property "LOCATION"))
-          (org-chronicle-wikibase--add-source (plist-get change :provenance))
-          (unless (org-entry-get nil "TRUTH")
-            (org-set-property "TRUTH" "historical"))
-          (save-buffer))
-      (org-chronicle-wikibase--append-to-events-file
-       (org-chronicle-wikibase--event-change-string change) key index))))
+(define-obsolete-function-alias 'org-chronicle-wikibase-reconcile
+  'org-chronicle-reconcile "org-chronicle 0.5")
 
 ;; Backward-compatibility: the module was named org-chronicle-wikidata before
 ;; the multi-source split.  Keep the old feature loadable.
