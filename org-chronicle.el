@@ -1095,6 +1095,23 @@ after editing entity files outside the running Emacs."
   (interactive)
   (org-chronicle--invalidate-entity-cache))
 
+(defun org-chronicle--turn-on-entity-links ()
+  "Enable `org-chronicle-entity-links-mode' in chronicle org buffers.
+Used by `org-chronicle-global-entity-links-mode'; a no-op unless the
+current buffer is an `org-mode' file under `org-chronicle-root'."
+  (when (and (derived-mode-p 'org-mode)
+             buffer-file-name
+             (org-chronicle--file-under-root-p buffer-file-name))
+    (org-chronicle-entity-links-mode 1)))
+
+;;;###autoload
+(define-globalized-minor-mode org-chronicle-global-entity-links-mode
+  org-chronicle-entity-links-mode
+  org-chronicle--turn-on-entity-links
+  :group 'org-chronicle)
+
+
+
 
 (defun org-chronicle--groups (entities)
   "Return the entities in ENTITIES whose `:kind' is `group'."

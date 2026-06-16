@@ -482,6 +482,30 @@ directories are created.  The temp dir is removed afterward."
     (org-chronicle-entity-links-refresh)
     (should-not org-chronicle--entity-cache)))
 
+(ert-deftest org-chronicle-test-turn-on-entity-links ()
+  "Globalized turn-on enables the mode only in org buffers under the root."
+  (let ((org-chronicle-root "/home/u/chron/")
+        (org-chronicle--entity-link-buffers nil))
+    ;; org-mode file under root -> enabled.
+    (with-temp-buffer
+      (org-mode)
+      (setq buffer-file-name "/home/u/chron/timeline.org")
+      (org-chronicle--turn-on-entity-links)
+      (should org-chronicle-entity-links-mode))
+    ;; org-mode file outside root -> not enabled.
+    (with-temp-buffer
+      (org-mode)
+      (setq buffer-file-name "/home/u/other/x.org")
+      (org-chronicle--turn-on-entity-links)
+      (should-not org-chronicle-entity-links-mode))
+    ;; non-org file under root -> not enabled.
+    (with-temp-buffer
+      (fundamental-mode)
+      (setq buffer-file-name "/home/u/chron/notes.txt")
+      (org-chronicle--turn-on-entity-links)
+      (should-not org-chronicle-entity-links-mode))))
+
+
 
 
 
