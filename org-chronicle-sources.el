@@ -30,6 +30,12 @@ When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
   :type '(choice (const :tag "Default under root" nil) file)
   :group 'org-chronicle)
 
+(defcustom org-chronicle-default-source 'wikidata
+  "Default import source id, used as the prompt default in `org-chronicle-import'."
+  :type 'symbol
+  :group 'org-chronicle)
+
+
 (defun org-chronicle-sources--events-file ()
   "Return the file imported events are written to.
 Defaults to \"imported/events.org\" under `org-chronicle-root'."
@@ -346,25 +352,31 @@ SUBJECT-ORGID/SUBJECT-QID."
 
 ;;;###autoload
 (defun org-chronicle-import ()
-  "Import life events into the chronicle by kind.
-With point on a person entity heading, enrich that entity.  With point on a
-PARENTS or SPOUSE property value, or on a non-entity heading, create a new
-entity in the kind's file and enrich it.  In all cases, resolve the source
-item, review the proposed edits, and write the approved set."
+  "Import historical facts into the chronicle from a configured source.
+Prompt for a source, resolve-or-create the entity, review proposed edits, and
+write the approved set.  A heading accretes one key property per source."
   (interactive)
-  ;; TRANSITIONAL: source is prompted for in the next task.
-  (let* ((source (org-chronicle-sources--get 'wikidata))
+  (let* ((source-id (intern (completing-read
+                             "Source: " (mapcar #'symbol-name
+                                                (org-chronicle-sources--ids))
+                             nil t nil nil
+                             (symbol-name org-chronicle-default-source))))
+         (source (org-chronicle-sources--get source-id))
+         (key-prop (plist-get source :key-property))
          (promote (org-chronicle-sources--label-at-point))
          (heading-kind (unless promote
-                         (save-excursion (org-back-to-heading t) (org-entry-get nil "KIND"))))
+                         (save-excursion (org-back-to-heading t)
+                                         (org-entry-get nil "KIND"))))
          (kind (cond (promote 'person)
                      (heading-kind (intern heading-kind))
-                     (t (intern (completing-read "Kind: " '("person" "place" "group")
+                     (t (intern (completing-read "Kind: "
+                                                 '("person" "place" "group")
                                                  nil t nil nil "person")))))
-         (seed (or promote
-                   (save-excursion (org-back-to-heading t) (org-get-heading t t t t))))
+         (seed (or promote (save-excursion (org-back-to-heading t)
+                                           (org-get-heading t t t t))))
          (stored (and heading-kind
-                      (save-excursion (org-back-to-heading t) (org-entry-get nil "WIKIDATA")))))
+                      (save-excursion (org-back-to-heading t)
+                                      (org-entry-get nil key-prop)))))
     (org-chronicle-sources--check-kind kind)
     (let* ((qid (or stored (org-chronicle-wikibase--resolve source seed)))
            (marker (if heading-kind
@@ -374,35 +386,41 @@ item, review the proposed edits, and write the approved set."
            (changes (org-chronicle-wikibase--record->changes rec seed)))
       (when (seq-empty-p changes)
         (user-error "Nothing to import for %s (%s)" seed qid))
-      (let* ((subject-qid qid)
-             (subject-orgid (org-with-point-at marker (org-id-get-create)))
+      (let* ((subject-orgid (org-with-point-at marker (org-id-get-create)))
              (index (org-chronicle-sources--events-index)))
-        (setq changes
-              (org-chronicle-sources--classify-changes
-               changes marker subject-orgid subject-qid index))
+        (setq changes (org-chronicle-sources--classify-changes
+                       changes marker subject-orgid qid index))
         (org-chronicle-sources--review
          changes
          (lambda (selected)
            (org-with-point-at marker
-                              (org-chronicle-sources--apply-changes selected index)
-                              (when (buffer-file-name) (save-buffer))
-                              (message "Imported %d change(s) for %s" (length selected) seed))))))))
+			      (org-chronicle-sources--apply-changes selected index)
+			      (when (buffer-file-name) (save-buffer))
+			      (message "Imported %d change(s) for %s" (length selected) seed))))))))
 
 (define-obsolete-function-alias 'org-chronicle-wikidata-import
   'org-chronicle-import "org-chronicle 0.5")
 
 ;;;###autoload
 (defun org-chronicle-reconcile ()
-  "Re-query the stored source item and present entity and event drift.
-Drift is shown as opt-in pulls; nothing is overwritten without selection."
+  "Re-query a source linked from the heading and present drift as opt-in pulls.
+When several source keys are present, prompt for which to reconcile."
   (interactive)
   (org-back-to-heading t)
-  ;; TRANSITIONAL: source is prompted for in the next task.
-  (let ((source (org-chronicle-sources--get 'wikidata))
-        (qid (org-entry-get nil "WIKIDATA")))
-    (unless qid
-      (user-error "No WIKIDATA property here; run org-chronicle-import first"))
-    (let* ((name (org-get-heading t t t t))
+  (let* ((present (cl-remove-if-not
+                   (lambda (id)
+                     (org-entry-get nil (plist-get (org-chronicle-sources--get id)
+                                                   :key-property)))
+                   (org-chronicle-sources--ids))))
+    (unless present
+      (user-error "No source key on this heading; run org-chronicle-import first"))
+    (let* ((source-id (if (= (length present) 1) (car present)
+                        (intern (completing-read
+                                 "Source: " (mapcar #'symbol-name present)
+                                 nil t))))
+           (source (org-chronicle-sources--get source-id))
+           (qid (org-entry-get nil (plist-get source :key-property)))
+           (name (org-get-heading t t t t))
            (kind (let ((k (org-entry-get nil "KIND"))) (if k (intern k) 'person))))
       (org-chronicle-sources--check-kind kind)
       (let* ((marker (point-marker))
@@ -412,16 +430,18 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
              (changes (org-chronicle-sources--classify-changes
                        (org-chronicle-wikibase--record->changes rec name)
                        marker subject-orgid qid index))
-             (drift (cl-remove-if (lambda (c) (eq (plist-get c :status) 'same)) changes)))
+             (drift (cl-remove-if (lambda (c) (eq (plist-get c :status) 'same))
+                                  changes)))
         (when (seq-empty-p drift)
-          (user-error "No drift from source for %s (%s)" name qid))
+          (user-error "No drift from %s for %s (%s)"
+                      (plist-get source :label) name qid))
         (org-chronicle-sources--review
          drift
          (lambda (selected)
            (org-with-point-at marker
-                              (org-chronicle-sources--apply-changes selected index)
-                              (when (buffer-file-name) (save-buffer))
-                              (message "Reconciled %d change(s) for %s" (length selected) name))))))))
+			      (org-chronicle-sources--apply-changes selected index)
+			      (when (buffer-file-name) (save-buffer))
+			      (message "Reconciled %d change(s) for %s" (length selected) name))))))))
 
 (define-obsolete-function-alias 'org-chronicle-wikidata-reconcile
   'org-chronicle-reconcile "org-chronicle 0.5")
@@ -462,11 +482,6 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
                      :spouse "P84" :position "P165"
                      :qual-start "P49" :qual-end "P50" )))
   "Registry of import sources, keyed by source id symbol.")
-
-(defcustom org-chronicle-default-source 'wikidata
-  "Default import source id, used as the prompt default in `org-chronicle-import'."
-  :type 'symbol
-  :group 'org-chronicle)
 
 (defun org-chronicle-sources--get (id)
   "Return the source plist for ID, or nil when unregistered."

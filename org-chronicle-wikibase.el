@@ -459,7 +459,7 @@ Return span, aliases, and WIKIDATA property changes."
             (and end (org-chronicle--ts (org-chronicle--date-format end)))
             url (plist-get rec :end-alternates))
            (org-chronicle-wikibase--entity-change
-            'vitals "WIKIDATA" qid url)
+            'vitals (plist-get source :key-property) qid url)
            (org-chronicle-wikibase--entity-change
             'relations "ALIASES" (and aliases (org-chronicle--join aliases)) url)))))
 
@@ -494,7 +494,7 @@ See the data contract in the package commentary for field names."
                   (org-chronicle-wikibase--entity-change
                    'vitals "DEATHPLACE" (plist-get rec :deathplace) url)
                   (org-chronicle-wikibase--entity-change
-                   'vitals "WIKIDATA" qid url)))
+                   'vitals (plist-get source :key-property) qid url)))
         (when c (push c changes)))
       (dolist (c (list
                   (org-chronicle-wikibase--entity-change
