@@ -155,5 +155,36 @@ Assertion failures in the caller still fail normally."
     (should (equal (plist-get end :month) 12))
     (should (equal (plist-get end :day) 4))))
 
+(ert-deftest org-chronicle-wikibase-test-live-factgrid-search ()
+  "Live FactGrid `wbsearchentities' returns Adam Weishaupt (Q1308)."
+  :tags '(:wikidata-live)
+  (let* ((fg (org-chronicle-sources--get 'factgrid))
+         (cands (org-chronicle-wikibase-live--fetch-or-skip
+                 (lambda () (org-chronicle-wikibase--search-request fg "Adam Weishaupt")))))
+    (should cands)
+    (should (cl-some (lambda (c) (equal (plist-get c :qid) "Q1308")) cands))))
+
+(ert-deftest org-chronicle-wikibase-test-live-factgrid-fetch-person ()
+  "Live FactGrid fetch of Weishaupt (Q1308) parses a label and a birth date."
+  :tags '(:wikidata-live)
+  (let* ((fg (org-chronicle-sources--get 'factgrid))
+         (rec (org-chronicle-wikibase-live--fetch-or-skip
+               (lambda () (org-chronicle-wikibase--fetch-record fg "Q1308" 'person)))))
+    (should (stringp (plist-get rec :label)))
+    (should (plist-get rec :born))))
+
+(ert-deftest org-chronicle-wikibase-test-live-factgrid-fetch-group ()
+  "Live FactGrid fetch of the Illuminati (Q10677) parses an existence-span start."
+  :tags '(:wikidata-live)
+  (let* ((fg (org-chronicle-sources--get 'factgrid))
+         (rec (org-chronicle-wikibase-live--fetch-or-skip
+               (lambda () (org-chronicle-wikibase--fetch-record fg "Q10677" 'group)))))
+    (should (eq (plist-get rec :kind) 'group))
+    (should (stringp (plist-get rec :label)))
+    (should (plist-get rec :start))))
+
+
+
+
 (provide 'org-chronicle-wikibase-live-tests)
 ;;; org-chronicle-wikibase-live-tests.el ends here
