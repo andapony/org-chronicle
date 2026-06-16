@@ -309,6 +309,80 @@
    *Exit:* the same commands import from FactGrid by configuration alone; a
    heading can carry independent =WIKIDATA= and =FACTGRID= keys.
 
+*** Shipped 2026-06-16
+
+    Phase 3 shipped in full.  Summary of what was delivered:
+
+    - *Source registry.*  =org-chronicle-sources--registry= is a data-driven
+      table keyed by source id.  Each entry is a plist carrying =:label=,
+      =:adapter=, =:base-uri=, =:sparql-endpoint=, =:api-endpoint=,
+      =:key-property=, =:curie=, =:item-url-format=, =:label-language=, and
+      =:property-map=.  The =:adapter 'wikibase= tag is the seam for a future
+      non-Wikibase (DBpedia) adapter.
+
+    - *Module split.*  =org-chronicle-wikidata.el= was split into two files.
+      =org-chronicle-sources.el= is the neutral orchestration layer: the
+      registry, the renamed interactive commands (=org-chronicle-import= and
+      =org-chronicle-reconcile= — the old =org-chronicle-wikidata-*= names are
+      retained as obsolete aliases), the review buffer, IMPORT-KEY idempotency,
+      classify/apply logic, and the kind→property/file dispatch table.
+      =org-chronicle-wikibase.el= is the Wikibase adapter: transport, query
+      builders, rank/precision selection, and record assembly.
+      =org-chronicle-dbpedia.el= is reserved as the Phase 5 slot (file only,
+      no logic yet).
+
+    - *Query templates.*  Templates are byte-identical across instances; only a
+      per-source PREFIX preamble (derived from =:base-uri=) and the P-numbers
+      (from =:property-map=) vary.  The =wikibase:= ontology is
+      instance-independent so rank/precision selection is unchanged.
+
+    - *FactGrid registered.*  FactGrid is the second live source.  PIDs were
+      confirmed by a live probe against subjects Q1308 (Weishaupt) and Q10677
+      (Illuminati): birth P77 / death P38; birthplace P82 / deathplace P168;
+      father P141 / mother P142; spouse P84; position P165.  Place/group
+      existence spans and position/marriage start/end qualifiers all use P49
+      "Begin date" / P50 "End date".  Endpoint
+      =https://database.factgrid.de/sparql=; item URL =…/wiki/Item:%s=.
+
+    - *Per-source key accretion.*  =import= prompts for a source, looks up that
+      source's =:key-property=, and writes it.  A heading can therefore accrete
+      independent keys (e.g. both =WIKIDATA= and =FACTGRID=) without conflict.
+      =reconcile= prompts among whichever source keys are present on the heading.
+
+    - *CURIE-qualified event keys.*  Position and marriage IMPORT-KEYs embed the
+      source curie (=wd:=, =fg:=) so events from different sources are kept
+      separate.  Birth/death keys remain keyed on the chronicle subject's org-id
+      so a birth known to both sources *merges* to one heading.
+
+    - *FactGrid live test suite.*  A =make test-live= suite was added: search,
+      person fetch, and group fetch against the live FactGrid endpoint.  The full
+      live suite is 11/11 passing.
+
+*** Deviations and deferrals
+
+    Three design compromises were made deliberately; they are recorded here so
+    the rationale is not lost.
+
+    1. *Layering.*  The source-agnostic value selector (=--select-candidate=) and
+       the registry accessor helpers (=--get=, =--pid=, =--span-pids=) physically
+       live in =org-chronicle-wikibase.el= and are reached from the neutral layer
+       via =org-chronicle-wikibase--= calls.  A truly clean design wants a
+       shared foundation layer below both adapter and orchestration.  Extracting
+       one is deferred to Phase 5, when a second (DBpedia) adapter actually needs
+       the shared selector and registry utilities.
+
+    2. *German label fallback deferred.*  FactGrid's =:label-language= is =("en")=
+       for now — English coverage is sufficient for the immediate target corpus.
+       A proper "prefer en, else de" fallback (via the =wikibase:label= SERVICE
+       language list or a COALESCE; a naive multi-language FILTER would duplicate
+       GROUP BY rows) is future work.
+
+    3. *Cross-source event identity for position/marriage deferred to Phase 5.*
+       Because position and marriage IMPORT-KEYs are curie-qualified, the same
+       marriage or position known to both Wikidata and FactGrid will *not* merge
+       across sources — birth and death do merge.  Resolving this is conflict-
+       as-signal territory that Phase 5 owns.
+
 ** Phase 4 — Set/category bulk import  [L]
    :PROPERTIES:
    :CUSTOM_ID: phase-4
@@ -396,7 +470,7 @@
   | Source | Role | Lands in phase |
   |--------+------+----------------|
   | Wikidata | canonical live feed (already shipped) | 0–1 (harden), 4 (bulk) |
-  | FactGrid | own research, minor figures; same Wikibase model | 3 |
+  | FactGrid | own research, minor figures; same Wikibase model | 3 (shipped 2026-06-16) |
   | DBpedia / YAGO | cross-check, gap-fill | 5 |
   | EventKG | dense events for a bounded period (dumps) | 4 |
   | Getty TGN | historical place names → =ALIASES= | 2 |
