@@ -228,7 +228,7 @@ written idempotently to the events file."
                        (plist-get change :property)
                        (plist-get change :value)
                        (if alts
-                           (format "  (Wikidata also lists: %s)"
+                           (format "  (source also lists: %s)"
                                    (mapconcat #'identity alts "; "))
                          ""))))
     ('event (let ((ev (plist-get change :event)))
@@ -520,16 +520,6 @@ When several source keys are present, prompt for which to reconcile."
   "Signal a `user-error' unless KIND is supported."
   (unless (assq kind org-chronicle-sources--kind-profiles)
     (user-error "Cannot import for kind `%s' (supported: person, place, group)" kind)))
-
-
-
-
-
-
-
-
-
-
 
 (provide 'org-chronicle-sources)
 ;;; org-chronicle-sources.el ends here

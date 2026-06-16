@@ -151,9 +151,9 @@ Each candidate is (:qid :label :description)."
             (alist-get 'search data))))
 
 (defun org-chronicle-wikibase--label-filter (source var)
-  "Return a SPARQL FILTER restricting VAR to SOURCE's label languages.
-SOURCE's :label-language is a list; in Phase 3 each source uses a single
-language, so this restricts VAR to that language."
+  "Return a SPARQL FILTER restricting VAR to any of SOURCE's label languages.
+SOURCE's :label-language is a list; each language produces a LANG(VAR)
+clause, and the clauses are joined by || so VAR may match any of them."
   (concat "FILTER("
           (mapconcat (lambda (l) (format "LANG(%s)=\"%s\"" var l))
                      (plist-get source :label-language) "||")

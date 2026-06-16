@@ -607,9 +607,5 @@
     (should (equal (org-chronicle-sources--span-pids s 'group)
                    (cons "P49" "P50")))))
 
-
-
-
-
 (provide 'org-chronicle-sources-tests)
 ;;; org-chronicle-sources-tests.el ends here
