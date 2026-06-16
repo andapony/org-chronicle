@@ -22,4 +22,4 @@ test-live:
 	$(BATCH) -l tests/org-chronicle-wikibase-live-tests.el -f ert-run-tests-batch-and-exit
 
 package-lint:
-	$(BATCH) --eval "(progn (require 'package) (add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t) (package-initialize) (unless (package-installed-p 'package-lint) (package-refresh-contents) (package-install 'package-lint)))" -f package-lint-batch-and-exit org-chronicle.el org-chronicle-wikibase.el org-chronicle-sources.el
+	$(BATCH) --eval "(progn (require 'package) (add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t) (package-initialize) (unless (package-installed-p 'package-lint) (package-refresh-contents) (package-install 'package-lint)) (require 'package-lint) (setq package-lint-main-file \"org-chronicle.el\"))" -f package-lint-batch-and-exit org-chronicle.el org-chronicle-wikibase.el org-chronicle-sources.el

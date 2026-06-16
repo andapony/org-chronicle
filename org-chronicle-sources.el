@@ -3,7 +3,6 @@
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; Author: org-chronicle contributors
-;; Package-Requires: ((emacs "27.1") (org "9.4"))
 
 ;;; Commentary:
 

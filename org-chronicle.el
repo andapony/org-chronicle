@@ -5,7 +5,7 @@
 ;; Author: Rob Duncan
 ;; URL: https://github.com/andapony/org-chronicle
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "27.1") (org "9.4"))
+;; Package-Requires: ((emacs "27.2") (org "9.4"))
 ;; Keywords: outlines, calendar
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -691,14 +691,14 @@ DATE-END, LOCATION, and SOURCES are optional strings."
      (format ":SOURCES:  %s\n" sources))
    ":END:\n"))
 
-(defun org-chronicle--collect-names (event-key entity-kinds)
+(defun org-chronicle--collect-names (event-name-key entity-kinds)
   "Return a sorted, de-duplicated list of names for completion.
-Gathers the EVENT-KEY value of every event (a string, or a list of
+Gathers the EVENT-NAME-KEY value of every event (a string, or a list of
 strings) and the name plus aliases of every entity whose `:kind' is in
 ENTITY-KINDS."
   (let ((names (make-hash-table :test #'equal)))
     (dolist (e (ignore-errors (org-chronicle--all-events)))
-      (let ((v (plist-get e event-key)))
+      (let ((v (plist-get e event-name-key)))
         (cond ((listp v) (dolist (x v) (when x (puthash x t names))))
               (v (puthash v t names)))))
     (dolist (e (ignore-errors (org-chronicle--all-entities)))
