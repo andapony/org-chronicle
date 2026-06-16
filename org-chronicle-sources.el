@@ -352,7 +352,9 @@ PARENTS or SPOUSE property value, or on a non-entity heading, create a new
 entity in the kind's file and enrich it.  In all cases, resolve the source
 item, review the proposed edits, and write the approved set."
   (interactive)
-  (let* ((promote (org-chronicle-sources--label-at-point))
+  ;; TRANSITIONAL: source is prompted for in the next task.
+  (let* ((source (org-chronicle-sources--get 'wikidata))
+         (promote (org-chronicle-sources--label-at-point))
          (heading-kind (unless promote
                          (save-excursion (org-back-to-heading t) (org-entry-get nil "KIND"))))
          (kind (cond (promote 'person)
@@ -363,12 +365,12 @@ item, review the proposed edits, and write the approved set."
                    (save-excursion (org-back-to-heading t) (org-get-heading t t t t))))
          (stored (and heading-kind
                       (save-excursion (org-back-to-heading t) (org-entry-get nil "WIKIDATA")))))
-    (org-chronicle-wikibase--check-kind kind)
-    (let* ((qid (or stored (org-chronicle-wikibase--resolve seed)))
+    (org-chronicle-sources--check-kind kind)
+    (let* ((qid (or stored (org-chronicle-wikibase--resolve source seed)))
            (marker (if heading-kind
                        (save-excursion (org-back-to-heading t) (point-marker))
                      (org-chronicle-wikibase--create-entity seed kind)))
-           (rec (org-chronicle-wikibase--fetch-record qid kind))
+           (rec (org-chronicle-wikibase--fetch-record source qid kind))
            (changes (org-chronicle-wikibase--record->changes rec seed)))
       (when (seq-empty-p changes)
         (user-error "Nothing to import for %s (%s)" seed qid))
@@ -395,16 +397,18 @@ item, review the proposed edits, and write the approved set."
 Drift is shown as opt-in pulls; nothing is overwritten without selection."
   (interactive)
   (org-back-to-heading t)
-  (let ((qid (org-entry-get nil "WIKIDATA")))
+  ;; TRANSITIONAL: source is prompted for in the next task.
+  (let ((source (org-chronicle-sources--get 'wikidata))
+        (qid (org-entry-get nil "WIKIDATA")))
     (unless qid
       (user-error "No WIKIDATA property here; run org-chronicle-import first"))
     (let* ((name (org-get-heading t t t t))
            (kind (let ((k (org-entry-get nil "KIND"))) (if k (intern k) 'person))))
-      (org-chronicle-wikibase--check-kind kind)
+      (org-chronicle-sources--check-kind kind)
       (let* ((marker (point-marker))
              (subject-orgid (org-with-point-at marker (org-id-get-create)))
              (index (org-chronicle-sources--events-index))
-             (rec (org-chronicle-wikibase--fetch-record qid kind))
+             (rec (org-chronicle-wikibase--fetch-record source qid kind))
              (changes (org-chronicle-sources--classify-changes
                        (org-chronicle-wikibase--record->changes rec name)
                        marker subject-orgid qid index))
@@ -427,6 +431,8 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
      :label "Wikidata"
      :adapter wikibase
      :base-uri "http://www.wikidata.org"
+     :sparql-endpoint "https://query.wikidata.org/sparql"
+     :api-endpoint "https://www.wikidata.org/w/api.php"
      :key-property "WIKIDATA"
      :curie "wd:"
      :item-url-format "https://www.wikidata.org/wiki/%s"
@@ -461,6 +467,30 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
   "Return (START-PID . END-PID) for KIND from SOURCE's property map."
   (let ((cell (assq kind (plist-get (plist-get source :property-map) :span))))
     (cons (cadr cell) (cddr cell))))
+
+(defconst org-chronicle-sources--kind-profiles
+  '((person :start-prop "BORN"    :end-prop "DIED")
+    (place  :start-prop "BUILT"   :end-prop "RAZED")
+    (group  :start-prop "FOUNDED" :end-prop "DISBANDED"))
+  "Per-kind chronicle span property names (source-independent).")
+
+(defun org-chronicle-sources--kind-span-props (kind)
+  "Return (START-PROP . END-PROP) chronicle property names for KIND."
+  (let ((p (alist-get kind org-chronicle-sources--kind-profiles)))
+    (cons (plist-get p :start-prop) (plist-get p :end-prop))))
+
+(defun org-chronicle-sources--kind-file (kind)
+  "Return the file new KIND entities are written to."
+  (if (eq kind 'place) (org-chronicle--places-file) (org-chronicle--people-file)))
+
+(defun org-chronicle-sources--check-kind (kind)
+  "Signal a `user-error' unless KIND is supported."
+  (unless (assq kind org-chronicle-sources--kind-profiles)
+    (user-error "Cannot import for kind `%s' (supported: person, place, group)" kind)))
+
+
+
+
 
 
 

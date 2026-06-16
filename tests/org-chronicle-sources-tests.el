@@ -286,8 +286,8 @@
           (cl-letf (((symbol-function 'org-chronicle-wikibase--resolve)
                      (lambda (&rest _) "Q7259"))
                     ((symbol-function 'org-chronicle-wikibase--fetch-record)
-                     (lambda (_qid _kind)
-                       (list :qid "Q7259" :kind 'person
+                     (lambda (source _qid _kind)
+                       (list :source source :qid "Q7259" :kind 'person
                              :born (org-chronicle--date-parse "1815-12-10")
                              :birthplace "London")))
                     ((symbol-function 'org-chronicle-sources--review)
@@ -317,8 +317,8 @@
                     ((symbol-function 'org-chronicle-wikibase--resolve)
                      (lambda (&rest _) "Q46633"))
                     ((symbol-function 'org-chronicle-wikibase--fetch-record)
-                     (lambda (_qid _kind)
-                       (list :qid "Q46633" :kind 'person
+                     (lambda (source _qid _kind)
+                       (list :source source :qid "Q46633" :kind 'person
                              :born (org-chronicle--date-parse "1791-12-26"))))
                     ((symbol-function 'org-chronicle-sources--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
@@ -346,12 +346,12 @@
           (search-forward ":SPOUSE:")
           (beginning-of-line)
           (cl-letf (((symbol-function 'org-chronicle-wikibase--resolve)
-                     (lambda (seed)
+                     (lambda (_source seed)
                        (should (string-match-p "William" seed))
                        "Q123"))
                     ((symbol-function 'org-chronicle-wikibase--fetch-record)
-                     (lambda (_qid _kind)
-                       (list :qid "Q123" :kind 'person
+                     (lambda (source _qid _kind)
+                       (list :source source :qid "Q123" :kind 'person
                              :born (org-chronicle--date-parse "1805"))))
                     ((symbol-function 'org-chronicle-sources--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
@@ -374,8 +374,8 @@
         (cl-letf (((symbol-function 'org-chronicle-wikibase--resolve)
                    (lambda (&rest _) "Q7259"))
                   ((symbol-function 'org-chronicle-wikibase--fetch-record)
-                   (lambda (_qid _kind)
-                     (list :qid "Q7259" :kind 'person
+                   (lambda (source _qid _kind)
+                     (list :source source :qid "Q7259" :kind 'person
                            :born (org-chronicle--date-parse "1815-12-10")
                            :birthplace "London")))
                   ((symbol-function 'org-chronicle-sources--review)
@@ -410,8 +410,8 @@
                   ((symbol-function 'completing-read) (lambda (&rest _) "place"))
                   ((symbol-function 'org-chronicle-wikibase--resolve) (lambda (&rest _) "Q3505806"))
                   ((symbol-function 'org-chronicle-wikibase--fetch-record)
-                   (lambda (_qid _kind)
-                     (list :qid "Q3505806" :kind 'place :label "Sutro Baths"
+                   (lambda (source _qid _kind)
+                     (list :source source :qid "Q3505806" :kind 'place :label "Sutro Baths"
                            :start (org-chronicle--date-parse "1896") :end nil)))
                   ((symbol-function 'org-chronicle-sources--review)
                    (lambda (changes on-confirm) (funcall on-confirm changes))))
@@ -443,8 +443,8 @@
           (with-temp-file org-chronicle-sources-events-file
             (insert "* Birth of Ada Lovelace\n:PROPERTIES:\n:IMPORT-KEY: birth:ADA-ID\n:LIFE-EVENT: birth\n:DATE: <1800-01-01>\n:END:\n"))
           (cl-letf (((symbol-function 'org-chronicle-wikibase--fetch-record)
-                     (lambda (_qid _kind)
-                       (list :qid "Q7259" :kind 'person
+                     (lambda (source _qid _kind)
+                       (list :source source :qid "Q7259" :kind 'person
                              :born (org-chronicle--date-parse "1815-12-10")
                              :died (org-chronicle--date-parse "1852-11-27"))))
                     ((symbol-function 'org-chronicle-sources--review)
@@ -477,7 +477,8 @@
     (should-error (org-chronicle-reconcile) :type 'user-error)))
 
 (ert-deftest org-chronicle-sources-test-alternates-surface ()
-  (let* ((rec (list :qid "Q935" :label "Isaac Newton"
+  (let* ((rec (list :source (org-chronicle-sources--get 'wikidata)
+                    :qid "Q935" :label "Isaac Newton"
                     :born (org-chronicle--date-parse "1643-01-04")
                     :born-alternates '("1642")))
          (changes (org-chronicle-wikibase--record->changes rec "Isaac Newton"))
@@ -503,6 +504,15 @@
 (ert-deftest org-chronicle-sources-test-default-source ()
   "The default source is a registered id."
   (should (org-chronicle-sources--get org-chronicle-default-source)))
+
+(ert-deftest org-chronicle-sources-test-kind-profile ()
+  "Kind span-prop names and kind support are source-independent."
+  (should (equal (org-chronicle-sources--kind-span-props 'person) '("BORN" . "DIED")))
+  (should (equal (org-chronicle-sources--kind-span-props 'group) '("FOUNDED" . "DISBANDED")))
+  (should (equal (org-chronicle-sources--kind-span-props 'place) '("BUILT" . "RAZED")))
+  (should-error (org-chronicle-sources--check-kind 'topic) :type 'user-error)
+  (should-not (org-chronicle-sources--check-kind 'person)))
+
 
 
 

@@ -27,10 +27,11 @@
 
 (declare-function org-chronicle-sources--get "org-chronicle-sources" (id))
 
+(declare-function org-chronicle-sources--kind-span-props "org-chronicle-sources" (kind))
+
+(declare-function org-chronicle-sources--kind-file "org-chronicle-sources" (kind))
+
 (declare-function org-chronicle-sources--span-pids "org-chronicle-sources" (source kind))
-
-
-
 
 (defgroup org-chronicle-wikibase nil
   "Wikidata integration for org-chronicle."
@@ -94,18 +95,6 @@ VAR is a string variable name."
    (org-chronicle-wikibase--cell row val-var)
    (org-chronicle-wikibase--cell-int row prec-var)))
 
-(defcustom org-chronicle-wikibase-sparql-endpoint
-  "https://query.wikidata.org/sparql"
-  "SPARQL endpoint for the Wikidata Query Service."
-  :type 'string
-  :group 'org-chronicle-wikibase)
-
-(defcustom org-chronicle-wikibase-api-endpoint
-  "https://www.wikidata.org/w/api.php"
-  "Wikidata REST API endpoint."
-  :type 'string
-  :group 'org-chronicle-wikibase)
-
 (defcustom org-chronicle-wikibase-timeout 20
   "Seconds to wait for a Wikidata HTTP response before failing."
   :type 'integer
@@ -140,17 +129,17 @@ Signal `org-chronicle-wikibase-rate-limited' on HTTP 429 and
                                 'utf-8))
       (kill-buffer buf))))
 
-(defun org-chronicle-wikibase--sparql-request (query)
-  "Run SPARQL QUERY against the endpoint; return parsed binding rows."
+(defun org-chronicle-wikibase--sparql-request (source query)
+  "Run SPARQL QUERY against SOURCE's endpoint; return parsed binding rows."
   (org-chronicle-wikibase--bindings
    (org-chronicle-wikibase--http-get
-    (concat org-chronicle-wikibase-sparql-endpoint
+    (concat (plist-get source :sparql-endpoint)
             "?format=json&query=" (url-hexify-string query)))))
 
-(defun org-chronicle-wikibase--search-request (term)
-  "Search Wikidata for TERM; return a list of candidate plists.
+(defun org-chronicle-wikibase--search-request (source term)
+  "Search SOURCE for TERM; return a list of candidate plists.
 Each candidate is (:qid :label :description)."
-  (let* ((url (concat org-chronicle-wikibase-api-endpoint
+  (let* ((url (concat (plist-get source :api-endpoint)
                       "?action=wbsearchentities&format=json&language=en"
                       "&type=item&limit=10&search=" (url-hexify-string term)))
          (data (json-parse-string (org-chronicle-wikibase--http-get url)
@@ -250,31 +239,6 @@ OPTIONAL { ?st pqv:%s ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?
              :rank (org-chronicle-wikibase--rank-symbol
                     (org-chronicle-wikibase--cell row "rank")))))
    rows))
-
-(defconst org-chronicle-wikibase--kind-profiles
-  '((person :start-pid "P569" :end-pid "P570" :start-prop "BORN" :end-prop "DIED")
-    (place  :start-pid "P571" :end-pid "P576" :start-prop "BUILT" :end-prop "RAZED")
-    (group  :start-pid "P571" :end-pid "P576" :start-prop "FOUNDED" :end-prop "DISBANDED"))
-  "Per-KIND Wikidata span PIDs and chronicle span property names.")
-
-(defun org-chronicle-wikibase--kind-span-pids (kind)
-  "Return (START-PID . END-PID) Wikidata property ids for KIND."
-  (let ((p (alist-get kind org-chronicle-wikibase--kind-profiles)))
-    (cons (plist-get p :start-pid) (plist-get p :end-pid))))
-
-(defun org-chronicle-wikibase--kind-span-props (kind)
-  "Return (START-PROP . END-PROP) chronicle property names for KIND."
-  (let ((p (alist-get kind org-chronicle-wikibase--kind-profiles)))
-    (cons (plist-get p :start-prop) (plist-get p :end-prop))))
-
-(defun org-chronicle-wikibase--kind-file (kind)
-  "Return the file new KIND entities are written to."
-  (if (eq kind 'place) (org-chronicle--places-file) (org-chronicle--people-file)))
-
-(defun org-chronicle-wikibase--check-kind (kind)
-  "Signal a `user-error' unless KIND is a supported import kind."
-  (unless (assq kind org-chronicle-wikibase--kind-profiles)
-    (user-error "Cannot import Wikidata for kind `%s' (supported: person, place, group)" kind)))
 
 (defun org-chronicle-wikibase--ordinal (n)
   "Return N as an English ordinal string, e.g. 17 -> \"17th\"."
@@ -376,7 +340,7 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
 
 (defun org-chronicle-wikibase--create-entity (name kind)
   "Create a minimal KIND entity NAME in the kind's file; return a marker."
-  (with-current-buffer (find-file-noselect (org-chronicle-wikibase--kind-file kind))
+  (with-current-buffer (find-file-noselect (org-chronicle-sources--kind-file kind))
     (goto-char (point-max))
     (unless (bolp) (insert "\n"))
     (insert (org-chronicle--entity-string :name name :kind kind))
@@ -386,44 +350,50 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
     (save-buffer)
     (point-marker)))
 
-(defun org-chronicle-wikibase--fetch-record (qid kind)
-  "Fetch QID from Wikidata as a KIND record (person, place, or group)."
-  ;; TRANSITIONAL: source threaded as a parameter in the next task.
-  (let* ((source (org-chronicle-sources--get 'wikidata))
-         (pids (org-chronicle-sources--span-pids source kind))
+(defun org-chronicle-wikibase--fetch-record (source qid kind)
+  "Fetch QID from SOURCE as a KIND record (person, place, or group)."
+  (let* ((pids (org-chronicle-sources--span-pids source kind))
          (vitals (org-chronicle-wikibase--sparql-request
-                  (org-chronicle-wikibase--vitals-query source qid)))
+                  source (org-chronicle-wikibase--vitals-query source qid)))
          (span (org-chronicle-wikibase--sparql-request
-                (org-chronicle-wikibase--span-query source qid (car pids) (cdr pids)))))
+                source (org-chronicle-wikibase--span-query
+                        source qid (car pids) (cdr pids)))))
     (if (eq kind 'person)
         (org-chronicle-wikibase--rows->record
-         qid vitals span
-         (org-chronicle-wikibase--sparql-request (org-chronicle-wikibase--spouses-query source qid))
-         (org-chronicle-wikibase--sparql-request (org-chronicle-wikibase--events-query source qid)))
+         source qid vitals span
+         (org-chronicle-wikibase--sparql-request
+          source (org-chronicle-wikibase--spouses-query source qid))
+         (org-chronicle-wikibase--sparql-request
+          source (org-chronicle-wikibase--events-query source qid)))
       (let* ((v (car vitals))
              (alias-str (and v (org-chronicle-wikibase--cell v "aliases")))
              (sp (org-chronicle-wikibase--span-select span)))
-        (list :qid qid :kind kind
+        (list :source source :qid qid :kind kind
               :label (and v (org-chronicle-wikibase--cell v "label"))
               :aliases (and alias-str (not (string-empty-p alias-str))
-                            (split-string alias-str org-chronicle-wikibase--alias-separator t))
-              :start (plist-get sp :start) :start-alternates (plist-get sp :start-alternates)
-              :end (plist-get sp :end) :end-alternates (plist-get sp :end-alternates))))))
+                            (split-string alias-str
+                                          org-chronicle-wikibase--alias-separator t))
+              :start (plist-get sp :start)
+              :start-alternates (plist-get sp :start-alternates)
+              :end (plist-get sp :end)
+              :end-alternates (plist-get sp :end-alternates))))))
 
 (defun org-chronicle-wikibase--fetch-person (qid)
   "Fetch QID from Wikidata as a person record."
-  (org-chronicle-wikibase--fetch-record qid 'person))
+  (org-chronicle-wikibase--fetch-record
+   (org-chronicle-sources--get 'wikidata) qid 'person))
 
-(defun org-chronicle-wikibase--rows->record (qid vitals dates spouses events)
+(defun org-chronicle-wikibase--rows->record (source qid vitals dates spouses events)
   "Assemble a person record for QID from parsed binding lists.
 VITALS is the single vitals row list; DATES, SPOUSES, EVENTS are row lists.
-Returns a plist; unrepresentable dates are dropped and competing date
-statements are resolved by rank then precision (see
-`org-chronicle-wikibase--select-candidate')."
+SOURCE is the source plist the record is tagged with.  Returns a plist;
+unrepresentable dates are dropped and competing date statements are resolved
+by rank then precision (see `org-chronicle-wikibase--select-candidate')."
   (let* ((v (car vitals))
          (alias-str (and v (org-chronicle-wikibase--cell v "aliases")))
          (span (org-chronicle-wikibase--span-select dates)))
     (list
+     :source source
      :qid qid
      :kind 'person
      :label (and v (org-chronicle-wikibase--cell v "label"))
@@ -454,9 +424,9 @@ statements are resolved by rank then precision (see
                              :location nil))
                      events))))
 
-(defun org-chronicle-wikibase--url (qid)
-  "Return the canonical Wikidata item URL for QID."
-  (concat "https://www.wikidata.org/wiki/" qid))
+(defun org-chronicle-wikibase--url (source qid)
+  "Return the provenance URL for QID using SOURCE's item-url-format."
+  (format (plist-get source :item-url-format) qid))
 
 (defun org-chronicle-wikibase--entity-change (group property value url &optional alternates)
   "Build an entity change plist for PROPERTY=VALUE in GROUP, sourced to URL.
@@ -470,10 +440,11 @@ Return nil when VALUE is nil or empty."
 (defun org-chronicle-wikibase--entity-record->changes (rec)
   "Build entity change plists for place/group record REC.
 Return span, aliases, and WIKIDATA property changes."
-  (let* ((qid (plist-get rec :qid))
+  (let* ((source (plist-get rec :source))
+         (qid (plist-get rec :qid))
          (kind (plist-get rec :kind))
-         (url (org-chronicle-wikibase--url qid))
-         (props (org-chronicle-wikibase--kind-span-props kind))
+         (url (org-chronicle-wikibase--url source qid))
+         (props (org-chronicle-sources--kind-span-props kind))
          (start (plist-get rec :start))
          (end (plist-get rec :end))
          (aliases (plist-get rec :aliases)))
@@ -498,8 +469,9 @@ Each change targets either an entity property or an event entry.
 See the data contract in the package commentary for field names."
   (if (memq (plist-get rec :kind) '(place group))
       (org-chronicle-wikibase--entity-record->changes rec)
-    (let* ((qid (plist-get rec :qid))
-           (url (org-chronicle-wikibase--url qid))
+    (let* ((source (plist-get rec :source))
+           (qid (plist-get rec :qid))
+           (url (org-chronicle-wikibase--url source qid))
            (born (plist-get rec :born))
            (died (plist-get rec :died))
            (parents (delq nil (list (plist-get rec :father) (plist-get rec :mother))))
@@ -587,14 +559,14 @@ See the data contract in the package commentary for field names."
           (plist-get cand :description)
           (plist-get cand :qid)))
 
-(defun org-chronicle-wikibase--resolve (seed)
-  "Resolve SEED (a name) to a confirmed Wikidata QID.
+(defun org-chronicle-wikibase--resolve (source seed)
+  "Resolve SEED (a name) to a confirmed item id from SOURCE.
 Read a term defaulting to SEED; a pasted QID/URL short-circuits search,
-otherwise present search candidates for selection.  Return the QID string."
+otherwise present search candidates for selection.  Return the id string."
   (let* ((term (read-string "Wikidata search (or paste QID/URL): " seed))
          (pasted (org-chronicle-wikibase--parse-qid term)))
     (or pasted
-        (let* ((cands (org-chronicle-wikibase--search-request term))
+        (let* ((cands (org-chronicle-wikibase--search-request source term))
                (lines (mapcar #'org-chronicle-wikibase--candidate-line cands))
                (table (cl-mapcar #'cons lines cands)))
           (unless cands (user-error "No Wikidata matches for %S" term))

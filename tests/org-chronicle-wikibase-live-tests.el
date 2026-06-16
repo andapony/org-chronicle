@@ -29,7 +29,8 @@ Assertion failures in the caller still fail normally."
   "Live `wbsearchentities' returns Ada Lovelace (Q7259)."
   :tags '(:wikidata-live)
   (let* ((cands (org-chronicle-wikibase-live--fetch-or-skip
-                 (lambda () (org-chronicle-wikibase--search-request "Ada Lovelace"))))
+                 (lambda () (org-chronicle-wikibase--search-request
+                             (org-chronicle-sources--get 'wikidata) "Ada Lovelace"))))
          (hit (cl-find "Q7259" cands
                        :key (lambda (c) (plist-get c :qid)) :test #'equal)))
     (should hit)
@@ -133,7 +134,8 @@ Assertion failures in the caller still fail normally."
   "Live: Sutro Baths (Q3505806) imports as a place with a BUILT span."
   :tags '(:wikidata-live)
   (let ((rec (org-chronicle-wikibase-live--fetch-or-skip
-              (lambda () (org-chronicle-wikibase--fetch-record "Q3505806" 'place)))))
+              (lambda () (org-chronicle-wikibase--fetch-record
+                          (org-chronicle-sources--get 'wikidata) "Q3505806" 'place)))))
     (should (eq (plist-get rec :kind) 'place))
     (should (equal (plist-get (plist-get rec :start) :year) 1896))
     (should (null (plist-get rec :end)))))
@@ -142,7 +144,8 @@ Assertion failures in the caller still fail normally."
   "Live: Pan Am (Q8681) imports as a group with a FOUNDED/DISBANDED span."
   :tags '(:wikidata-live)
   (let* ((rec (org-chronicle-wikibase-live--fetch-or-skip
-               (lambda () (org-chronicle-wikibase--fetch-record "Q8681" 'group))))
+               (lambda () (org-chronicle-wikibase--fetch-record
+                           (org-chronicle-sources--get 'wikidata) "Q8681" 'group))))
          (start (plist-get rec :start)) (end (plist-get rec :end)))
     (should (eq (plist-get rec :kind) 'group))
     (should (equal (plist-get start :year) 1927))

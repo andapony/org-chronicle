@@ -74,7 +74,8 @@
   (cl-letf (((symbol-function 'org-chronicle-wikibase--http-get)
              (lambda (&rest _)
                (org-chronicle-wikibase-test--fixture "search-lovelace.json"))))
-    (let ((cands (org-chronicle-wikibase--search-request "Ada Lovelace")))
+    (let ((cands (org-chronicle-wikibase--search-request
+                  (org-chronicle-sources--get 'wikidata) "Ada Lovelace")))
       (should (equal (plist-get (car cands) :qid) "Q7259"))
       (should (equal (plist-get (car cands) :label) "Ada Lovelace"))
       (should (string-match-p "mathematician"
@@ -83,7 +84,8 @@
 (ert-deftest org-chronicle-wikibase-test-http-error ()
   (cl-letf (((symbol-function 'org-chronicle-wikibase--http-get)
              (lambda (&rest _) (signal 'org-chronicle-wikibase-rate-limited nil))))
-    (should-error (org-chronicle-wikibase--search-request "x")
+    (should-error (org-chronicle-wikibase--search-request
+                   (org-chronicle-sources--get 'wikidata) "x")
                   :type 'org-chronicle-wikibase-rate-limited)))
 
 (ert-deftest org-chronicle-wikibase-test-queries-mention-qid ()
@@ -97,7 +99,7 @@
 
 (ert-deftest org-chronicle-wikibase-test-fetch-person ()
   (cl-letf (((symbol-function 'org-chronicle-wikibase--sparql-request)
-             (lambda (q)
+             (lambda (_source q)
                (org-chronicle-wikibase--bindings
                 (cond ((string-match-p "P569" q)
                        (org-chronicle-wikibase-test--fixture "lovelace-dates.json"))
@@ -121,8 +123,9 @@
 
 (ert-deftest org-chronicle-wikibase-test-record ()
   "Test assembling a person record from parsed Wikidata binding rows."
-  (let* ((rec (org-chronicle-wikibase--rows->record
-               "Q7259"
+  (let* ((wd (org-chronicle-sources--get 'wikidata))
+         (rec (org-chronicle-wikibase--rows->record
+               wd "Q7259"
                (org-chronicle-wikibase--bindings
                 (org-chronicle-wikibase-test--fixture "lovelace-vitals.json"))
                (org-chronicle-wikibase--bindings
@@ -149,7 +152,8 @@
 
 (ert-deftest org-chronicle-wikibase-test-record->changes ()
   "Test that a person record produces the expected set of change plists."
-  (let* ((rec (list :qid "Q7259"
+  (let* ((rec (list :source (org-chronicle-sources--get 'wikidata)
+                    :qid "Q7259"
                     :born (org-chronicle--date-parse "1815-12-10")
                     :died (org-chronicle--date-parse "1852-11-27")
                     :birthplace "London" :deathplace "Marylebone"
@@ -172,6 +176,8 @@
       (should (equal (plist-get (prop "SPOUSE") :value) "William King-Noel"))
       (should (equal (plist-get (prop "ALIASES") :value) "Augusta Ada King"))
       (should (equal (plist-get (prop "WIKIDATA") :value) "Q7259"))
+      (should (equal (plist-get (prop "BORN") :provenance)
+                     "https://www.wikidata.org/wiki/Q7259"))
       (should (plist-get (prop "BORN") :default)))
     (let ((events (cl-remove-if-not (lambda (c) (eq (plist-get c :target) 'event)) changes)))
       (should (= (length events) 4))
@@ -189,25 +195,28 @@
 
 (ert-deftest org-chronicle-wikibase-test-resolve-paste ()
   "Test that pasting a QID short-circuits search."
-  (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Q42"))
-            ((symbol-function 'org-chronicle-wikibase--search-request)
-             (lambda (&rest _) (error "should not search"))))
-    (should (equal (org-chronicle-wikibase--resolve "anything") "Q42"))))
+  (let ((wd (org-chronicle-sources--get 'wikidata)))
+    (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Q42"))
+              ((symbol-function 'org-chronicle-wikibase--search-request)
+               (lambda (&rest _) (error "should not search"))))
+      (should (equal (org-chronicle-wikibase--resolve wd "anything") "Q42")))))
 
 (ert-deftest org-chronicle-wikibase-test-resolve-pick ()
   "Test that a name term searches and presents candidates for selection."
-  (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Ada Lovelace"))
-            ((symbol-function 'org-chronicle-wikibase--search-request)
-             (lambda (&rest _)
-               (list (list :qid "Q7259" :label "Ada Lovelace"
-                           :description "mathematician"))))
-            ((symbol-function 'completing-read)
-             (lambda (_prompt collection &rest _)
-               (car (if (functionp collection) (funcall collection "" nil t) collection)))))
-    (should (equal (org-chronicle-wikibase--resolve "Ada Lovelace") "Q7259"))))
+  (let ((wd (org-chronicle-sources--get 'wikidata)))
+    (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Ada Lovelace"))
+              ((symbol-function 'org-chronicle-wikibase--search-request)
+               (lambda (_source _term)
+                 (list (list :qid "Q7259" :label "Ada Lovelace"
+                             :description "mathematician"))))
+              ((symbol-function 'completing-read)
+               (lambda (_prompt collection &rest _)
+                 (car (if (functionp collection) (funcall collection "" nil t) collection)))))
+      (should (equal (org-chronicle-wikibase--resolve wd "Ada Lovelace") "Q7259")))))
 
 (ert-deftest org-chronicle-wikibase-test-record-object-qids ()
   (let ((rec (org-chronicle-wikibase--rows->record
+              (org-chronicle-sources--get 'wikidata)
               "Q7259"
               (org-chronicle-wikibase--bindings
                (org-chronicle-wikibase-test--fixture "lovelace-vitals.json"))
@@ -228,7 +237,8 @@
                             (org-chronicle-wikibase--events-query wd "Q7259")))))
 
 (ert-deftest org-chronicle-wikibase-test-changes-object-qid ()
-  (let* ((rec (list :qid "Q7259"
+  (let* ((rec (list :source (org-chronicle-sources--get 'wikidata)
+                    :qid "Q7259"
                     :spouses (list (list :name "William King-Noel" :qid "Q336789"
                                          :date (org-chronicle--date-parse "1835-07-08")))
                     :events (list (list :kind "position" :title "Countess of Lovelace"
@@ -245,10 +255,11 @@
       (should (equal (plist-get (plist-get marriage :event) :object-qid) "Q336789"))
       (should (equal (plist-get (plist-get pos :event) :object-qid) "Q18810745")))))
 
-(ert-deftest org-chronicle-wikibase-test-kind-profile ()
-  (should (equal (org-chronicle-wikibase--kind-span-pids 'place) '("P571" . "P576")))
-  (should (equal (org-chronicle-wikibase--kind-span-props 'group) '("FOUNDED" . "DISBANDED")))
-  (should (equal (org-chronicle-wikibase--kind-span-props 'person) '("BORN" . "DIED"))))
+(ert-deftest org-chronicle-wikibase-test-url-by-source ()
+  "Provenance URL uses the source's item-url-format."
+  (let ((wd (org-chronicle-sources--get 'wikidata)))
+    (should (equal (org-chronicle-wikibase--url wd "Q42")
+                   "https://www.wikidata.org/wiki/Q42"))))
 
 (ert-deftest org-chronicle-wikibase-test-span-query ()
   (let* ((wd (org-chronicle-sources--get 'wikidata))
@@ -319,7 +330,8 @@
 
 (ert-deftest org-chronicle-wikibase-test-place-changes ()
   "Place record produces BUILT/ALIASES/WIKIDATA but not RAZED or BORN."
-  (let* ((rec (list :qid "Q3505806" :kind 'place :label "Sutro Baths"
+  (let* ((rec (list :source (org-chronicle-sources--get 'wikidata)
+                    :qid "Q3505806" :kind 'place :label "Sutro Baths"
                     :aliases '("Sutro")
                     :start (org-chronicle--date-parse "1896")
                     :start-alternates '("1894") :end nil))
@@ -333,21 +345,24 @@
     (should-not (member "BORN" props))
     (should (cl-every (lambda (c) (eq (plist-get c :target) 'entity)) changes))
     (let ((built (cl-find "BUILT" changes :key (lambda (c) (plist-get c :property)) :test #'equal)))
-      (should (equal (plist-get built :alternates) '("1894"))))))
+      (should (equal (plist-get built :alternates) '("1894")))
+      (should (equal (plist-get built :provenance) "https://www.wikidata.org/wiki/Q3505806")))))
 
 (ert-deftest org-chronicle-wikibase-test-fetch-record-place ()
   "Fetch-record for a place returns kind=place with label and start from SPARQL."
-  (cl-letf (((symbol-function 'org-chronicle-wikibase--sparql-request)
-             (lambda (q)
-               (org-chronicle-wikibase--bindings
-                (if (string-match-p "P571" q)
-                    "{\"results\":{\"bindings\":[{\"prop\":{\"value\":\"start\"},\"value\":{\"value\":\"1896-01-01T00:00:00Z\"},\"prec\":{\"value\":\"9\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#NormalRank\"}}]}}"
-                  "{\"results\":{\"bindings\":[{\"label\":{\"value\":\"Sutro Baths\"}}]}}")))))
-    (let ((rec (org-chronicle-wikibase--fetch-record "Q3505806" 'place)))
-      (should (eq (plist-get rec :kind) 'place))
-      (should (equal (plist-get rec :label) "Sutro Baths"))
-      (should (equal (plist-get (plist-get rec :start) :year) 1896))
-      (should (null (plist-get rec :end))))))
+  (let ((wd (org-chronicle-sources--get 'wikidata)))
+    (cl-letf (((symbol-function 'org-chronicle-wikibase--sparql-request)
+               (lambda (_source q)
+                 (org-chronicle-wikibase--bindings
+                  (if (string-match-p "P571" q)
+                      "{\"results\":{\"bindings\":[{\"prop\":{\"value\":\"start\"},\"value\":{\"value\":\"1896-01-01T00:00:00Z\"},\"prec\":{\"value\":\"9\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#NormalRank\"}}]}}"
+                    "{\"results\":{\"bindings\":[{\"label\":{\"value\":\"Sutro Baths\"}}]}}")))))
+      (let ((rec (org-chronicle-wikibase--fetch-record wd "Q3505806" 'place)))
+        (should (eq (plist-get rec :kind) 'place))
+        (should (eq (plist-get rec :source) wd))
+        (should (equal (plist-get rec :label) "Sutro Baths"))
+        (should (equal (plist-get (plist-get rec :start) :year) 1896))
+        (should (null (plist-get rec :end)))))))
 
 (ert-deftest org-chronicle-wikibase-test-prefix-preamble ()
   "The preamble binds Wikibase prefixes to the source base URI."
