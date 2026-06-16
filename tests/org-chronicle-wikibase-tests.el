@@ -343,5 +343,19 @@
       (should (equal (plist-get (plist-get rec :start) :year) 1896))
       (should (null (plist-get rec :end))))))
 
+(ert-deftest org-chronicle-wikibase-test-prefix-preamble ()
+  "The preamble binds Wikibase prefixes to the source base URI."
+  (let ((p (org-chronicle-wikibase--prefixes "https://database.factgrid.de")))
+    (should (string-match-p
+             "PREFIX wd: <https://database.factgrid.de/entity/>" p))
+    (should (string-match-p
+             "PREFIX wdt: <https://database.factgrid.de/prop/direct/>" p))
+    (should (string-match-p
+             "PREFIX psv: <https://database.factgrid.de/prop/statement/value/>" p))
+    (should (string-match-p
+             "PREFIX pqv: <https://database.factgrid.de/prop/qualifier/value/>" p))
+    (should (string-match-p "PREFIX wikibase: <http://wikiba.se/ontology#>" p))))
+
+
 (provide 'org-chronicle-wikibase-tests)
 ;;; org-chronicle-wikibase-tests.el ends here

@@ -297,6 +297,24 @@ UNION \
 wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"end\" AS ?prop) } }"
           qid start-pid start-pid qid end-pid end-pid))
 
+(defun org-chronicle-wikibase--prefixes (base-uri)
+  "Return a SPARQL PREFIX preamble binding Wikibase prefixes to BASE-URI.
+Instance-specific prefixes (wd:, wdt:, p:, ps:, psv:, pq:, pqv:) derive from
+BASE-URI; wikibase:/rdfs:/skos:/bd: are instance-independent."
+  (concat
+   (format "PREFIX wd: <%s/entity/> " base-uri)
+   (format "PREFIX wdt: <%s/prop/direct/> " base-uri)
+   (format "PREFIX p: <%s/prop/> " base-uri)
+   (format "PREFIX ps: <%s/prop/statement/> " base-uri)
+   (format "PREFIX psv: <%s/prop/statement/value/> " base-uri)
+   (format "PREFIX pq: <%s/prop/qualifier/> " base-uri)
+   (format "PREFIX pqv: <%s/prop/qualifier/value/> " base-uri)
+   "PREFIX wikibase: <http://wikiba.se/ontology#> "
+   "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> "
+   "PREFIX skos: <http://www.w3.org/2004/02/skos/core#> "
+   "PREFIX bd: <http://www.bigdata.com/rdf#> "))
+
+
 (defun org-chronicle-wikibase--span-select (rows)
   "Select start and end dates from span-query ROWS (parsed bindings).
 Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
