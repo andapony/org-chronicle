@@ -505,6 +505,96 @@ directories are created.  The temp dir is removed afterward."
       (org-chronicle--turn-on-entity-links)
       (should-not org-chronicle-entity-links-mode))))
 
+(ert-deftest org-chronicle-test-history-record ()
+  "Recording follows builds a trail; a new follow truncates forward history."
+  (let ((org-chronicle--history nil)
+        (org-chronicle--history-position -1)
+        (a (list :file "a" :pos 1))
+        (b (list :file "b" :pos 1))
+        (c (list :file "c" :pos 1)))
+    (org-chronicle--history-record a b)
+    (should (equal org-chronicle--history (list a b)))
+    (should (= org-chronicle--history-position 1))
+    (org-chronicle--history-record b c)
+    (should (equal org-chronicle--history (list a b c)))
+    (should (= org-chronicle--history-position 2))
+    (should (equal (org-chronicle--history-go -1) b))
+    (should (= org-chronicle--history-position 1))
+    ;; New follow from b truncates the forward entry (c) before appending.
+    (org-chronicle--history-record b a)
+    (should (equal org-chronicle--history (list a b a)))
+    (should (= org-chronicle--history-position 2))))
+
+(ert-deftest org-chronicle-test-history-go-bounds ()
+  "Moving past either end of the history signals a `user-error'."
+  (let ((org-chronicle--history (list (list :file "a" :pos 1) (list :file "b" :pos 1)))
+        (org-chronicle--history-position 0))
+    (should (equal (org-chronicle--history-go 1) (list :file "b" :pos 1)))
+    (should-error (org-chronicle--history-go 1) :type 'user-error)
+    (should (equal (org-chronicle--history-go -1) (list :file "a" :pos 1)))
+    (should-error (org-chronicle--history-go -1) :type 'user-error)))
+
+(ert-deftest org-chronicle-test-history-back-forward-visits ()
+  "Back and forward switch to the recorded buffer and point."
+  (let ((org-chronicle--history nil)
+        (org-chronicle--history-position -1)
+        (bufA (generate-new-buffer "tA"))
+        (bufB (generate-new-buffer "tB"))
+        locA locB)
+    (with-current-buffer bufA (insert "hello world") (goto-char 3)
+                         (setq locA (org-chronicle--history-location)))
+    (with-current-buffer bufB (insert "another buf") (goto-char 5)
+                         (setq locB (org-chronicle--history-location)))
+    (org-chronicle--history-record locA locB)
+    (org-chronicle-history-back)
+    (should (eq (current-buffer) bufA))
+    (should (= (point) 3))
+    (org-chronicle-history-forward)
+    (should (eq (current-buffer) bufB))
+    (should (= (point) 5))
+    (kill-buffer bufA)
+    (kill-buffer bufB)))
+
+(ert-deftest org-chronicle-test-visit-entity-records-history ()
+  "Following an entity button records origin and target in the history."
+  (let ((org-chronicle--history nil)
+        (org-chronicle--history-position -1)
+        (target-buf (generate-new-buffer "target")))
+    (with-current-buffer target-buf (insert "entity heading") (goto-char 1))
+    (cl-letf (((symbol-function 'org-id-goto)
+               (lambda (_id) (switch-to-buffer target-buf) (goto-char 4))))
+      (with-temp-buffer
+        (insert "name")
+        (put-text-property (point-min) (point-max) 'org-chronicle-entity-id "ent-x")
+        (goto-char 2)
+        (org-chronicle-visit-entity-at-point)
+        (should (eq (current-buffer) target-buf))
+        (should (= (point) 4))
+        (should (= (length org-chronicle--history) 2))
+        (should (= org-chronicle--history-position 1))
+        (should (eq (marker-buffer
+                     (plist-get (nth 1 org-chronicle--history) :marker))
+                    target-buf))))
+    (kill-buffer target-buf)))
+
+(ert-deftest org-chronicle-test-history-keybindings ()
+  "Back/forward keys are bound in the entity-links and view keymaps."
+  (should (eq (lookup-key org-chronicle-entity-links-mode-map (kbd "C-c <left>"))
+              #'org-chronicle-history-back))
+  (should (eq (lookup-key org-chronicle-entity-links-mode-map (kbd "C-c <right>"))
+              #'org-chronicle-history-forward))
+  (should (eq (lookup-key org-chronicle-entity-links-mode-map [mouse-8])
+              #'org-chronicle-history-back))
+  (should (eq (lookup-key org-chronicle-view-mode-map "l")
+              #'org-chronicle-history-back))
+  (should (eq (lookup-key org-chronicle-view-mode-map "r")
+              #'org-chronicle-history-forward)))
+
+
+
+
+
+
 
 
 

@@ -4,7 +4,7 @@
 
 ;; Author: Rob Duncan
 ;; URL: https://github.com/andapony/org-chronicle
-;; Version: 0.2.0
+;; Version: 0.3.0
 ;; Package-Requires: ((emacs "27.2") (org "9.4"))
 ;; Keywords: outlines, calendar
 ;; SPDX-License-Identifier: GPL-3.0-or-later
@@ -601,6 +601,12 @@ override `org-chronicle-root' and `org-chronicle-exclude' for this gather
     (define-key map (kbd "RET") #'org-chronicle-view-goto)
     (define-key map (kbd "q") #'quit-window)
     (define-key map (kbd "g") #'org-chronicle-view-refresh)
+    (define-key map [mouse-8] #'org-chronicle-history-back)
+    (define-key map [mouse-9] #'org-chronicle-history-forward)
+    (define-key map (kbd "C-c <left>") #'org-chronicle-history-back)
+    (define-key map (kbd "C-c <right>") #'org-chronicle-history-forward)
+    (define-key map "l" #'org-chronicle-history-back)
+    (define-key map "r" #'org-chronicle-history-forward)
     map)
   "Keymap for `org-chronicle-view-mode'.")
 
@@ -611,13 +617,16 @@ override `org-chronicle-root' and `org-chronicle-exclude' for this gather
   "The plist of arguments that produced the current view, for refresh.")
 
 (defun org-chronicle-view-goto ()
-  "Jump to the event heading for the cell at point."
+  "Jump to the event heading for the cell at point.
+Records the jump in the chronicle link history."
   (interactive)
   (let ((m (get-text-property (point) 'org-chronicle-marker)))
     (if (and m (marker-buffer m))
-        (progn (pop-to-buffer (marker-buffer m))
-               (goto-char m)
-               (org-reveal))
+        (let ((origin (org-chronicle--history-location)))
+          (pop-to-buffer (marker-buffer m))
+          (goto-char m)
+          (org-reveal)
+          (org-chronicle--history-record origin (org-chronicle--history-location)))
       (message "No event at point"))))
 
 (defun org-chronicle-view-refresh ()
@@ -985,6 +994,15 @@ resolve to an entity (via ENTITIES and alias index IDX) are omitted."
 (defvar org-chronicle--entity-link-buffers nil
   "Live buffers with `org-chronicle-entity-links-mode' enabled.")
 
+(defvar org-chronicle--history nil
+  "Global trail of visited locations for chronicle link back/forward.
+Each element is a location plist (:marker M :file F :pos P).")
+
+(defvar org-chronicle--history-position -1
+  "Index into `org-chronicle--history' of the current location, or -1.")
+
+
+
 (defun org-chronicle--entity-cache ()
   "Return cached (ENTITIES . IDX), building it from disk when stale."
   (or org-chronicle--entity-cache
@@ -1020,11 +1038,14 @@ both local saves and external changes picked up by auto-revert."
   "Face for clickable entity names in event property values.")
 
 (defun org-chronicle-visit-entity-at-point ()
-  "Visit the entity named by the entity-link button at point."
+  "Visit the entity named by the entity-link button at point.
+Records the jump in the chronicle link history."
   (interactive)
   (let ((id (get-text-property (point) 'org-chronicle-entity-id)))
     (if id
-        (org-id-goto id)
+        (let ((origin (org-chronicle--history-location)))
+          (org-id-goto id)
+          (org-chronicle--history-record origin (org-chronicle--history-location)))
       (user-error "No entity link at point"))))
 
 (defvar org-chronicle-entity-link-keymap
@@ -1061,6 +1082,16 @@ Always returns nil; faces are applied per segment, not over the region."
                 (match-beginning 1) (match-end 1))
                nil)))))
 
+(defvar org-chronicle-entity-links-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-8] #'org-chronicle-history-back)
+    (define-key map [mouse-9] #'org-chronicle-history-forward)
+    (define-key map (kbd "C-c <left>") #'org-chronicle-history-back)
+    (define-key map (kbd "C-c <right>") #'org-chronicle-history-forward)
+    map)
+  "Keymap for `org-chronicle-entity-links-mode'.")
+
+
 (define-minor-mode org-chronicle-entity-links-mode
   "Buttonize event property values that name promoted entities.
 Names in PEOPLE/LOCATION/TOPICS/SUBJECT that resolve to an entity become
@@ -1069,6 +1100,7 @@ The entity set is cached and invalidated on save or revert of files under
 `org-chronicle-root', so external changes picked up by auto-revert keep
 the links current."
   :lighter " OCLink"
+  :keymap org-chronicle-entity-links-mode-map
   (if org-chronicle-entity-links-mode
       (progn
         (font-lock-add-keywords nil (org-chronicle--entity-link-keywords) 'append)
@@ -1109,6 +1141,79 @@ current buffer is an `org-mode' file under `org-chronicle-root'."
   org-chronicle-entity-links-mode
   org-chronicle--turn-on-entity-links
   :group 'org-chronicle)
+
+(defun org-chronicle--history-location ()
+  "Return a history location plist for point in the current buffer."
+  (list :marker (point-marker)
+        :file (buffer-file-name)
+        :pos (point)))
+
+(defun org-chronicle--location= (a b)
+  "Return non-nil when locations A and B denote the same place."
+  (and a b
+       (let ((ma (plist-get a :marker))
+             (mb (plist-get b :marker)))
+         (or (and ma mb (marker-buffer ma) (marker-buffer mb)
+                  (eq (marker-buffer ma) (marker-buffer mb))
+                  (= (marker-position ma) (marker-position mb)))
+             (and (plist-get a :file)
+                  (equal (plist-get a :file) (plist-get b :file))
+                  (eql (plist-get a :pos) (plist-get b :pos)))))))
+
+(defun org-chronicle--history-record (origin target)
+  "Record a follow from ORIGIN to TARGET in the chronicle link history.
+Drop any forward entries, ensure ORIGIN is the current entry, append
+TARGET, and make it current.  ORIGIN and TARGET are location plists."
+  (setq org-chronicle--history
+        (cl-subseq org-chronicle--history 0
+                   (min (length org-chronicle--history)
+                        (1+ org-chronicle--history-position))))
+  (unless (and org-chronicle--history
+               (org-chronicle--location=
+                (nth org-chronicle--history-position org-chronicle--history)
+                origin))
+    (setq org-chronicle--history (append org-chronicle--history (list origin))))
+  (setq org-chronicle--history (append org-chronicle--history (list target)))
+  (setq org-chronicle--history-position (1- (length org-chronicle--history))))
+
+(defun org-chronicle--history-go (delta)
+  "Move the history position by DELTA and return the new location.
+Signal a `user-error' when moving past either end."
+  (let ((new (+ org-chronicle--history-position delta)))
+    (when (or (< new 0) (>= new (length org-chronicle--history)))
+      (user-error "No %s in chronicle history"
+                  (if (< delta 0) "further back" "further forward")))
+    (setq org-chronicle--history-position new)
+    (nth new org-chronicle--history)))
+
+(defun org-chronicle--history-visit (loc)
+  "Switch to LOC's buffer (or file) and move point to its position."
+  (let ((m (plist-get loc :marker)))
+    (if (and m (marker-buffer m))
+        (progn (switch-to-buffer (marker-buffer m))
+               (goto-char m))
+      (let ((file (plist-get loc :file)))
+        (if (and file (file-exists-p file))
+            (progn (switch-to-buffer (find-file-noselect file))
+                   (goto-char (or (plist-get loc :pos) (point-min))))
+          (user-error "That chronicle history location is no longer available"))))))
+
+(defun org-chronicle-history-back ()
+  "Return to the previous location in the chronicle link history."
+  (interactive)
+  (org-chronicle--history-visit (org-chronicle--history-go -1)))
+
+(defun org-chronicle-history-forward ()
+  "Advance to the next location in the chronicle link history."
+  (interactive)
+  (org-chronicle--history-visit (org-chronicle--history-go 1)))
+
+
+
+
+
+
+
 
 
 
@@ -1528,8 +1633,11 @@ the event's date.  IDX is the alias index.  Empty list means clean."
             when id collect (cons (plist-get e :title) id))))
 
 (defun org-chronicle--link-follow (path &optional _arg)
-  "Follow a chronicle: link by visiting the heading whose id is PATH."
-  (org-id-goto path))
+  "Follow a chronicle: link by visiting the heading whose id is PATH.
+Records the jump in the chronicle link history."
+  (let ((origin (org-chronicle--history-location)))
+    (org-id-goto path)
+    (org-chronicle--history-record origin (org-chronicle--history-location))))
 
 (defun org-chronicle--link-export (path desc &optional _backend _info)
   "Export a chronicle: link as DESC, else the target title, else PATH."
