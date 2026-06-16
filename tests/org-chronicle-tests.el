@@ -376,6 +376,111 @@ directories are created.  The temp dir is removed afterward."
     (should (string-match-p "H Vicksburg" text))
     (should (string-match-p "H Address" text))))
 
+(ert-deftest org-chronicle-test-lane-width ()
+  "Lane width splits the post-date space among lanes, floored at the minimum."
+  (let ((org-chronicle-lane-column-width 22))
+    ;; 100 - 12 (date column) = 88, split two ways = 44.
+    (should (= (org-chronicle--lane-width 100 2) 44))
+    ;; 88 split eight ways = 11, floored at the 22 minimum.
+    (should (= (org-chronicle--lane-width 100 8) 22))
+    ;; No lanes: fall back to the minimum.
+    (should (= (org-chronicle--lane-width 100 0) 22))))
+
+(ert-deftest org-chronicle-test-compose-width-divides-lanes ()
+  "Compose divides a given :width among the lanes; omitting it keeps the floor."
+  (cl-letf (((symbol-function 'org-chronicle--all-events)
+             (lambda () (list (list :title "Wreck" :truth "historical"
+                                    :date (org-chronicle--date-parse "1863-07-04")
+                                    :people '("Grant") :location nil :marker nil))))
+            ((symbol-function 'org-chronicle--all-entities) (lambda () '()))
+            (org-chronicle-lane-column-width 22))
+    ;; One lane in 200 columns: 200 - 12 = 188-wide lane, 200-wide header.
+    (let ((header (car (split-string
+                        (org-chronicle--compose :people '("Grant") :width 200)
+                        "\n"))))
+      (should (= (string-width header) 200)))
+    ;; No :width: each lane stays at the configured floor (12 + 22 = 34).
+    (let ((header (car (split-string
+                        (org-chronicle--compose :people '("Grant"))
+                        "\n"))))
+      (should (= (string-width header) 34)))))
+
+(ert-deftest org-chronicle-test-entity-link-segments ()
+  "Resolving names yield (BEG END NAME ID); unpromoted names are skipped."
+  (let* ((entities (list (list :name "Ulysses S. Grant" :kind 'person
+                               :aliases '("Grant") :id "ent-grant")
+                         (list :name "Abraham Lincoln" :kind 'person
+                               :aliases nil :id "ent-lincoln")))
+         (idx (org-chronicle--alias-index entities))
+         (org-chronicle-multi-value-separator "; "))
+    ;; "Grant" is an alias of ent-grant; "Eliza Harlan" is unpromoted (skipped).
+    (should (equal (org-chronicle--entity-link-segments
+                    "Grant; Eliza Harlan; Abraham Lincoln" entities idx)
+                   '((0 5 "Grant" "ent-grant")
+                     (21 36 "Abraham Lincoln" "ent-lincoln"))))
+    ;; Nothing resolves -> empty.
+    (should (null (org-chronicle--entity-link-segments "Nobody Here" entities idx)))))
+
+(ert-deftest org-chronicle-test-entity-cache-invalidation ()
+  "The entity cache builds lazily and invalidation clears it."
+  (cl-letf (((symbol-function 'org-chronicle--all-entities)
+             (lambda () (list (list :name "Grant" :kind 'person
+                                    :aliases nil :id "ent-grant")))))
+    (let ((org-chronicle--entity-cache nil)
+          (org-chronicle--entity-link-buffers nil))
+      (let ((cache (org-chronicle--entity-cache)))
+        (should (equal (car cache)
+                       (list (list :name "Grant" :kind 'person
+                                   :aliases nil :id "ent-grant"))))
+        (should (hash-table-p (cdr cache))))
+      (should org-chronicle--entity-cache)
+      (org-chronicle--invalidate-entity-cache)
+      (should-not org-chronicle--entity-cache))))
+
+(ert-deftest org-chronicle-test-file-under-root-p ()
+  "Files inside `org-chronicle-root' are recognized; outside and nil are not."
+  (let ((org-chronicle-root "/home/u/chron/"))
+    (should (org-chronicle--file-under-root-p "/home/u/chron/people.org"))
+    (should (org-chronicle--file-under-root-p "/home/u/chron/sub/x.org"))
+    (should-not (org-chronicle--file-under-root-p "/home/u/other/x.org"))
+    (should-not (org-chronicle--file-under-root-p nil))))
+
+(ert-deftest org-chronicle-test-entity-links-mode-buttonizes ()
+  "Enabling the mode buttonizes resolving names and leaves others plain."
+  (cl-letf (((symbol-function 'org-chronicle--all-entities)
+             (lambda () (list (list :name "Ulysses S. Grant" :kind 'person
+                                    :aliases '("Grant") :id "ent-grant")))))
+    (let ((org-chronicle--entity-cache nil)
+          (org-chronicle--entity-link-buffers nil)
+          (org-chronicle-multi-value-separator "; ")
+          (visited nil))
+      (with-temp-buffer
+        (org-mode)
+        (insert "* Some event\n:PROPERTIES:\n:PEOPLE:   Grant; Eliza Harlan\n:END:\n")
+        (org-chronicle-entity-links-mode 1)
+        (font-lock-ensure)
+        (goto-char (point-min))
+        (search-forward "Grant")
+        (let ((p (match-beginning 0)))
+          (should (equal (get-text-property p 'org-chronicle-entity-id) "ent-grant"))
+          (should (eq (get-text-property p 'face) 'org-chronicle-entity-link)))
+        (goto-char (point-min))
+        (search-forward "Eliza")
+        (should-not (get-text-property (match-beginning 0) 'org-chronicle-entity-id))
+        (cl-letf (((symbol-function 'org-id-goto)
+                   (lambda (id) (setq visited id))))
+          (goto-char (point-min))
+          (search-forward "Grant")
+          (goto-char (match-beginning 0))
+          (org-chronicle-visit-entity-at-point))
+        (should (equal visited "ent-grant"))))))
+
+
+
+
+
+
+
 ;;;; View
 
 (ert-deftest org-chronicle-test-dblock-writer ()

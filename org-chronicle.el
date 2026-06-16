@@ -540,9 +540,22 @@ date.  EVENTS are assumed already filtered and sorted ascending."
 ;;;; View
 
 (defcustom org-chronicle-lane-column-width 22
-  "Width in columns of each lane in the timeline view."
+  "Minimum width in columns of each lane in the timeline view.
+The interactive view divides the available window width evenly among the
+lanes; this value is the floor below which a lane column will not shrink.
+It is also the fixed width used when no window width is available, such
+as when rendering a dynamic block."
   :type 'integer
   :group 'org-chronicle)
+
+(defun org-chronicle--lane-width (total nlanes)
+  "Return the per-lane column width for NLANES lanes within TOTAL columns.
+Splits the space remaining after the date column evenly among the lanes,
+never returning less than `org-chronicle-lane-column-width'."
+  (if (<= nlanes 0)
+      org-chronicle-lane-column-width
+    (max org-chronicle-lane-column-width
+         (/ (- total org-chronicle--date-col-width) nlanes))))
 
 (defun org-chronicle--lanes-from-params (people locations topics entities mode)
   "Build the list of lane plists from PEOPLE, LOCATIONS, and TOPICS name lists.
@@ -557,25 +570,31 @@ MODE is `:collapse' or `:expand'; ENTITIES is the entity list."
 
 (cl-defun org-chronicle--compose (&key people locations topics truth from until
                                        (mode :collapse)
+                                       width
                                        (root nil root-p)
                                        (exclude nil exclude-p))
   "Return the rendered timeline string for the given filters.
 PEOPLE/LOCATIONS/TOPICS are name lists naming lanes; TRUTH a list of
 allowed truth strings; FROM/UNTIL date strings; MODE `:collapse' or
-`:expand'.  ROOT and EXCLUDE, when supplied, override
-`org-chronicle-root' and `org-chronicle-exclude' for this gather
+`:expand'.  WIDTH, when non-nil, is the total display width to divide
+among the lanes (see `org-chronicle--lane-width'); otherwise each lane
+uses `org-chronicle-lane-column-width'.  ROOT and EXCLUDE, when supplied,
+override `org-chronicle-root' and `org-chronicle-exclude' for this gather
 \(used to keep view refresh consistent with dir-local values)."
   (let ((org-chronicle-root (if root-p root org-chronicle-root))
         (org-chronicle-exclude (if exclude-p exclude org-chronicle-exclude)))
     (let* ((entities (org-chronicle--all-entities))
            (idx (org-chronicle--alias-index entities))
            (lanes (org-chronicle--lanes-from-params people locations topics entities mode))
+           (col-width (if width
+                          (org-chronicle--lane-width width (length lanes))
+                        org-chronicle-lane-column-width))
            (events (org-chronicle--filter-events
                     (org-chronicle--all-events) idx
                     :truth truth
                     :from (and from (org-chronicle--date-parse from))
                     :until (and until (org-chronicle--date-parse until)))))
-      (org-chronicle--render events lanes idx org-chronicle-lane-column-width))))
+      (org-chronicle--render events lanes idx col-width))))
 
 (defvar org-chronicle-view-mode-map
   (let ((map (make-sparse-keymap)))
@@ -618,8 +637,10 @@ results are filtered by TRUTH and the FROM/UNTIL date range.  MODE is
 `:collapse' (default) or `:expand' for groups/parent places.  ROOT and
 EXCLUDE, when supplied, override `org-chronicle-root' and
 `org-chronicle-exclude' (used to preserve dir-local values on refresh).
-Interactively, prompts for people, locations, topics, and a truth
-subset, completing against the names used in events and promoted
+Lane width is computed from the window width and the lane count, so
+refreshing with \\[org-chronicle-view-refresh] re-fits the view after a
+resize.  Interactively, prompts for people, locations, topics, and a
+truth subset, completing against the names used in events and promoted
 entities."
   (interactive
    (list :people (org-chronicle--read-names
@@ -641,17 +662,20 @@ entities."
          (args (list :people people :locations locations :topics topics
                      :truth truth :from from :until until :mode mode
                      :root root :exclude exclude))
-         (text (org-chronicle--compose :people people :locations locations :topics topics
-                                       :truth truth :from from :until until :mode mode
-                                       :root root :exclude exclude)))
-    (with-current-buffer (get-buffer-create "*org-chronicle*")
+         (buf (get-buffer-create "*org-chronicle*")))
+    (with-current-buffer buf
       (org-chronicle-view-mode)
-      (setq org-chronicle--view-args args)
-      (let ((inhibit-read-only t))
-        (erase-buffer)
-        (insert text))
-      (goto-char (point-min))
-      (pop-to-buffer (current-buffer)))))
+      (setq org-chronicle--view-args args))
+    (pop-to-buffer buf)
+    (let* ((width (window-body-width (get-buffer-window buf)))
+           (text (org-chronicle--compose :people people :locations locations :topics topics
+                                         :truth truth :from from :until until :mode mode
+                                         :width width :root root :exclude exclude)))
+      (with-current-buffer buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert text))
+        (goto-char (point-min))))))
 
 ;;;###autoload
 (defun org-dblock-write:chronicle (params)
@@ -771,9 +795,6 @@ in CANDIDATES are still accepted."
     (if (string-blank-p date)
         (user-error "A date is required")
       date)))
-
-
-
 
 (defun org-chronicle--read-people ()
   "Prompt for participants with completion against known people; return a list."
@@ -928,6 +949,144 @@ IDX is the alias index for ENTITIES; matching is case-insensitive."
     (cl-find canon entities
              :key (lambda (e) (plist-get e :name)) :test #'equal)))
 
+(defun org-chronicle--entity-link-segments (value entities idx)
+  "Return resolving name segments of property VALUE as (BEG END NAME ID).
+BEG and END are zero-based offsets into VALUE bounding a trimmed name,
+NAME the segment text, and ID the matched entity's org-id.  Segments are
+split on `org-chronicle-multi-value-separator'; segments that do not
+resolve to an entity (via ENTITIES and alias index IDX) are omitted."
+  (when (and (stringp value) (not (string-blank-p value)))
+    (let ((sep (regexp-quote (string-trim org-chronicle-multi-value-separator)))
+          (len (length value))
+          (start 0)
+          (out '())
+          (done nil))
+      (while (not done)
+        (let* ((mb (string-match sep value start))
+               ;; Capture the separator's end now: string-trim below calls
+               ;; string-match internally and would clobber the match data.
+               (next (and mb (match-end 0)))
+               (seg-end (or mb len))
+               (raw (substring value start seg-end))
+               (lead (- (length raw) (length (string-trim-left raw))))
+               (trimmed (string-trim raw))
+               (beg (+ start lead))
+               (ent (and (not (string-empty-p trimmed))
+                         (org-chronicle--find-entity-by-name trimmed entities idx)))
+               (id (and ent (plist-get ent :id))))
+          (when id
+            (push (list beg (+ beg (length trimmed)) trimmed id) out))
+          (if mb (setq start next) (setq done t))))
+      (nreverse out))))
+
+(defvar org-chronicle--entity-cache nil
+  "Cached (ENTITIES . IDX) for entity-link fontification, or nil when stale.")
+
+(defvar org-chronicle--entity-link-buffers nil
+  "Live buffers with `org-chronicle-entity-links-mode' enabled.")
+
+(defun org-chronicle--entity-cache ()
+  "Return cached (ENTITIES . IDX), building it from disk when stale."
+  (or org-chronicle--entity-cache
+      (let* ((entities (org-chronicle--all-entities))
+             (idx (org-chronicle--alias-index entities)))
+        (setq org-chronicle--entity-cache (cons entities idx)))))
+
+
+
+(defun org-chronicle--invalidate-entity-cache ()
+  "Drop the entity cache and refontify entity-link buffers."
+  (setq org-chronicle--entity-cache nil)
+  (dolist (buf org-chronicle--entity-link-buffers)
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (when font-lock-mode (font-lock-flush))))))
+
+(defun org-chronicle--file-under-root-p (file)
+  "Non-nil when FILE is within `org-chronicle-root'."
+  (and file org-chronicle-root
+       (string-prefix-p
+        (file-name-as-directory (expand-file-name org-chronicle-root))
+        (expand-file-name file))))
+
+(defun org-chronicle--maybe-invalidate-entity-cache ()
+  "Invalidate the entity cache when the buffer's file is under the root.
+Used on `after-save-hook' and `after-revert-hook' so the cache tracks
+both local saves and external changes picked up by auto-revert."
+  (when (org-chronicle--file-under-root-p buffer-file-name)
+    (org-chronicle--invalidate-entity-cache)))
+
+(defface org-chronicle-entity-link '((t :inherit org-link))
+  "Face for clickable entity names in event property values.")
+
+(defun org-chronicle-visit-entity-at-point ()
+  "Visit the entity named by the entity-link button at point."
+  (interactive)
+  (let ((id (get-text-property (point) 'org-chronicle-entity-id)))
+    (if id
+        (org-id-goto id)
+      (user-error "No entity link at point"))))
+
+(defvar org-chronicle-entity-link-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'org-chronicle-visit-entity-at-point)
+    (define-key map [mouse-2] #'org-chronicle-visit-entity-at-point)
+    (define-key map [follow-link] 'mouse-face)
+    map)
+  "Keymap active on entity-link buttons in event property values.")
+
+(defconst org-chronicle--entity-link-prop-regexp
+  "^[ \t]*:\\(?:PEOPLE\\|LOCATION\\|TOPICS\\|SUBJECT\\):[ \t]*\\(.*\\)$"
+  "Match an in-scope event property line; group 1 is the value region.")
+
+(defun org-chronicle--fontify-entity-value (beg end)
+  "Buttonize resolving entity names in buffer region BEG..END.
+Always returns nil; faces are applied per segment, not over the region."
+  (let* ((cache (org-chronicle--entity-cache))
+         (value (buffer-substring-no-properties beg end)))
+    (dolist (seg (org-chronicle--entity-link-segments value (car cache) (cdr cache)))
+      (add-text-properties
+       (+ beg (nth 0 seg)) (+ beg (nth 1 seg))
+       (list 'face 'org-chronicle-entity-link
+             'mouse-face 'highlight
+             'help-echo "mouse-2, RET: visit entity"
+             'keymap org-chronicle-entity-link-keymap
+             'org-chronicle-entity-id (nth 3 seg)))))
+  nil)
+
+(defun org-chronicle--entity-link-keywords ()
+  "Return font-lock keywords that buttonize entity names in event properties."
+  `((,org-chronicle--entity-link-prop-regexp
+     (1 (progn (org-chronicle--fontify-entity-value
+                (match-beginning 1) (match-end 1))
+               nil)))))
+
+(define-minor-mode org-chronicle-entity-links-mode
+  "Buttonize event property values that name promoted entities.
+Names in PEOPLE/LOCATION/TOPICS/SUBJECT that resolve to an entity become
+clickable links to that entity's heading; unresolved names stay plain.
+The entity set is cached and invalidated on save or revert of files under
+`org-chronicle-root', so external changes picked up by auto-revert keep
+the links current."
+  :lighter " OCLink"
+  (if org-chronicle-entity-links-mode
+      (progn
+        (font-lock-add-keywords nil (org-chronicle--entity-link-keywords) 'append)
+        (setq-local font-lock-extra-managed-props
+                    (append '(mouse-face help-echo keymap org-chronicle-entity-id)
+                            font-lock-extra-managed-props))
+        (cl-pushnew (current-buffer) org-chronicle--entity-link-buffers)
+        (add-hook 'after-save-hook #'org-chronicle--maybe-invalidate-entity-cache)
+        (add-hook 'after-revert-hook #'org-chronicle--maybe-invalidate-entity-cache)
+        (font-lock-flush))
+    (font-lock-remove-keywords nil (org-chronicle--entity-link-keywords))
+    (setq org-chronicle--entity-link-buffers
+          (delq (current-buffer) org-chronicle--entity-link-buffers))
+    (unless org-chronicle--entity-link-buffers
+      (remove-hook 'after-save-hook #'org-chronicle--maybe-invalidate-entity-cache)
+      (remove-hook 'after-revert-hook #'org-chronicle--maybe-invalidate-entity-cache))
+    (font-lock-flush)))
+
 (defun org-chronicle--groups (entities)
   "Return the entities in ENTITIES whose `:kind' is `group'."
   (cl-remove-if-not (lambda (e) (eq (plist-get e :kind) 'group)) entities))
@@ -965,9 +1124,6 @@ alias index IDX), ask whether to create another; declining signals a
                              (plist-get dup :name) name))))
       (user-error "Not creating duplicate of \"%s\"" (plist-get dup :name))))
   t)
-
-
-
 
 ;;;###autoload
 (defun org-chronicle-add-person (name)
@@ -1218,10 +1374,6 @@ KIND and SUBJECTS may be supplied non-interactively (used by
           :kind "name-change" :truth truth :date date :subject (list who)
           :people (list who) :location location :new-name nn :sources sources))))
     (message "Added %s life event" kind)))
-
-
-
-
 
 ;;;; Sources
 
