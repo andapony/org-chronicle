@@ -88,7 +88,10 @@ Assertion failures in the caller still fail normally."
           (with-temp-file org-chronicle-people-file
             (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:WIKIDATA: Q7259\n:END:\n"))
           (cl-letf (((symbol-function 'org-chronicle-sources--review)
-                     (lambda (changes on-confirm) (funcall on-confirm changes))))
+                     (lambda (changes on-confirm) (funcall on-confirm changes)))
+                    ((symbol-function 'completing-read)
+                     (lambda (prompt &rest _)
+                       (if (string-prefix-p "Source" prompt) "wikidata" ""))))
             (org-chronicle-wikibase-live--fetch-or-skip
              (lambda ()
                (with-current-buffer (find-file-noselect org-chronicle-people-file)
