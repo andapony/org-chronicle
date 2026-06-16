@@ -82,7 +82,10 @@ Assertion failures in the caller still fail normally."
          (org-chronicle-people-file (expand-file-name "people.org" root))
          (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
-         (org-id-locations-file (expand-file-name ".org-id-locations" root)))
+         (org-id-locations-file (expand-file-name ".org-id-locations" root))
+         ;; Keep org-id out of the global locations file so the sandbox import
+         ;; does not log "Could not read org-id-locations" for the temp dir.
+         (org-id-track-globally nil))
     (unwind-protect
         (progn
           (with-temp-file org-chronicle-people-file
