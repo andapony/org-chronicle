@@ -411,22 +411,22 @@ group or parent place; `:collapse' yields a single lane (see
 ;; Pure: turns EVENTS + LANES into a swimlane string (time vertical, lanes
 ;; as columns).  No buffer side effects; the view command (Task 8) wraps it.
 
-(defface org-chronicle-historical '((t :inherit default))
+(defface org-chronicle-historical '((t :inherit org-link))
   "Face for historical events in the timeline view.")
-(defface org-chronicle-fictionalized '((t :inherit warning))
+(defface org-chronicle-fictionalized '((t :inherit org-link))
   "Face for fictionalized events in the timeline view.")
-(defface org-chronicle-fictional '((t :inherit font-lock-keyword-face))
+(defface org-chronicle-fictional '((t :inherit org-link))
   "Face for fictional events in the timeline view.")
 
 (defconst org-chronicle--date-col-width 12)
 
 (defun org-chronicle--truth-marker (truth)
-  "Return the short marker string for TRUTH."
+  "Return the short single-character marker string for TRUTH."
   (pcase truth
-    ("historical" "[H]")
-    ("fictionalized" "[~]")
-    ("fictional" "[F]")
-    (_ "[?]")))
+    ("historical" "H")
+    ("fictionalized" "~")
+    ("fictional" "F")
+    (_ "?")))
 
 (defun org-chronicle--truth-face (truth)
   "Return the face symbol for TRUTH."
@@ -475,15 +475,16 @@ When a topic has no entry, its cells fall back to the truth face."
 
 (defun org-chronicle--topic-cell-text (event topic)
   "Return propertized cell text for EVENT in a TOPIC lane.
-Prefixes the topic glyph (when set) and uses the topic face, falling back
-to the event's truth face."
+Leads with the truth marker so it survives column truncation, then the
+topic glyph (when set), and uses the topic face, falling back to the
+event's truth face."
   (let* ((glyph (org-chronicle--topic-glyph topic))
          (face (or (org-chronicle--topic-face topic)
                    (org-chronicle--truth-face (plist-get event :truth))))
-         (s (format "%s%s %s"
+         (s (format "%s %s%s"
+                    (org-chronicle--truth-marker (plist-get event :truth))
                     (if glyph (concat glyph " ") "")
-                    (plist-get event :title)
-                    (org-chronicle--truth-marker (plist-get event :truth)))))
+                    (plist-get event :title))))
     (propertize s 'face face
                 'org-chronicle-marker (plist-get event :marker))))
 
@@ -496,12 +497,13 @@ the default `org-chronicle--cell-text'."
     (org-chronicle--cell-text event)))
 
 (defun org-chronicle--cell-text (event)
-  "Return propertized cell text (kind glyph, title, truth marker) for EVENT."
+  "Return propertized cell text (truth marker, kind glyph, title) for EVENT.
+The truth marker leads so it survives column truncation."
   (let* ((glyph (org-chronicle--life-event-glyph (plist-get event :life-event)))
-         (s (format "%s%s %s"
+         (s (format "%s %s%s"
+                    (org-chronicle--truth-marker (plist-get event :truth))
                     (if glyph (concat glyph " ") "")
-                    (plist-get event :title)
-                    (org-chronicle--truth-marker (plist-get event :truth)))))
+                    (plist-get event :title))))
     (propertize s 'face (org-chronicle--truth-face (plist-get event :truth))
                 'org-chronicle-marker (plist-get event :marker))))
 

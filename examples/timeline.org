@@ -33,6 +33,9 @@ Grant's "unconditional surrender" demand makes his reputation.
 :TOPICS:    military
 :SOURCES:   Foote, The Civil War, vol. 2, p. 412
 :END:
+After a six-week siege Pemberton surrenders the city, splitting the
+Confederacy in two and handing the Union uncontested control of the
+Mississippi River.
 
 * Gettysburg Address                                              :historical:
 :PROPERTIES:
@@ -42,7 +45,10 @@ Grant's "unconditional surrender" demand makes his reputation.
 :PEOPLE:    Abraham Lincoln
 :LOCATION:  Gettysburg, Pennsylvania
 :TOPICS:    politics
+:SOURCES:   Wills, Lincoln at Gettysburg (1992)
 :END:
+In barely two minutes Lincoln recasts the war as a test of whether a
+nation "conceived in liberty" can long endure.
 
 * A wager over the river road                                  :fictionalized:
 :PROPERTIES:

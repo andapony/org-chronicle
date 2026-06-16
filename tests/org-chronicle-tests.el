@@ -325,10 +325,10 @@ directories are created.  The temp dir is removed afterward."
 ;;;; Render
 
 (ert-deftest org-chronicle-test-truth-marker ()
-  (should (equal (org-chronicle--truth-marker "historical") "[H]"))
-  (should (equal (org-chronicle--truth-marker "fictionalized") "[~]"))
-  (should (equal (org-chronicle--truth-marker "fictional") "[F]"))
-  (should (equal (org-chronicle--truth-marker nil) "[?]")))
+  (should (equal (org-chronicle--truth-marker "historical") "H"))
+  (should (equal (org-chronicle--truth-marker "fictionalized") "~"))
+  (should (equal (org-chronicle--truth-marker "fictional") "F"))
+  (should (equal (org-chronicle--truth-marker nil) "?")))
 
 (ert-deftest org-chronicle-test-life-event-glyph ()
   (should (equal (org-chronicle--life-event-glyph "birth") "⊕"))
@@ -340,8 +340,8 @@ directories are created.  The temp dir is removed afterward."
   (let ((birth (list :title "Birth of Grant" :truth "historical"
                      :life-event "birth" :marker nil))
         (plain (list :title "Vicksburg" :truth "historical" :marker nil)))
-    (should (string-prefix-p "⊕ Birth of Grant" (org-chronicle--cell-text birth)))
-    (should (string-prefix-p "Vicksburg [H]" (org-chronicle--cell-text plain)))))
+    (should (string-prefix-p "H ⊕ Birth of Grant" (org-chronicle--cell-text birth)))
+    (should (string-prefix-p "H Vicksburg" (org-chronicle--cell-text plain)))))
 
 (ert-deftest org-chronicle-test-topic-cell-text ()
   "In a topic lane a cell shows the topic glyph and uses the topic face."
@@ -351,10 +351,10 @@ directories are created.  The temp dir is removed afterward."
         (people-lane (list :label "Grant" :domain 'people :names '("Grant")))
         (event (list :title "Wreck" :truth "fictional" :marker nil)))
     (let ((cell (org-chronicle--cell-text-for-lane event lane)))
-      (should (string-prefix-p "⚓ Wreck [F]" cell))
+      (should (string-prefix-p "F ⚓ Wreck" cell))
       (should (eq (get-text-property 0 'face cell) 'org-chronicle-fictional)))
     ;; A non-topic lane is unchanged: no glyph, truth face.
-    (should (string-prefix-p "Wreck [F]"
+    (should (string-prefix-p "F Wreck"
                              (org-chronicle--cell-text-for-lane event people-lane)))))
 
 
@@ -373,8 +373,8 @@ directories are created.  The temp dir is removed afterward."
     (should (string-match-p "Grant" text))
     (should (string-match-p "Lincoln" text))
     (should (string-match-p "1863-07-04" text))
-    (should (string-match-p "Vicksburg \\[H\\]" text))
-    (should (string-match-p "Address \\[H\\]" text))))
+    (should (string-match-p "H Vicksburg" text))
+    (should (string-match-p "H Address" text))))
 
 ;;;; View
 
@@ -389,7 +389,7 @@ directories are created.  The temp dir is removed afterward."
       (insert "#+BEGIN: chronicle :people (\"Grant\")\n#+END:\n")
       (goto-char (point-min))
       (org-chronicle-dblock-write '(:people ("Grant")))
-      (should (string-match-p "Vicksburg \\[H\\]" (buffer-string))))))
+      (should (string-match-p "H Vicksburg" (buffer-string))))))
 
 (ert-deftest org-chronicle-test-compose-topic-column ()
   "Compose builds a topic column holding events that carry the topic."
@@ -401,18 +401,18 @@ directories are created.  The temp dir is removed afterward."
             ((symbol-function 'org-chronicle--all-entities) (lambda () '())))
     (let ((text (org-chronicle--compose :topics '("shipping"))))
       (should (string-match-p "SHIPPING" text))
-      (should (string-match-p "Wreck \\[F\\]" text)))))
+      (should (string-match-p "F Wreck" text)))))
 
 (ert-deftest org-chronicle-test-compose-root-override ()
   "Compose honors an explicit :root override, gathering from it even when the
 global root differs."
   (org-chronicle-test--with-root
-      '(("timeline.org" . "* Wreck\n:PROPERTIES:\n:TRUTH: fictional\n:DATE: <1851-11-03>\n:PEOPLE: Grant\n:END:\n"))
-    (let ((captured-root org-chronicle-root))
-      ;; Point the global root elsewhere; the override must still win.
-      (let ((org-chronicle-root "/no/such/dir/xyzzy"))
-        (let ((text (org-chronicle--compose :people '("Grant") :root captured-root)))
-          (should (string-match-p "Wreck \\[F\\]" text)))))))
+   '(("timeline.org" . "* Wreck\n:PROPERTIES:\n:TRUTH: fictional\n:DATE: <1851-11-03>\n:PEOPLE: Grant\n:END:\n"))
+   (let ((captured-root org-chronicle-root))
+     ;; Point the global root elsewhere; the override must still win.
+     (let ((org-chronicle-root "/no/such/dir/xyzzy"))
+       (let ((text (org-chronicle--compose :people '("Grant") :root captured-root)))
+         (should (string-match-p "F Wreck" text)))))))
 
 (ert-deftest org-chronicle-test-dblock-topics ()
   "The chronicle dynamic block accepts a :topics parameter."
@@ -425,7 +425,7 @@ global root differs."
     (with-temp-buffer
       (org-mode)
       (org-chronicle-dblock-write '(:topics ("shipping")))
-      (should (string-match-p "Wreck \\[F\\]" (buffer-string))))))
+      (should (string-match-p "F Wreck" (buffer-string))))))
 
 ;;;; Capture
 
