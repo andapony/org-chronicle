@@ -23,6 +23,15 @@
 
 (require 'seq)
 
+(declare-function org-chronicle-sources--pid "org-chronicle-sources" (source role))
+
+(declare-function org-chronicle-sources--get "org-chronicle-sources" (id))
+
+(declare-function org-chronicle-sources--span-pids "org-chronicle-sources" (source kind))
+
+
+
+
 (defgroup org-chronicle-wikibase nil
   "Wikidata integration for org-chronicle."
   :group 'org-chronicle)
@@ -152,36 +161,73 @@ Each candidate is (:qid :label :description)."
                     :description (or (alist-get 'description hit) "")))
             (alist-get 'search data))))
 
-(defun org-chronicle-wikibase--vitals-query (qid)
-  "Return the SPARQL vitals query for QID (single result row)."
-  (format "SELECT ?label (SAMPLE(?bpl) AS ?birthPlaceLabel) \
+(defun org-chronicle-wikibase--label-filter (source var)
+  "Return a SPARQL FILTER restricting VAR to SOURCE's label languages.
+SOURCE's :label-language is a list; in Phase 3 each source uses a single
+language, so this restricts VAR to that language."
+  (concat "FILTER("
+          (mapconcat (lambda (l) (format "LANG(%s)=\"%s\"" var l))
+                     (plist-get source :label-language) "||")
+          ") "))
+
+
+(defun org-chronicle-wikibase--vitals-query (source qid)
+  "Return the SPARQL vitals query for QID against SOURCE (single result row)."
+  (let ((bpl (org-chronicle-sources--pid source :birthplace))
+        (dpl (org-chronicle-sources--pid source :deathplace))
+        (fa (org-chronicle-sources--pid source :father))
+        (mo (org-chronicle-sources--pid source :mother)))
+    (concat
+     (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
+     (format "SELECT ?label (SAMPLE(?bpl) AS ?birthPlaceLabel) \
 (SAMPLE(?dpl) AS ?deathPlaceLabel) (SAMPLE(?fl) AS ?fatherLabel) \
 (SAMPLE(?ml) AS ?motherLabel) \
 (GROUP_CONCAT(DISTINCT ?alias; separator=\"\\u001f\") AS ?aliases) WHERE { \
 BIND(wd:%s AS ?p) \
-?p rdfs:label ?label. FILTER(LANG(?label)=\"en\") \
-OPTIONAL { ?p wdt:P19 ?bp. ?bp rdfs:label ?bpl. FILTER(LANG(?bpl)=\"en\") } \
-OPTIONAL { ?p wdt:P20 ?dp. ?dp rdfs:label ?dpl. FILTER(LANG(?dpl)=\"en\") } \
-OPTIONAL { ?p wdt:P22 ?f. ?f rdfs:label ?fl. FILTER(LANG(?fl)=\"en\") } \
-OPTIONAL { ?p wdt:P25 ?m. ?m rdfs:label ?ml. FILTER(LANG(?ml)=\"en\") } \
-OPTIONAL { ?p skos:altLabel ?alias. FILTER(LANG(?alias)=\"en\") } } \
-GROUP BY ?label" qid))
+?p rdfs:label ?label. %s\
+OPTIONAL { ?p wdt:%s ?bp. ?bp rdfs:label ?bpl. %s} \
+OPTIONAL { ?p wdt:%s ?dp. ?dp rdfs:label ?dpl. %s} \
+OPTIONAL { ?p wdt:%s ?f. ?f rdfs:label ?fl. %s} \
+OPTIONAL { ?p wdt:%s ?m. ?m rdfs:label ?ml. %s} \
+OPTIONAL { ?p skos:altLabel ?alias. %s} } GROUP BY ?label"
+             qid
+             (org-chronicle-wikibase--label-filter source "?label")
+             bpl (org-chronicle-wikibase--label-filter source "?bpl")
+             dpl (org-chronicle-wikibase--label-filter source "?dpl")
+             fa (org-chronicle-wikibase--label-filter source "?fl")
+             mo (org-chronicle-wikibase--label-filter source "?ml")
+             (org-chronicle-wikibase--label-filter source "?alias")))))
 
-(defun org-chronicle-wikibase--spouses-query (qid)
-  "Return the SPARQL spouses query for QID (one row per spouse)."
-  (format "SELECT ?spouse ?spouseLabel ?start ?startPrec ?end ?endPrec WHERE { \
-wd:%s p:P26 ?st. ?st ps:P26 ?spouse. \
-OPTIONAL { ?st pqv:P580 ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
-OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } \
-SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } }" qid))
+(defun org-chronicle-wikibase--spouses-query (source qid)
+  "Return the SPARQL spouses query for QID against SOURCE (one row per spouse)."
+  (let ((sp (org-chronicle-sources--pid source :spouse))
+        (qs (org-chronicle-sources--pid source :qual-start))
+        (qe (org-chronicle-sources--pid source :qual-end)))
+    (concat
+     (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
+     (format "SELECT ?spouse ?spouseLabel ?start ?startPrec ?end ?endPrec WHERE { \
+wd:%s p:%s ?st. ?st ps:%s ?spouse. \
+OPTIONAL { ?st pqv:%s ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
+OPTIONAL { ?st pqv:%s ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } \
+OPTIONAL { ?spouse rdfs:label ?spouseLabel. %s} }"
+             qid sp sp qs qe
+             (org-chronicle-wikibase--label-filter source "?spouseLabel")))))
 
-(defun org-chronicle-wikibase--events-query (qid)
-  "Return the SPARQL positions-held query for QID (one row per position)."
-  (format "SELECT ?pos ?title ?start ?startPrec ?end ?endPrec WHERE { \
-wd:%s p:P39 ?st. ?st ps:P39 ?pos. \
-?pos rdfs:label ?title. FILTER(LANG(?title)=\"en\") \
-OPTIONAL { ?st pqv:P580 ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
-OPTIONAL { ?st pqv:P582 ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } }" qid))
+(defun org-chronicle-wikibase--events-query (source qid)
+  "Return the SPARQL positions-held query for QID against SOURCE."
+  (let ((po (org-chronicle-sources--pid source :position))
+        (qs (org-chronicle-sources--pid source :qual-start))
+        (qe (org-chronicle-sources--pid source :qual-end)))
+    (concat
+     (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
+     (format "SELECT ?pos ?title ?start ?startPrec ?end ?endPrec WHERE { \
+wd:%s p:%s ?st. ?st ps:%s ?pos. \
+?pos rdfs:label ?title. %s\
+OPTIONAL { ?st pqv:%s ?sn. ?sn wikibase:timeValue ?start; wikibase:timePrecision ?startPrec. } \
+OPTIONAL { ?st pqv:%s ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?endPrec. } }"
+             qid po po
+             (org-chronicle-wikibase--label-filter source "?title")
+             qs qe))))
 
 (defun org-chronicle-wikibase--rank-symbol (uri)
   "Return `preferred', `normal', or `deprecated' for a wikibase:rank URI, else nil."
@@ -285,17 +331,19 @@ where alternates are the other distinct values as display strings."
                          candidates)))))
     (list :date chosen-date :alternates alternates)))
 
-(defun org-chronicle-wikibase--span-query (qid start-pid end-pid)
-  "Return a SPARQL query for QID's START-PID and END-PID date statements.
+(defun org-chronicle-wikibase--span-query (source qid start-pid end-pid)
+  "Return the SPARQL span query for QID's START-PID and END-PID against SOURCE.
 One row per statement, tagged ?prop \"start\"/\"end\", with value, precision,
 and rank."
-  (format "SELECT ?prop ?value ?prec ?rank WHERE { \
+  (concat
+   (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
+   (format "SELECT ?prop ?value ?prec ?rank WHERE { \
 { wd:%s p:%s ?st. ?st psv:%s ?n. ?n wikibase:timeValue ?value; \
 wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"start\" AS ?prop) } \
 UNION \
 { wd:%s p:%s ?st. ?st psv:%s ?n. ?n wikibase:timeValue ?value; \
 wikibase:timePrecision ?prec. ?st wikibase:rank ?rank. BIND(\"end\" AS ?prop) } }"
-          qid start-pid start-pid qid end-pid end-pid))
+           qid start-pid start-pid qid end-pid end-pid)))
 
 (defun org-chronicle-wikibase--prefixes (base-uri)
   "Return a SPARQL PREFIX preamble binding Wikibase prefixes to BASE-URI.
@@ -340,16 +388,18 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
 
 (defun org-chronicle-wikibase--fetch-record (qid kind)
   "Fetch QID from Wikidata as a KIND record (person, place, or group)."
-  (let* ((pids (org-chronicle-wikibase--kind-span-pids kind))
+  ;; TRANSITIONAL: source threaded as a parameter in the next task.
+  (let* ((source (org-chronicle-sources--get 'wikidata))
+         (pids (org-chronicle-sources--span-pids source kind))
          (vitals (org-chronicle-wikibase--sparql-request
-                  (org-chronicle-wikibase--vitals-query qid)))
+                  (org-chronicle-wikibase--vitals-query source qid)))
          (span (org-chronicle-wikibase--sparql-request
-                (org-chronicle-wikibase--span-query qid (car pids) (cdr pids)))))
+                (org-chronicle-wikibase--span-query source qid (car pids) (cdr pids)))))
     (if (eq kind 'person)
         (org-chronicle-wikibase--rows->record
          qid vitals span
-         (org-chronicle-wikibase--sparql-request (org-chronicle-wikibase--spouses-query qid))
-         (org-chronicle-wikibase--sparql-request (org-chronicle-wikibase--events-query qid)))
+         (org-chronicle-wikibase--sparql-request (org-chronicle-wikibase--spouses-query source qid))
+         (org-chronicle-wikibase--sparql-request (org-chronicle-wikibase--events-query source qid)))
       (let* ((v (car vitals))
              (alias-str (and v (org-chronicle-wikibase--cell v "aliases")))
              (sp (org-chronicle-wikibase--span-select span)))

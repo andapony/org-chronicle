@@ -12,6 +12,9 @@
 (require 'org-chronicle-wikibase)
 (require 'cl-lib)
 
+(require 'org-chronicle-sources)
+
+
 (ert-deftest org-chronicle-wikibase-test-loads ()
   "The integration loads and defines its group."
   (should (featurep 'org-chronicle-wikibase)))
@@ -84,12 +87,13 @@
                   :type 'org-chronicle-wikibase-rate-limited)))
 
 (ert-deftest org-chronicle-wikibase-test-queries-mention-qid ()
-  (should (string-match-p "wd:Q7259"
-                          (org-chronicle-wikibase--vitals-query "Q7259")))
-  (should (string-match-p "P26"
-                          (org-chronicle-wikibase--spouses-query "Q7259")))
-  (should (string-match-p "P39"
-                          (org-chronicle-wikibase--events-query "Q7259"))))
+  (let ((wd (org-chronicle-sources--get 'wikidata)))
+    (should (string-match-p "wd:Q7259"
+                            (org-chronicle-wikibase--vitals-query wd "Q7259")))
+    (should (string-match-p "P26"
+                            (org-chronicle-wikibase--spouses-query wd "Q7259")))
+    (should (string-match-p "P39"
+                            (org-chronicle-wikibase--events-query wd "Q7259")))))
 
 (ert-deftest org-chronicle-wikibase-test-fetch-person ()
   (cl-letf (((symbol-function 'org-chronicle-wikibase--sparql-request)
@@ -217,10 +221,11 @@
     (should (equal (plist-get (car (plist-get rec :events)) :qid) "Q18810745"))))
 
 (ert-deftest org-chronicle-wikibase-test-queries-select-object-ids ()
-  (should (string-match-p "?spouse"
-                          (org-chronicle-wikibase--spouses-query "Q7259")))
-  (should (string-match-p "?pos"
-                          (org-chronicle-wikibase--events-query "Q7259"))))
+  (let ((wd (org-chronicle-sources--get 'wikidata)))
+    (should (string-match-p "?spouse"
+                            (org-chronicle-wikibase--spouses-query wd "Q7259")))
+    (should (string-match-p "?pos"
+                            (org-chronicle-wikibase--events-query wd "Q7259")))))
 
 (ert-deftest org-chronicle-wikibase-test-changes-object-qid ()
   (let* ((rec (list :qid "Q7259"
@@ -246,7 +251,8 @@
   (should (equal (org-chronicle-wikibase--kind-span-props 'person) '("BORN" . "DIED"))))
 
 (ert-deftest org-chronicle-wikibase-test-span-query ()
-  (let ((q (org-chronicle-wikibase--span-query "Q1" "P571" "P576")))
+  (let* ((wd (org-chronicle-sources--get 'wikidata))
+         (q (org-chronicle-wikibase--span-query wd "Q1" "P571" "P576")))
     (should (string-match-p "p:P571" q))
     (should (string-match-p "p:P576" q))
     (should (string-match-p "\"start\"" q))
@@ -355,6 +361,25 @@
     (should (string-match-p
              "PREFIX pqv: <https://database.factgrid.de/prop/qualifier/value/>" p))
     (should (string-match-p "PREFIX wikibase: <http://wikiba.se/ontology#>" p))))
+
+(ert-deftest org-chronicle-wikibase-test-queries-parameterized ()
+  "Query builders interpolate the source's prefixes and PIDs."
+  (let* ((wd (org-chronicle-sources--get 'wikidata))
+         (fake '(:base-uri "https://example.org" :label-language ("en")
+                 :property-map (:span ((person "P1" . "P2"))
+                                :birthplace "P3" :deathplace "P4"
+                                :father "P5" :mother "P6"
+                                :spouse "P7" :position "P8"
+                                :qual-start "P9" :qual-end "P10"))))
+    (should (string-match-p "PREFIX wd: <http://www.wikidata.org/entity/>"
+                            (org-chronicle-wikibase--vitals-query wd "Q42")))
+    (should (string-match-p "wdt:P19" (org-chronicle-wikibase--vitals-query wd "Q42")))
+    (should (string-match-p "wdt:P3" (org-chronicle-wikibase--vitals-query fake "Q42")))
+    (should (string-match-p "p:P7" (org-chronicle-wikibase--spouses-query fake "Q42")))
+    (should (string-match-p "ps:P8" (org-chronicle-wikibase--events-query fake "Q42")))
+    (should (string-match-p "p:P1 " (org-chronicle-wikibase--span-query
+                                     fake "Q42" "P1" "P2")))))
+
 
 
 (provide 'org-chronicle-wikibase-tests)
