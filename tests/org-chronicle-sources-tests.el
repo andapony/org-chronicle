@@ -36,24 +36,43 @@
     (should (eq (org-chronicle-sources--classify change "1900") 'conflict))))
 
 (ert-deftest org-chronicle-sources-test-event-key ()
-  (should (equal (org-chronicle-sources--event-key
-                  (list :kind "birth") "ABC" "Q7259") "birth:ABC"))
-  (should (equal (org-chronicle-sources--event-key
-                  (list :kind "death") "ABC" "Q7259") "death:ABC"))
-  (should (equal (org-chronicle-sources--event-key
-                  (list :kind "position" :object-qid "Q30") "ABC" "Q7259")
-                 "position:ABC:wd:Q30"))
-  (should (equal (org-chronicle-sources--event-key
-                  (list :kind "marriage" :object-qid "Q123") "ABC" "Q7259")
-                 (org-chronicle-sources--event-key
-                  (list :kind "marriage" :object-qid "Q7259") "XYZ" "Q123")))
-  (should (equal (org-chronicle-sources--event-key
-                  (list :kind "marriage" :object-qid "Q123") "ABC" "Q7259")
-                 "marriage:wd:Q123:wd:Q7259"))
-  (should (null (org-chronicle-sources--event-key
-                 (list :kind "marriage") "ABC" "Q7259")))
-  (should (null (org-chronicle-sources--event-key
-                 (list :kind "position") "ABC" "Q7259"))))
+  (let ((wd (org-chronicle-sources--get 'wikidata)))
+    (should (equal (org-chronicle-sources--event-key
+                    (list :kind "birth") "ABC" wd "Q7259") "birth:ABC"))
+    (should (equal (org-chronicle-sources--event-key
+                    (list :kind "death") "ABC" wd "Q7259") "death:ABC"))
+    (should (equal (org-chronicle-sources--event-key
+                    (list :kind "position" :object-qid "Q30") "ABC" wd "Q7259")
+                   "position:ABC:wd:Q30"))
+    (should (equal (org-chronicle-sources--event-key
+                    (list :kind "marriage" :object-qid "Q123") "ABC" wd "Q7259")
+                   (org-chronicle-sources--event-key
+                    (list :kind "marriage" :object-qid "Q7259") "XYZ" wd "Q123")))
+    (should (equal (org-chronicle-sources--event-key
+                    (list :kind "marriage" :object-qid "Q123") "ABC" wd "Q7259")
+                   "marriage:wd:Q123:wd:Q7259"))
+    (should (null (org-chronicle-sources--event-key
+                   (list :kind "marriage") "ABC" wd "Q7259")))
+    (should (null (org-chronicle-sources--event-key
+                   (list :kind "position") "ABC" wd "Q7259")))))
+
+(ert-deftest org-chronicle-sources-test-event-key-curie ()
+  "Position/marriage keys use the source curie; birth keys do not."
+  (let ((wd (org-chronicle-sources--get 'wikidata))
+        (fg (org-chronicle-sources--get 'factgrid)))
+    (should (equal (org-chronicle-sources--event-key
+                    '(:kind "birth") "orgid-1" wd "Q7259")
+                   "birth:orgid-1"))
+    (should (equal (org-chronicle-sources--event-key
+                    '(:kind "position" :object-qid "Q30") "orgid-1" wd "Q7259")
+                   "position:orgid-1:wd:Q30"))
+    (should (equal (org-chronicle-sources--event-key
+                    '(:kind "position" :object-qid "Q30") "orgid-1" fg "Q7259")
+                   "position:orgid-1:fg:Q30"))
+    (should (equal (org-chronicle-sources--event-key
+                    '(:kind "marriage" :object-qid "Q123") "orgid-1" wd "Q7259")
+                   "marriage:wd:Q123:wd:Q7259"))))
+
 
 (ert-deftest org-chronicle-sources-test-review-rows ()
   "Test that review rows carry selected state from change defaults."
@@ -244,7 +263,8 @@
     (insert "* Birth of Ada\n:PROPERTIES:\n:IMPORT-KEY: birth:ADA\n:DATE: <1815-12-10>\n:END:\n")
     (goto-char (point-min))
     (let* ((marker (point-marker))
-           (index (make-hash-table :test 'equal)))
+           (index (make-hash-table :test 'equal))
+           (wd (org-chronicle-sources--get 'wikidata)))
       (save-excursion
         (goto-char (point-min))
         (search-forward "* Birth of Ada")
@@ -258,7 +278,7 @@
                      :event (list :kind "birth" :life-event "birth" :date "1815-12-10"))
                (list :target 'event :provenance "u"
                      :event (list :kind "marriage" :life-event "marriage" :date "1835"))))
-             (result (org-chronicle-sources--classify-changes changes marker "ADA" "Q7259" index)))
+             (result (org-chronicle-sources--classify-changes changes marker "ADA" wd "Q7259" index)))
         (cl-flet ((by-prop (p) (cl-find p result
                                         :key (lambda (c) (plist-get c :property))
                                         :test (lambda (a b) (and b (equal a b)))))

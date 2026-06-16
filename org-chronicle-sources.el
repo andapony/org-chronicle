@@ -105,25 +105,26 @@ Life events (those with a :life-event kind) go through
        :location (plist-get ev :location)
        :sources (plist-get change :provenance)))))
 
-(defun org-chronicle-sources--event-key (event subject-orgid subject-qid)
+(defun org-chronicle-sources--event-key (event subject-orgid source subject-qid)
   "Return the IMPORT-KEY for EVENT, or nil when a required id is missing.
-SUBJECT-ORGID is the chronicle entity's org id and SUBJECT-QID its Wikidata
-QID.  EVENT is an event change's :event plist.  Birth and death key on the
-chronicle subject; positions add the office QID; marriage keys on the sorted
-pair of both participants' prefixed QIDs so it is symmetric."
+SUBJECT-ORGID is the chronicle entity's org id; SOURCE is the import source and
+SUBJECT-QID its id within that source.  Birth and death key on the chronicle
+subject (source-independent); positions add the office id; marriage keys on the
+sorted pair of both participants' CURIE-prefixed ids."
   (let ((kind (plist-get event :kind))
-        (obj (plist-get event :object-qid)))
+        (obj (plist-get event :object-qid))
+        (curie (plist-get source :curie)))
     (pcase kind
       ("marriage"
        (and subject-qid obj
             (format "marriage:%s"
                     (mapconcat #'identity
-                               (sort (list (concat "wd:" subject-qid)
-                                           (concat "wd:" obj))
+                               (sort (list (concat curie subject-qid)
+                                           (concat curie obj))
                                      #'string<)
                                ":"))))
       ("position"
-       (and obj (format "position:%s:wd:%s" subject-orgid obj)))
+       (and obj (format "position:%s:%s%s" subject-orgid curie obj)))
       (_ (and subject-orgid (format "%s:%s" kind subject-orgid))))))
 
 (defun org-chronicle-sources--events-index ()
@@ -324,11 +325,11 @@ Return nil otherwise."
         (when (member key '("PARENTS" "SPOUSE"))
           (car (org-chronicle--split (org-element-property :value el))))))))
 
-(defun org-chronicle-sources--classify-changes (changes marker subject-orgid subject-qid index)
+(defun org-chronicle-sources--classify-changes (changes marker subject-orgid source subject-qid index)
   "Stamp each proposed change with :status (and event :key); drop keyless events.
 CHANGES is the raw change list.  Entity changes classify against the heading at
 MARKER; event changes classify against INDEX by their IMPORT-KEY derived from
-SUBJECT-ORGID/SUBJECT-QID."
+SUBJECT-ORGID, SOURCE, and SUBJECT-QID."
   (delq nil
         (mapcar
          (lambda (c)
@@ -341,7 +342,7 @@ SUBJECT-ORGID/SUBJECT-QID."
               c)
              ('event
               (let ((key (org-chronicle-sources--event-key
-                          (plist-get c :event) subject-orgid subject-qid)))
+                          (plist-get c :event) subject-orgid source subject-qid)))
                 (when key
                   (plist-put c :key key)
                   (plist-put c :status
@@ -389,7 +390,7 @@ write the approved set.  A heading accretes one key property per source."
       (let* ((subject-orgid (org-with-point-at marker (org-id-get-create)))
              (index (org-chronicle-sources--events-index)))
         (setq changes (org-chronicle-sources--classify-changes
-                       changes marker subject-orgid qid index))
+                       changes marker subject-orgid source qid index))
         (org-chronicle-sources--review
          changes
          (lambda (selected)
@@ -429,7 +430,7 @@ When several source keys are present, prompt for which to reconcile."
              (rec (org-chronicle-wikibase--fetch-record source qid kind))
              (changes (org-chronicle-sources--classify-changes
                        (org-chronicle-wikibase--record->changes rec name)
-                       marker subject-orgid qid index))
+                       marker subject-orgid source qid index))
              (drift (cl-remove-if (lambda (c) (eq (plist-get c :status) 'same))
                                   changes)))
         (when (seq-empty-p drift)
