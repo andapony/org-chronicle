@@ -513,6 +513,26 @@
   (should-error (org-chronicle-sources--check-kind 'topic) :type 'user-error)
   (should-not (org-chronicle-sources--check-kind 'person)))
 
+(ert-deftest org-chronicle-sources-test-factgrid-entry ()
+  "FactGrid is registered as a wikibase source with its probe-confirmed PIDs."
+  (let ((s (org-chronicle-sources--get 'factgrid)))
+    (should (eq (plist-get s :adapter) 'wikibase))
+    (should (equal (plist-get s :key-property) "FACTGRID"))
+    (should (equal (plist-get s :curie) "fg:"))
+    (should (equal (plist-get s :base-uri) "https://database.factgrid.de"))
+    (should (equal (plist-get s :sparql-endpoint)
+                   "https://database.factgrid.de/sparql"))
+    (should (equal (plist-get s :item-url-format)
+                   "https://database.factgrid.de/wiki/Item:%s"))
+    (should (equal (org-chronicle-sources--pid s :birthplace) "P82"))
+    (should (equal (org-chronicle-sources--pid s :deathplace) "P168"))
+    (should (equal (org-chronicle-sources--pid s :spouse) "P84"))
+    (should (equal (org-chronicle-sources--span-pids s 'person)
+                   (cons "P77" "P38")))
+    (should (equal (org-chronicle-sources--span-pids s 'group)
+                   (cons "P49" "P50")))))
+
+
 
 
 

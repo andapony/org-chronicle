@@ -443,7 +443,24 @@ Drift is shown as opt-in pulls; nothing is overwritten without selection."
                      :birthplace "P19" :deathplace "P20"
                      :father "P22" :mother "P25"
                      :spouse "P26" :position "P39"
-                     :qual-start "P580" :qual-end "P582" )))
+                     :qual-start "P580" :qual-end "P582" ))
+    (factgrid
+     :label "FactGrid"
+     :adapter wikibase
+     :base-uri "https://database.factgrid.de"
+     :sparql-endpoint "https://database.factgrid.de/sparql"
+     :api-endpoint "https://database.factgrid.de/w/api.php"
+     :key-property "FACTGRID"
+     :curie "fg:"
+     :item-url-format "https://database.factgrid.de/wiki/Item:%s"
+     :label-language ("en")
+     :property-map ( :span  ((person "P77" . "P38")     ; date of birth / death
+                             (place  "P49" . "P50")     ; Begin date / End date
+                             (group  "P49" . "P50"))    ; Begin date / End date
+                     :birthplace "P82" :deathplace "P168"
+                     :father "P141" :mother "P142"
+                     :spouse "P84" :position "P165"
+                     :qual-start "P49" :qual-end "P50" )))
   "Registry of import sources, keyed by source id symbol.")
 
 (defcustom org-chronicle-default-source 'wikidata
