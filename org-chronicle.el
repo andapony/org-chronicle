@@ -1087,6 +1087,15 @@ the links current."
       (remove-hook 'after-revert-hook #'org-chronicle--maybe-invalidate-entity-cache))
     (font-lock-flush)))
 
+(defun org-chronicle-entity-links-refresh ()
+  "Rebuild entity links across `org-chronicle-entity-links-mode' buffers.
+Drops the cached entity set and refontifies, so event buffers pick up
+entities added, renamed, or re-aliased since the cache was built.  Useful
+after editing entity files outside the running Emacs."
+  (interactive)
+  (org-chronicle--invalidate-entity-cache))
+
+
 (defun org-chronicle--groups (entities)
   "Return the entities in ENTITIES whose `:kind' is `group'."
   (cl-remove-if-not (lambda (e) (eq (plist-get e :kind) 'group)) entities))

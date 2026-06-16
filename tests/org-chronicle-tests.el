@@ -475,6 +475,14 @@ directories are created.  The temp dir is removed afterward."
           (org-chronicle-visit-entity-at-point))
         (should (equal visited "ent-grant"))))))
 
+(ert-deftest org-chronicle-test-entity-links-refresh ()
+  "The refresh command clears the entity cache so it rebuilds from disk."
+  (let ((org-chronicle--entity-cache (cons 'stale (make-hash-table :test #'equal)))
+        (org-chronicle--entity-link-buffers nil))
+    (org-chronicle-entity-links-refresh)
+    (should-not org-chronicle--entity-cache)))
+
+
 
 
 
