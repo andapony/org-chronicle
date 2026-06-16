@@ -1,4 +1,4 @@
-;;; org-chronicle-wikidata-tests.el --- Tests for org-chronicle-wikidata -*- lexical-binding: t; -*-
+;;; org-chronicle-wikibase-tests.el --- Tests for org-chronicle-wikibase -*- lexical-binding: t; -*-
 
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -9,124 +9,124 @@
 ;;; Code:
 
 (require 'ert)
-(require 'org-chronicle-wikidata)
+(require 'org-chronicle-wikibase)
 (require 'cl-lib)
 
-(ert-deftest org-chronicle-wikidata-test-loads ()
+(ert-deftest org-chronicle-wikibase-test-loads ()
   "The integration loads and defines its group."
-  (should (featurep 'org-chronicle-wikidata)))
+  (should (featurep 'org-chronicle-wikibase)))
 
-(ert-deftest org-chronicle-wikidata-test-parse-qid ()
+(ert-deftest org-chronicle-wikibase-test-parse-qid ()
   "Test QID extraction from various string formats."
-  (should (equal (org-chronicle-wikidata--parse-qid "Q42") "Q42"))
-  (should (equal (org-chronicle-wikidata--parse-qid "  q42 ") "Q42"))
-  (should (equal (org-chronicle-wikidata--parse-qid
+  (should (equal (org-chronicle-wikibase--parse-qid "Q42") "Q42"))
+  (should (equal (org-chronicle-wikibase--parse-qid "  q42 ") "Q42"))
+  (should (equal (org-chronicle-wikibase--parse-qid
                   "https://www.wikidata.org/wiki/Q7259") "Q7259"))
-  (should (equal (org-chronicle-wikidata--parse-qid
+  (should (equal (org-chronicle-wikibase--parse-qid
                   "http://www.wikidata.org/entity/Q7259") "Q7259"))
-  (should (null (org-chronicle-wikidata--parse-qid "not a qid")))
-  (should (null (org-chronicle-wikidata--parse-qid nil)))
-  (should (null (org-chronicle-wikidata--parse-qid ""))))
+  (should (null (org-chronicle-wikibase--parse-qid "not a qid")))
+  (should (null (org-chronicle-wikibase--parse-qid nil)))
+  (should (null (org-chronicle-wikibase--parse-qid ""))))
 
-(ert-deftest org-chronicle-wikidata-test-time->date ()
+(ert-deftest org-chronicle-wikibase-test-time->date ()
   "Test conversion from Wikidata time strings to date plists."
-  (let ((d (org-chronicle-wikidata--time->date "+1815-12-10T00:00:00Z" 11)))
+  (let ((d (org-chronicle-wikibase--time->date "+1815-12-10T00:00:00Z" 11)))
     (should (equal (plist-get d :year) 1815))
     (should (equal (plist-get d :month) 12))
     (should (equal (plist-get d :day) 10))
     (should (eq (plist-get d :precision) 'day)))
   ;; The live SPARQL endpoint returns ISO 8601 without a leading '+'.
-  (let ((d (org-chronicle-wikidata--time->date "1815-12-10T00:00:00Z" 11)))
+  (let ((d (org-chronicle-wikibase--time->date "1815-12-10T00:00:00Z" 11)))
     (should (equal (plist-get d :year) 1815))
     (should (equal (plist-get d :month) 12))
     (should (equal (plist-get d :day) 10))
     (should (eq (plist-get d :precision) 'day)))
-  (should (eq (plist-get (org-chronicle-wikidata--time->date
+  (should (eq (plist-get (org-chronicle-wikibase--time->date
                           "+1815-12-01T00:00:00Z" 10) :precision)
               'month))
-  (should (eq (plist-get (org-chronicle-wikidata--time->date
+  (should (eq (plist-get (org-chronicle-wikibase--time->date
                           "+1815-01-01T00:00:00Z" 9) :precision)
               'year))
-  (should (null (org-chronicle-wikidata--time->date "+1810-01-01T00:00:00Z" 8)))
-  (should (null (org-chronicle-wikidata--time->date "-0044-03-15T00:00:00Z" 11)))
-  (should (null (org-chronicle-wikidata--time->date "+0500-01-01T00:00:00Z" 9)))
-  (should (null (org-chronicle-wikidata--time->date nil 11))))
+  (should (null (org-chronicle-wikibase--time->date "+1810-01-01T00:00:00Z" 8)))
+  (should (null (org-chronicle-wikibase--time->date "-0044-03-15T00:00:00Z" 11)))
+  (should (null (org-chronicle-wikibase--time->date "+0500-01-01T00:00:00Z" 9)))
+  (should (null (org-chronicle-wikibase--time->date nil 11))))
 
-(ert-deftest org-chronicle-wikidata-test-bindings ()
+(ert-deftest org-chronicle-wikibase-test-bindings ()
   "Test SPARQL JSON parsing and binding accessors."
   (let* ((json "{\"results\":{\"bindings\":[\
 {\"a\":{\"type\":\"literal\",\"value\":\"x\"},\"n\":{\"value\":\"11\"}}]}}")
-         (rows (org-chronicle-wikidata--bindings json)))
+         (rows (org-chronicle-wikibase--bindings json)))
     (should (= (length rows) 1))
-    (should (equal (org-chronicle-wikidata--cell (car rows) "a") "x"))
-    (should (null (org-chronicle-wikidata--cell (car rows) "missing")))
-    (should (= (org-chronicle-wikidata--cell-int (car rows) "n") 11))
-    (should (null (org-chronicle-wikidata--cell-int (car rows) "a")))))
+    (should (equal (org-chronicle-wikibase--cell (car rows) "a") "x"))
+    (should (null (org-chronicle-wikibase--cell (car rows) "missing")))
+    (should (= (org-chronicle-wikibase--cell-int (car rows) "n") 11))
+    (should (null (org-chronicle-wikibase--cell-int (car rows) "a")))))
 
-(defvar org-chronicle-wikidata-test--directory
+(defvar org-chronicle-wikibase-test--directory
   (file-name-directory (or load-file-name buffer-file-name))
   "Directory containing the wikidata test file, captured at load time.")
 
-(ert-deftest org-chronicle-wikidata-test-search-request ()
-  (cl-letf (((symbol-function 'org-chronicle-wikidata--http-get)
+(ert-deftest org-chronicle-wikibase-test-search-request ()
+  (cl-letf (((symbol-function 'org-chronicle-wikibase--http-get)
              (lambda (&rest _)
-               (org-chronicle-wikidata-test--fixture "search-lovelace.json"))))
-    (let ((cands (org-chronicle-wikidata--search-request "Ada Lovelace")))
+               (org-chronicle-wikibase-test--fixture "search-lovelace.json"))))
+    (let ((cands (org-chronicle-wikibase--search-request "Ada Lovelace")))
       (should (equal (plist-get (car cands) :qid) "Q7259"))
       (should (equal (plist-get (car cands) :label) "Ada Lovelace"))
       (should (string-match-p "mathematician"
                               (plist-get (car cands) :description))))))
 
-(ert-deftest org-chronicle-wikidata-test-http-error ()
-  (cl-letf (((symbol-function 'org-chronicle-wikidata--http-get)
-             (lambda (&rest _) (signal 'org-chronicle-wikidata-rate-limited nil))))
-    (should-error (org-chronicle-wikidata--search-request "x")
-                  :type 'org-chronicle-wikidata-rate-limited)))
+(ert-deftest org-chronicle-wikibase-test-http-error ()
+  (cl-letf (((symbol-function 'org-chronicle-wikibase--http-get)
+             (lambda (&rest _) (signal 'org-chronicle-wikibase-rate-limited nil))))
+    (should-error (org-chronicle-wikibase--search-request "x")
+                  :type 'org-chronicle-wikibase-rate-limited)))
 
-(ert-deftest org-chronicle-wikidata-test-queries-mention-qid ()
+(ert-deftest org-chronicle-wikibase-test-queries-mention-qid ()
   (should (string-match-p "wd:Q7259"
-                          (org-chronicle-wikidata--vitals-query "Q7259")))
+                          (org-chronicle-wikibase--vitals-query "Q7259")))
   (should (string-match-p "P26"
-                          (org-chronicle-wikidata--spouses-query "Q7259")))
+                          (org-chronicle-wikibase--spouses-query "Q7259")))
   (should (string-match-p "P39"
-                          (org-chronicle-wikidata--events-query "Q7259"))))
+                          (org-chronicle-wikibase--events-query "Q7259"))))
 
-(ert-deftest org-chronicle-wikidata-test-fetch-person ()
-  (cl-letf (((symbol-function 'org-chronicle-wikidata--sparql-request)
+(ert-deftest org-chronicle-wikibase-test-fetch-person ()
+  (cl-letf (((symbol-function 'org-chronicle-wikibase--sparql-request)
              (lambda (q)
-               (org-chronicle-wikidata--bindings
+               (org-chronicle-wikibase--bindings
                 (cond ((string-match-p "P569" q)
-                       (org-chronicle-wikidata-test--fixture "lovelace-dates.json"))
+                       (org-chronicle-wikibase-test--fixture "lovelace-dates.json"))
                       ((string-match-p "P26" q)
-                       (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
+                       (org-chronicle-wikibase-test--fixture "lovelace-spouses.json"))
                       ((string-match-p "P39" q)
-                       (org-chronicle-wikidata-test--fixture "lovelace-events.json"))
-                      (t (org-chronicle-wikidata-test--fixture "lovelace-vitals.json")))))))
-    (let ((rec (org-chronicle-wikidata--fetch-person "Q7259")))
+                       (org-chronicle-wikibase-test--fixture "lovelace-events.json"))
+                      (t (org-chronicle-wikibase-test--fixture "lovelace-vitals.json")))))))
+    (let ((rec (org-chronicle-wikibase--fetch-person "Q7259")))
       (should (equal (plist-get rec :qid) "Q7259"))
       (should (equal (plist-get rec :birthplace) "London"))
       (should (= (length (plist-get rec :spouses)) 1)))))
 
-(defun org-chronicle-wikidata-test--fixture (name)
+(defun org-chronicle-wikibase-test--fixture (name)
   "Return the contents of fixture NAME under tests/fixtures/."
   (with-temp-buffer
     (insert-file-contents
      (expand-file-name (format "fixtures/%s" name)
-                       org-chronicle-wikidata-test--directory))
+                       org-chronicle-wikibase-test--directory))
     (buffer-string)))
 
-(ert-deftest org-chronicle-wikidata-test-record ()
+(ert-deftest org-chronicle-wikibase-test-record ()
   "Test assembling a person record from parsed Wikidata binding rows."
-  (let* ((rec (org-chronicle-wikidata--rows->record
+  (let* ((rec (org-chronicle-wikibase--rows->record
                "Q7259"
-               (org-chronicle-wikidata--bindings
-                (org-chronicle-wikidata-test--fixture "lovelace-vitals.json"))
-               (org-chronicle-wikidata--bindings
-                (org-chronicle-wikidata-test--fixture "lovelace-dates.json"))
-               (org-chronicle-wikidata--bindings
-                (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
-               (org-chronicle-wikidata--bindings
-                (org-chronicle-wikidata-test--fixture "lovelace-events.json")))))
+               (org-chronicle-wikibase--bindings
+                (org-chronicle-wikibase-test--fixture "lovelace-vitals.json"))
+               (org-chronicle-wikibase--bindings
+                (org-chronicle-wikibase-test--fixture "lovelace-dates.json"))
+               (org-chronicle-wikibase--bindings
+                (org-chronicle-wikibase-test--fixture "lovelace-spouses.json"))
+               (org-chronicle-wikibase--bindings
+                (org-chronicle-wikibase-test--fixture "lovelace-events.json")))))
     (should (equal (plist-get rec :qid) "Q7259"))
     (should (equal (plist-get (plist-get rec :born) :year) 1815))
     (should (equal (plist-get (plist-get rec :died) :year) 1852))
@@ -143,7 +143,7 @@
       (should (equal (plist-get ev :kind) "position"))
       (should (equal (plist-get (plist-get ev :date) :year) 1838)))))
 
-(ert-deftest org-chronicle-wikidata-test-record->changes ()
+(ert-deftest org-chronicle-wikibase-test-record->changes ()
   "Test that a person record produces the expected set of change plists."
   (let* ((rec (list :qid "Q7259"
                     :born (org-chronicle--date-parse "1815-12-10")
@@ -157,7 +157,7 @@
                     :events (list (list :kind "position" :title "Countess of Lovelace"
                                         :date (org-chronicle--date-parse "1838")
                                         :date-end nil :location nil))))
-         (changes (org-chronicle-wikidata--record->changes rec "Ada Lovelace")))
+         (changes (org-chronicle-wikibase--record->changes rec "Ada Lovelace")))
     (cl-flet ((prop (p) (cl-find-if (lambda (c)
                                       (and (eq (plist-get c :target) 'entity)
                                            (equal (plist-get c :property) p)))
@@ -176,17 +176,17 @@
                               :test (lambda (_ k) (equal k "position")))))
         (should (null (plist-get curated :default)))))))
 
-(ert-deftest org-chronicle-wikidata-test-classify ()
+(ert-deftest org-chronicle-wikibase-test-classify ()
   "Test classification of a change against the current heading value."
   (let ((change (list :target 'entity :property "BORN" :value "1815-12-10")))
-    (should (eq (org-chronicle-wikidata--classify change nil) 'new))
-    (should (eq (org-chronicle-wikidata--classify change "1815-12-10") 'same))
-    (should (eq (org-chronicle-wikidata--classify change "1900-01-01") 'conflict))))
+    (should (eq (org-chronicle-wikibase--classify change nil) 'new))
+    (should (eq (org-chronicle-wikibase--classify change "1815-12-10") 'same))
+    (should (eq (org-chronicle-wikibase--classify change "1900-01-01") 'conflict))))
 
-(ert-deftest org-chronicle-wikidata-test-apply-changes ()
+(ert-deftest org-chronicle-wikibase-test-apply-changes ()
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root)))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root)))
     (unwind-protect
         (with-temp-buffer
           (org-mode)
@@ -202,89 +202,89 @@
                              :event (list :life-event "birth" :title "Birth of Ada Lovelace"
                                           :date "1815-12-10" :subject (list "Ada Lovelace")
                                           :location "London")))))
-            (org-chronicle-wikidata--apply-changes
-             changes (org-chronicle-wikidata--events-index)))
+            (org-chronicle-wikibase--apply-changes
+             changes (org-chronicle-wikibase--events-index)))
           (goto-char (point-min))
           (should (equal (org-entry-get nil "BORN") "<1815-12-10>"))
           (should (equal (org-entry-get nil "WIKIDATA") "Q7259"))
           (should (equal (org-entry-get nil "SOURCES")
                          "https://www.wikidata.org/wiki/Q7259"))
           (let ((events (with-temp-buffer
-                          (insert-file-contents org-chronicle-wikidata-file)
+                          (insert-file-contents org-chronicle-wikibase-file)
                           (buffer-string))))
             (should (string-match-p "Birth of Ada Lovelace" events))
             (should (string-match-p ":LIFE-EVENT: birth" events))
             (should (string-match-p ":IMPORT-KEY: birth:ABC" events))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-candidate-line ()
+(ert-deftest org-chronicle-wikibase-test-candidate-line ()
   "Test formatting a candidate plist as a completion line."
-  (should (equal (org-chronicle-wikidata--candidate-line
+  (should (equal (org-chronicle-wikibase--candidate-line
                   (list :qid "Q7259" :label "Ada Lovelace"
                         :description "English mathematician"))
                  "Ada Lovelace — English mathematician (Q7259)")))
 
-(ert-deftest org-chronicle-wikidata-test-resolve-paste ()
+(ert-deftest org-chronicle-wikibase-test-resolve-paste ()
   "Test that pasting a QID short-circuits search."
   (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Q42"))
-            ((symbol-function 'org-chronicle-wikidata--search-request)
+            ((symbol-function 'org-chronicle-wikibase--search-request)
              (lambda (&rest _) (error "should not search"))))
-    (should (equal (org-chronicle-wikidata--resolve "anything") "Q42"))))
+    (should (equal (org-chronicle-wikibase--resolve "anything") "Q42"))))
 
-(ert-deftest org-chronicle-wikidata-test-resolve-pick ()
+(ert-deftest org-chronicle-wikibase-test-resolve-pick ()
   "Test that a name term searches and presents candidates for selection."
   (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Ada Lovelace"))
-            ((symbol-function 'org-chronicle-wikidata--search-request)
+            ((symbol-function 'org-chronicle-wikibase--search-request)
              (lambda (&rest _)
                (list (list :qid "Q7259" :label "Ada Lovelace"
                            :description "mathematician"))))
             ((symbol-function 'completing-read)
              (lambda (_prompt collection &rest _)
                (car (if (functionp collection) (funcall collection "" nil t) collection)))))
-    (should (equal (org-chronicle-wikidata--resolve "Ada Lovelace") "Q7259"))))
+    (should (equal (org-chronicle-wikibase--resolve "Ada Lovelace") "Q7259"))))
 
-(ert-deftest org-chronicle-wikidata-test-review-rows ()
+(ert-deftest org-chronicle-wikibase-test-review-rows ()
   "Test that review rows carry selected state from change defaults."
   (let* ((changes
           (list (list :target 'entity :group 'vitals :property "BORN"
                       :value "1815-12-10" :default t :status 'new)
                 (list :target 'event :group 'events :default nil :status 'new
                       :event (list :title "Countess of Lovelace" :date "1838"))))
-         (rows (org-chronicle-wikidata--review-rows changes)))
+         (rows (org-chronicle-wikibase--review-rows changes)))
     (should (= (length rows) 2))
     (should (plist-get (nth 0 (car rows)) :selected))
     (should-not (plist-get (nth 0 (cadr rows)) :selected))))
 
-(ert-deftest org-chronicle-wikidata-test-selected-changes ()
+(ert-deftest org-chronicle-wikibase-test-selected-changes ()
   "Test that only rows with :selected non-nil are returned."
   (let ((rows (list (list (list :selected t) (list :property "BORN"))
                     (list (list :selected nil) (list :property "DIED")))))
-    (let ((sel (org-chronicle-wikidata--selected-changes rows)))
+    (let ((sel (org-chronicle-wikibase--selected-changes rows)))
       (should (= (length sel) 1))
       (should (equal (plist-get (car sel) :property) "BORN")))))
 
-(ert-deftest org-chronicle-wikidata-test-import ()
+(ert-deftest org-chronicle-wikibase-test-import ()
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root))
          (people-file (expand-file-name "people.org" root)))
     (unwind-protect
         (progn
           (with-temp-file people-file
             (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n"))
-          (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
+          (cl-letf (((symbol-function 'org-chronicle-wikibase--resolve)
                      (lambda (&rest _) "Q7259"))
-                    ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                    ((symbol-function 'org-chronicle-wikibase--fetch-record)
                      (lambda (_qid _kind)
                        (list :qid "Q7259" :kind 'person
                              :born (org-chronicle--date-parse "1815-12-10")
                              :birthplace "London")))
-                    ((symbol-function 'org-chronicle-wikidata--review)
+                    ((symbol-function 'org-chronicle-wikibase--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
             (with-current-buffer (find-file-noselect people-file)
               (goto-char (point-min))
-              (org-chronicle-wikidata-import))
+              (org-chronicle-wikibase-import))
             (let ((content (with-temp-buffer
                              (insert-file-contents people-file)
                              (buffer-string))))
@@ -292,13 +292,13 @@
               (should (string-match-p ":WIKIDATA:.*Q7259" content)))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-event-change-string ()
+(ert-deftest org-chronicle-wikibase-test-event-change-string ()
   "Life events use life-event-string; position events use event-string."
-  (let ((life (org-chronicle-wikidata--event-change-string
+  (let ((life (org-chronicle-wikibase--event-change-string
                (list :provenance "u"
                      :event (list :life-event "birth" :title "Birth of X"
                                   :date "1815-12-10" :subject (list "X")))))
-        (pos (org-chronicle-wikidata--event-change-string
+        (pos (org-chronicle-wikibase--event-change-string
               (list :provenance "u"
                     :event (list :title "Countess of Lovelace" :date "1838")))))
     (should (string-match-p ":LIFE-EVENT: birth" life))
@@ -306,13 +306,13 @@
     (should-not (string-match-p "LIFE-EVENT" pos))
     (should-not (string-match-p "nil" pos))))
 
-(ert-deftest org-chronicle-wikidata-test-sources-append ()
+(ert-deftest org-chronicle-wikibase-test-sources-append ()
   "Applying a change appends to SOURCES rather than overwriting it."
   (with-temp-buffer
     (org-mode)
     (insert "* X\n:PROPERTIES:\n:SOURCES: my-book p.12\n:END:\n")
     (goto-char (point-min))
-    (org-chronicle-wikidata--apply-entity-change
+    (org-chronicle-wikibase--apply-entity-change
      (list :target 'entity :property "BORN" :value "<1815-12-10>"
            :provenance "https://www.wikidata.org/wiki/Q7259"))
     (goto-char (point-min))
@@ -320,14 +320,14 @@
       (should (string-match-p "my-book p.12" s))
       (should (string-match-p "Q7259" s)))))
 
-(ert-deftest org-chronicle-wikidata-test-classify-dates ()
+(ert-deftest org-chronicle-wikibase-test-classify-dates ()
   "BORN/DIED classification ignores brackets around dates."
   (let ((change (list :target 'entity :property "BORN" :value "<1815-12-10>")))
-    (should (eq (org-chronicle-wikidata--classify change "1815-12-10") 'same))
-    (should (eq (org-chronicle-wikidata--classify change "<1815-12-10>") 'same))
-    (should (eq (org-chronicle-wikidata--classify change "1900-01-01") 'conflict))))
+    (should (eq (org-chronicle-wikibase--classify change "1815-12-10") 'same))
+    (should (eq (org-chronicle-wikibase--classify change "<1815-12-10>") 'same))
+    (should (eq (org-chronicle-wikibase--classify change "1900-01-01") 'conflict))))
 
-(ert-deftest org-chronicle-wikidata-test-import-create ()
+(ert-deftest org-chronicle-wikibase-test-import-create ()
   "Non-entity heading triggers entity creation then enriches the new entity."
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
@@ -339,15 +339,15 @@
           (insert "* Charles Babbage\nsome prose\n")
           (goto-char (point-min))
           (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "person"))
-                    ((symbol-function 'org-chronicle-wikidata--resolve)
+                    ((symbol-function 'org-chronicle-wikibase--resolve)
                      (lambda (&rest _) "Q46633"))
-                    ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                    ((symbol-function 'org-chronicle-wikibase--fetch-record)
                      (lambda (_qid _kind)
                        (list :qid "Q46633" :kind 'person
                              :born (org-chronicle--date-parse "1791-12-26"))))
-                    ((symbol-function 'org-chronicle-wikidata--review)
+                    ((symbol-function 'org-chronicle-wikibase--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
-            (org-chronicle-wikidata-import))
+            (org-chronicle-wikibase-import))
           (let ((people (with-temp-buffer
                           (insert-file-contents org-chronicle-people-file)
                           (buffer-string))))
@@ -357,7 +357,7 @@
             (should (string-match-p ":BORN:" people))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-import-promote ()
+(ert-deftest org-chronicle-wikibase-test-import-promote ()
   "Point on SPOUSE property creates a new entity seeded from the value."
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
@@ -370,17 +370,17 @@
           (goto-char (point-min))
           (search-forward ":SPOUSE:")
           (beginning-of-line)
-          (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
+          (cl-letf (((symbol-function 'org-chronicle-wikibase--resolve)
                      (lambda (seed)
                        (should (string-match-p "William" seed))
                        "Q123"))
-                    ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                    ((symbol-function 'org-chronicle-wikibase--fetch-record)
                      (lambda (_qid _kind)
                        (list :qid "Q123" :kind 'person
                              :born (org-chronicle--date-parse "1805"))))
-                    ((symbol-function 'org-chronicle-wikidata--review)
+                    ((symbol-function 'org-chronicle-wikibase--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
-            (org-chronicle-wikidata-import))
+            (org-chronicle-wikibase-import))
           (let ((people (with-temp-buffer
                           (insert-file-contents org-chronicle-people-file)
                           (buffer-string))))
@@ -388,43 +388,43 @@
             (should (string-match-p ":WIKIDATA:.*Q123" people))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-events-file ()
+(ert-deftest org-chronicle-wikibase-test-events-file ()
   (let ((org-chronicle-root "/tmp/octw/"))
-    (let ((org-chronicle-wikidata-file nil))
-      (should (equal (org-chronicle-wikidata--events-file)
+    (let ((org-chronicle-wikibase-file nil))
+      (should (equal (org-chronicle-wikibase--events-file)
                      "/tmp/octw/imported/events.org")))
-    (let ((org-chronicle-wikidata-file "/tmp/elsewhere.org"))
-      (should (equal (org-chronicle-wikidata--events-file)
+    (let ((org-chronicle-wikibase-file "/tmp/elsewhere.org"))
+      (should (equal (org-chronicle-wikibase--events-file)
                      "/tmp/elsewhere.org")))))
 
-(ert-deftest org-chronicle-wikidata-test-record-object-qids ()
-  (let ((rec (org-chronicle-wikidata--rows->record
+(ert-deftest org-chronicle-wikibase-test-record-object-qids ()
+  (let ((rec (org-chronicle-wikibase--rows->record
               "Q7259"
-              (org-chronicle-wikidata--bindings
-               (org-chronicle-wikidata-test--fixture "lovelace-vitals.json"))
-              (org-chronicle-wikidata--bindings
-               (org-chronicle-wikidata-test--fixture "lovelace-dates.json"))
-              (org-chronicle-wikidata--bindings
-               (org-chronicle-wikidata-test--fixture "lovelace-spouses.json"))
-              (org-chronicle-wikidata--bindings
-               (org-chronicle-wikidata-test--fixture "lovelace-events.json")))))
+              (org-chronicle-wikibase--bindings
+               (org-chronicle-wikibase-test--fixture "lovelace-vitals.json"))
+              (org-chronicle-wikibase--bindings
+               (org-chronicle-wikibase-test--fixture "lovelace-dates.json"))
+              (org-chronicle-wikibase--bindings
+               (org-chronicle-wikibase-test--fixture "lovelace-spouses.json"))
+              (org-chronicle-wikibase--bindings
+               (org-chronicle-wikibase-test--fixture "lovelace-events.json")))))
     (should (equal (plist-get (car (plist-get rec :spouses)) :qid) "Q336789"))
     (should (equal (plist-get (car (plist-get rec :events)) :qid) "Q18810745"))))
 
-(ert-deftest org-chronicle-wikidata-test-queries-select-object-ids ()
+(ert-deftest org-chronicle-wikibase-test-queries-select-object-ids ()
   (should (string-match-p "?spouse"
-                          (org-chronicle-wikidata--spouses-query "Q7259")))
+                          (org-chronicle-wikibase--spouses-query "Q7259")))
   (should (string-match-p "?pos"
-                          (org-chronicle-wikidata--events-query "Q7259"))))
+                          (org-chronicle-wikibase--events-query "Q7259"))))
 
-(ert-deftest org-chronicle-wikidata-test-changes-object-qid ()
+(ert-deftest org-chronicle-wikibase-test-changes-object-qid ()
   (let* ((rec (list :qid "Q7259"
                     :spouses (list (list :name "William King-Noel" :qid "Q336789"
                                          :date (org-chronicle--date-parse "1835-07-08")))
                     :events (list (list :kind "position" :title "Countess of Lovelace"
                                         :qid "Q18810745"
                                         :date (org-chronicle--date-parse "1838")))))
-         (changes (org-chronicle-wikidata--record->changes rec "Ada Lovelace"))
+         (changes (org-chronicle-wikibase--record->changes rec "Ada Lovelace"))
          (events (cl-remove-if-not (lambda (c) (eq (plist-get c :target) 'event)) changes)))
     (let ((marriage (cl-find "marriage" events
                              :key (lambda (c) (plist-get (plist-get c :event) :kind))
@@ -435,44 +435,44 @@
       (should (equal (plist-get (plist-get marriage :event) :object-qid) "Q336789"))
       (should (equal (plist-get (plist-get pos :event) :object-qid) "Q18810745")))))
 
-(ert-deftest org-chronicle-wikidata-test-event-key ()
-  (should (equal (org-chronicle-wikidata--event-key
+(ert-deftest org-chronicle-wikibase-test-event-key ()
+  (should (equal (org-chronicle-wikibase--event-key
                   (list :kind "birth") "ABC" "Q7259") "birth:ABC"))
-  (should (equal (org-chronicle-wikidata--event-key
+  (should (equal (org-chronicle-wikibase--event-key
                   (list :kind "death") "ABC" "Q7259") "death:ABC"))
-  (should (equal (org-chronicle-wikidata--event-key
+  (should (equal (org-chronicle-wikibase--event-key
                   (list :kind "position" :object-qid "Q30") "ABC" "Q7259")
                  "position:ABC:wd:Q30"))
-  (should (equal (org-chronicle-wikidata--event-key
+  (should (equal (org-chronicle-wikibase--event-key
                   (list :kind "marriage" :object-qid "Q123") "ABC" "Q7259")
-                 (org-chronicle-wikidata--event-key
+                 (org-chronicle-wikibase--event-key
                   (list :kind "marriage" :object-qid "Q7259") "XYZ" "Q123")))
-  (should (equal (org-chronicle-wikidata--event-key
+  (should (equal (org-chronicle-wikibase--event-key
                   (list :kind "marriage" :object-qid "Q123") "ABC" "Q7259")
                  "marriage:wd:Q123:wd:Q7259"))
-  (should (null (org-chronicle-wikidata--event-key
+  (should (null (org-chronicle-wikibase--event-key
                  (list :kind "marriage") "ABC" "Q7259")))
-  (should (null (org-chronicle-wikidata--event-key
+  (should (null (org-chronicle-wikibase--event-key
                  (list :kind "position") "ABC" "Q7259"))))
 
-(ert-deftest org-chronicle-wikidata-test-events-index-and-append ()
+(ert-deftest org-chronicle-wikibase-test-events-index-and-append ()
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root)))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root)))
     (unwind-protect
-        (let ((index (org-chronicle-wikidata--events-index)))
+        (let ((index (org-chronicle-wikibase--events-index)))
           (should (= (hash-table-count index) 0))
-          (org-chronicle-wikidata--append-to-events-file
+          (org-chronicle-wikibase--append-to-events-file
            "* Birth of X\n:PROPERTIES:\n:DATE: <1815-12-10>\n:END:\n"
            "birth:ABC" index)
           (should (gethash "birth:ABC" index))
-          (let ((fresh (org-chronicle-wikidata--events-index)))
+          (let ((fresh (org-chronicle-wikibase--events-index)))
             (should (gethash "birth:ABC" fresh))
             (org-with-point-at (gethash "birth:ABC" fresh)
               (should (equal (org-entry-get nil "IMPORT-KEY") "birth:ABC")))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-classify-event ()
+(ert-deftest org-chronicle-wikibase-test-classify-event ()
   (with-temp-buffer
     (org-mode)
     (insert "* Birth of X\n:PROPERTIES:\n:DATE: <1815-12-10>\n:LOCATION: London\n:END:\n")
@@ -480,14 +480,14 @@
     (let ((m (point-marker))
           (same (list :event (list :date "1815-12-10" :location "London")))
           (confl (list :event (list :date "1900-01-01" :location "London"))))
-      (should (eq (org-chronicle-wikidata--classify-event same m) 'same))
-      (should (eq (org-chronicle-wikidata--classify-event confl m) 'conflict))
-      (should (eq (org-chronicle-wikidata--classify-event same nil) 'new)))))
+      (should (eq (org-chronicle-wikibase--classify-event same m) 'same))
+      (should (eq (org-chronicle-wikibase--classify-event confl m) 'conflict))
+      (should (eq (org-chronicle-wikibase--classify-event same nil) 'new)))))
 
-(ert-deftest org-chronicle-wikidata-test-apply-event-idempotent ()
+(ert-deftest org-chronicle-wikibase-test-apply-event-idempotent ()
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
          (change (list :target 'event :key "birth:ABC"
                        :provenance "https://www.wikidata.org/wiki/Q7259"
@@ -495,11 +495,11 @@
                                     :date "1815-12-10" :subject (list "Ada Lovelace")
                                     :location "London"))))
     (unwind-protect
-        (let ((index (org-chronicle-wikidata--events-index)))
-          (org-chronicle-wikidata--apply-event-change change index)
-          (org-chronicle-wikidata--apply-event-change change index)
+        (let ((index (org-chronicle-wikibase--events-index)))
+          (org-chronicle-wikibase--apply-event-change change index)
+          (org-chronicle-wikibase--apply-event-change change index)
           (let ((body (with-temp-buffer
-                        (insert-file-contents org-chronicle-wikidata-file)
+                        (insert-file-contents org-chronicle-wikibase-file)
                         (buffer-string))))
             (should (= 1 (cl-count ?* body)))
             (should (string-match-p ":IMPORT-KEY: birth:ABC" body))
@@ -507,59 +507,59 @@
           (let ((change2 (copy-sequence change)))
             (plist-put change2 :event (list :life-event "birth" :title "Birth of Ada Lovelace"
                                             :date "1816-01-01" :subject (list "Ada Lovelace")))
-            (org-chronicle-wikidata--apply-event-change change2 index))
+            (org-chronicle-wikibase--apply-event-change change2 index))
           (let ((body (with-temp-buffer
-                        (insert-file-contents org-chronicle-wikidata-file)
+                        (insert-file-contents org-chronicle-wikibase-file)
                         (buffer-string))))
             (should (= 1 (cl-count ?* body)))
             (should (string-match-p "1816-01-01" body))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-import-events-idempotent ()
+(ert-deftest org-chronicle-wikibase-test-import-events-idempotent ()
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file (expand-file-name "people.org" root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
          (people-file (expand-file-name "people.org" root)))
     (unwind-protect
-        (cl-letf (((symbol-function 'org-chronicle-wikidata--resolve)
+        (cl-letf (((symbol-function 'org-chronicle-wikibase--resolve)
                    (lambda (&rest _) "Q7259"))
-                  ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                  ((symbol-function 'org-chronicle-wikibase--fetch-record)
                    (lambda (_qid _kind)
                      (list :qid "Q7259" :kind 'person
                            :born (org-chronicle--date-parse "1815-12-10")
                            :birthplace "London")))
-                  ((symbol-function 'org-chronicle-wikidata--review)
+                  ((symbol-function 'org-chronicle-wikibase--review)
                    (lambda (changes on-confirm) (funcall on-confirm changes))))
           (with-temp-file people-file
             (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n"))
           (cl-flet ((run ()
                       (with-current-buffer (find-file-noselect people-file)
                         (goto-char (point-min))
-                        (org-chronicle-wikidata-import))))
+                        (org-chronicle-wikibase-import))))
             (run)
             (run)
             (let ((body (with-temp-buffer
-                          (insert-file-contents org-chronicle-wikidata-file)
+                          (insert-file-contents org-chronicle-wikibase-file)
                           (buffer-string))))
               (should (= 1 (cl-count-if
                             (lambda (l) (string-match-p "Birth of Ada Lovelace" l))
                             (split-string body "\n")))))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-apply-event-preserves-unmanaged ()
+(ert-deftest org-chronicle-wikibase-test-apply-event-preserves-unmanaged ()
   (let* ((root (make-temp-file "octw-root" t))
          (org-chronicle-root (file-name-as-directory root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
          (change (list :target 'event :key "birth:ABC"
                        :provenance "https://www.wikidata.org/wiki/Q7259"
                        :event (list :life-event "birth" :title "Birth of Ada Lovelace"
                                     :date "1815-12-10" :subject (list "Ada Lovelace")))))
     (unwind-protect
-        (let ((index (org-chronicle-wikidata--events-index)))
-          (org-chronicle-wikidata--apply-event-change change index)
+        (let ((index (org-chronicle-wikibase--events-index)))
+          (org-chronicle-wikibase--apply-event-change change index)
           ;; Author edits the heading: renames it and adds an unmanaged property.
           (org-with-point-at (gethash "birth:ABC" index)
             (org-back-to-heading t)
@@ -570,16 +570,16 @@
           (let ((change2 (copy-sequence change)))
             (plist-put change2 :event (list :life-event "birth" :title "Birth of Ada Lovelace"
                                             :date "1816-02-02" :subject (list "Ada Lovelace")))
-            (org-chronicle-wikidata--apply-event-change change2 index))
+            (org-chronicle-wikibase--apply-event-change change2 index))
           (let ((body (with-temp-buffer
-                        (insert-file-contents org-chronicle-wikidata-file)
+                        (insert-file-contents org-chronicle-wikibase-file)
                         (buffer-string))))
             (should (string-match-p "1816-02-02" body))          ; managed field updated
             (should (string-match-p "Ada's birth (my note)" body)) ; title preserved
             (should (string-match-p ":NOTES: *hand-written" body)))) ; unmanaged prop preserved
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-classify-changes ()
+(ert-deftest org-chronicle-wikibase-test-classify-changes ()
   (with-temp-buffer
     (org-mode)
     (insert "* Ada\n:PROPERTIES:\n:KIND: person\n:BORN: <1815-12-10>\n:END:\n")
@@ -600,7 +600,7 @@
                      :event (list :kind "birth" :life-event "birth" :date "1815-12-10"))
                (list :target 'event :provenance "u"
                      :event (list :kind "marriage" :life-event "marriage" :date "1835"))))
-             (result (org-chronicle-wikidata--classify-changes changes marker "ADA" "Q7259" index)))
+             (result (org-chronicle-wikibase--classify-changes changes marker "ADA" "Q7259" index)))
         (cl-flet ((by-prop (p) (cl-find p result
                                         :key (lambda (c) (plist-get c :property))
                                         :test (lambda (a b) (and b (equal a b)))))
@@ -615,11 +615,11 @@
             (should (equal (plist-get be :key) "birth:ADA"))
             (should (eq (plist-get be :status) 'same))))))))
 
-(ert-deftest org-chronicle-wikidata-test-reconcile-event-drift ()
+(ert-deftest org-chronicle-wikibase-test-reconcile-event-drift ()
   (let* ((root (make-temp-file "octw-rec" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file (expand-file-name "people.org" root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
          (org-id-locations-file (expand-file-name ".org-id-locations" root))
          captured)
@@ -627,19 +627,19 @@
         (progn
           (with-temp-file org-chronicle-people-file
             (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:WIKIDATA: Q7259\n:ID: ADA-ID\n:BORN: <1815-12-10>\n:END:\n"))
-          (make-directory (file-name-directory org-chronicle-wikidata-file) t)
-          (with-temp-file org-chronicle-wikidata-file
+          (make-directory (file-name-directory org-chronicle-wikibase-file) t)
+          (with-temp-file org-chronicle-wikibase-file
             (insert "* Birth of Ada Lovelace\n:PROPERTIES:\n:IMPORT-KEY: birth:ADA-ID\n:LIFE-EVENT: birth\n:DATE: <1800-01-01>\n:END:\n"))
-          (cl-letf (((symbol-function 'org-chronicle-wikidata--fetch-record)
+          (cl-letf (((symbol-function 'org-chronicle-wikibase--fetch-record)
                      (lambda (_qid _kind)
                        (list :qid "Q7259" :kind 'person
                              :born (org-chronicle--date-parse "1815-12-10")
                              :died (org-chronicle--date-parse "1852-11-27"))))
-                    ((symbol-function 'org-chronicle-wikidata--review)
+                    ((symbol-function 'org-chronicle-wikibase--review)
                      (lambda (drift on-confirm) (setq captured drift) (funcall on-confirm drift))))
             (with-current-buffer (find-file-noselect org-chronicle-people-file)
               (goto-char (point-min))
-              (org-chronicle-wikidata-reconcile)))
+              (org-chronicle-wikibase-reconcile)))
           (cl-flet ((event-of (k) (cl-find k captured
                                            :key (lambda (c) (and (eq (plist-get c :target) 'event)
                                                                  (plist-get (plist-get c :event) :kind)))
@@ -648,7 +648,7 @@
             (should (eq (plist-get (event-of "death") :status) 'new))
             (should-not (cl-find 'same captured :key (lambda (c) (plist-get c :status)))))
           (let ((events (with-temp-buffer
-                          (insert-file-contents org-chronicle-wikidata-file)
+                          (insert-file-contents org-chronicle-wikibase-file)
                           (buffer-string))))
             (should (= 1 (cl-count-if (lambda (l) (string-match-p "Birth of Ada Lovelace" l))
                                       (split-string events "\n"))))
@@ -657,17 +657,17 @@
             (should (string-match-p "Death of Ada Lovelace" events))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-coarse-date-label ()
-  (should (equal (org-chronicle-wikidata--coarse-date-label "1640-01-01T00:00:00Z" 8) "1640s"))
-  (should (equal (org-chronicle-wikidata--coarse-date-label "1643-01-01T00:00:00Z" 7) "17th century"))
-  (should (equal (org-chronicle-wikidata--coarse-date-label "-0900-01-01T00:00:00Z" 7) "900 BC")))
+(ert-deftest org-chronicle-wikibase-test-coarse-date-label ()
+  (should (equal (org-chronicle-wikibase--coarse-date-label "1640-01-01T00:00:00Z" 8) "1640s"))
+  (should (equal (org-chronicle-wikibase--coarse-date-label "1643-01-01T00:00:00Z" 7) "17th century"))
+  (should (equal (org-chronicle-wikibase--coarse-date-label "-0900-01-01T00:00:00Z" 7) "900 BC")))
 
-(ert-deftest org-chronicle-wikidata-test-select-candidate ()
+(ert-deftest org-chronicle-wikibase-test-select-candidate ()
   (cl-flet ((cand (date prec rank)
                   (list :date (and date (org-chronicle--date-parse date))
                         :raw (and date (concat date "T00:00:00Z"))
                         :precision prec :rank rank)))
-    (let ((sel (org-chronicle-wikidata--select-candidate
+    (let ((sel (org-chronicle-wikibase--select-candidate
                 (list (cand "1643-01-04" 11 'normal)
                       (cand "1643-01-04" 11 'preferred)
                       (cand "1642" 9 'normal)))))
@@ -675,57 +675,57 @@
       (should (equal (plist-get (plist-get sel :date) :day) 4))
       (should (member "1642" (plist-get sel :alternates)))
       (should-not (member "1643-01-04" (plist-get sel :alternates))))
-    (should (equal (plist-get (plist-get (org-chronicle-wikidata--select-candidate
+    (should (equal (plist-get (plist-get (org-chronicle-wikibase--select-candidate
                                           (list (cand "1500" 9 'normal)
                                                 (cand "1500-06-15" 11 'normal))) :date) :day) 15))
-    (should (equal (plist-get (plist-get (org-chronicle-wikidata--select-candidate
+    (should (equal (plist-get (plist-get (org-chronicle-wikibase--select-candidate
                                           (list (cand "1500" 9 nil)
                                                 (cand "1500-06-15" 11 nil))) :date) :day) 15))
-    (let ((sel (org-chronicle-wikidata--select-candidate
+    (let ((sel (org-chronicle-wikibase--select-candidate
                 (list (cand "1500-06-15" 11 'deprecated) (cand "1500" 9 'normal)))))
       (should (equal (plist-get (plist-get sel :date) :year) 1500))
       (should (null (plist-get (plist-get sel :date) :day))))
-    (let ((sel (org-chronicle-wikidata--select-candidate
+    (let ((sel (org-chronicle-wikibase--select-candidate
                 (list (list :date nil :raw "1640-01-01T00:00:00Z" :precision 8 :rank 'preferred)
                       (cand "1643-01-04" 11 'normal)))))
       (should (equal (plist-get (plist-get sel :date) :year) 1643))
       (should (member "1640s" (plist-get sel :alternates))))
-    (should (null (plist-get (org-chronicle-wikidata--select-candidate
+    (should (null (plist-get (org-chronicle-wikibase--select-candidate
                               (list (list :date nil :raw "1640-01-01T00:00:00Z"
                                           :precision 8 :rank 'normal))) :date)))))
 
-(ert-deftest org-chronicle-wikidata-test-kind-profile ()
-  (should (equal (org-chronicle-wikidata--kind-span-pids 'place) '("P571" . "P576")))
-  (should (equal (org-chronicle-wikidata--kind-span-props 'group) '("FOUNDED" . "DISBANDED")))
-  (should (equal (org-chronicle-wikidata--kind-span-props 'person) '("BORN" . "DIED"))))
+(ert-deftest org-chronicle-wikibase-test-kind-profile ()
+  (should (equal (org-chronicle-wikibase--kind-span-pids 'place) '("P571" . "P576")))
+  (should (equal (org-chronicle-wikibase--kind-span-props 'group) '("FOUNDED" . "DISBANDED")))
+  (should (equal (org-chronicle-wikibase--kind-span-props 'person) '("BORN" . "DIED"))))
 
-(ert-deftest org-chronicle-wikidata-test-span-query ()
-  (let ((q (org-chronicle-wikidata--span-query "Q1" "P571" "P576")))
+(ert-deftest org-chronicle-wikibase-test-span-query ()
+  (let ((q (org-chronicle-wikibase--span-query "Q1" "P571" "P576")))
     (should (string-match-p "p:P571" q))
     (should (string-match-p "p:P576" q))
     (should (string-match-p "\"start\"" q))
     (should (string-match-p "\"end\"" q))
     (should (string-match-p "wikibase:rank" q))))
 
-(ert-deftest org-chronicle-wikidata-test-span-select ()
+(ert-deftest org-chronicle-wikibase-test-span-select ()
   (let* ((json "{\"results\":{\"bindings\":[\
 {\"prop\":{\"value\":\"start\"},\"value\":{\"value\":\"1896-01-01T00:00:00Z\"},\"prec\":{\"value\":\"9\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#NormalRank\"}}]}}")
-         (sp (org-chronicle-wikidata--span-select
-              (org-chronicle-wikidata--bindings json))))
+         (sp (org-chronicle-wikibase--span-select
+              (org-chronicle-wikibase--bindings json))))
     (should (equal (plist-get (plist-get sp :start) :year) 1896))
     (should (null (plist-get sp :end)))))
 
-(ert-deftest org-chronicle-wikidata-test-classify-span-dates ()
+(ert-deftest org-chronicle-wikibase-test-classify-span-dates ()
   (let ((change (list :target 'entity :property "BUILT" :value "<1896>")))
-    (should (eq (org-chronicle-wikidata--classify change "1896") 'same))
-    (should (eq (org-chronicle-wikidata--classify change "1900") 'conflict))))
+    (should (eq (org-chronicle-wikibase--classify change "1896") 'same))
+    (should (eq (org-chronicle-wikibase--classify change "1900") 'conflict))))
 
-(ert-deftest org-chronicle-wikidata-test-dates->candidates ()
+(ert-deftest org-chronicle-wikibase-test-dates->candidates ()
   (let* ((json "{\"results\":{\"bindings\":[\
 {\"prop\":{\"value\":\"born\"},\"value\":{\"value\":\"1643-01-04T00:00:00Z\"},\"prec\":{\"value\":\"11\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#PreferredRank\"}},\
 {\"prop\":{\"value\":\"born\"},\"value\":{\"value\":\"-0900-01-01T00:00:00Z\"},\"prec\":{\"value\":\"7\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#NormalRank\"}}]}}")
-         (cands (org-chronicle-wikidata--dates->candidates
-                 (org-chronicle-wikidata--bindings json))))
+         (cands (org-chronicle-wikibase--dates->candidates
+                 (org-chronicle-wikibase--bindings json))))
     (should (= (length cands) 2))
     (should (eq (plist-get (nth 0 cands) :rank) 'preferred))
     (should (equal (plist-get (plist-get (nth 0 cands) :date) :year) 1643))
@@ -733,25 +733,25 @@
     (should (null (plist-get (nth 1 cands) :date)))
     (should (= (plist-get (nth 1 cands) :precision) 7))))
 
-(ert-deftest org-chronicle-wikidata-test-alternates-surface ()
+(ert-deftest org-chronicle-wikibase-test-alternates-surface ()
   (let* ((rec (list :qid "Q935" :label "Isaac Newton"
                     :born (org-chronicle--date-parse "1643-01-04")
                     :born-alternates '("1642")))
-         (changes (org-chronicle-wikidata--record->changes rec "Isaac Newton"))
+         (changes (org-chronicle-wikibase--record->changes rec "Isaac Newton"))
          (born (cl-find "BORN" changes
                         :key (lambda (c) (plist-get c :property))
                         :test (lambda (a b) (and b (equal a b))))))
     (should (equal (plist-get born :alternates) '("1642")))
     (should (string-match-p "also lists: 1642"
-                            (org-chronicle-wikidata--change-label born)))))
+                            (org-chronicle-wikibase--change-label born)))))
 
-(ert-deftest org-chronicle-wikidata-test-place-changes ()
+(ert-deftest org-chronicle-wikibase-test-place-changes ()
   "Place record produces BUILT/ALIASES/WIKIDATA but not RAZED or BORN."
   (let* ((rec (list :qid "Q3505806" :kind 'place :label "Sutro Baths"
                     :aliases '("Sutro")
                     :start (org-chronicle--date-parse "1896")
                     :start-alternates '("1894") :end nil))
-         (changes (org-chronicle-wikidata--record->changes rec "Sutro Baths"))
+         (changes (org-chronicle-wikibase--record->changes rec "Sutro Baths"))
          (props (mapcar (lambda (c) (plist-get c :property))
                         (cl-remove-if-not (lambda (c) (eq (plist-get c :target) 'entity)) changes))))
     (should (member "BUILT" props))
@@ -763,57 +763,57 @@
     (let ((built (cl-find "BUILT" changes :key (lambda (c) (plist-get c :property)) :test #'equal)))
       (should (equal (plist-get built :alternates) '("1894"))))))
 
-(ert-deftest org-chronicle-wikidata-test-fetch-record-place ()
+(ert-deftest org-chronicle-wikibase-test-fetch-record-place ()
   "Fetch-record for a place returns kind=place with label and start from SPARQL."
-  (cl-letf (((symbol-function 'org-chronicle-wikidata--sparql-request)
+  (cl-letf (((symbol-function 'org-chronicle-wikibase--sparql-request)
              (lambda (q)
-               (org-chronicle-wikidata--bindings
+               (org-chronicle-wikibase--bindings
                 (if (string-match-p "P571" q)
                     "{\"results\":{\"bindings\":[{\"prop\":{\"value\":\"start\"},\"value\":{\"value\":\"1896-01-01T00:00:00Z\"},\"prec\":{\"value\":\"9\"},\"rank\":{\"value\":\"http://wikiba.se/ontology#NormalRank\"}}]}}"
                   "{\"results\":{\"bindings\":[{\"label\":{\"value\":\"Sutro Baths\"}}]}}")))))
-    (let ((rec (org-chronicle-wikidata--fetch-record "Q3505806" 'place)))
+    (let ((rec (org-chronicle-wikibase--fetch-record "Q3505806" 'place)))
       (should (eq (plist-get rec :kind) 'place))
       (should (equal (plist-get rec :label) "Sutro Baths"))
       (should (equal (plist-get (plist-get rec :start) :year) 1896))
       (should (null (plist-get rec :end))))))
 
-(ert-deftest org-chronicle-wikidata-test-import-create-place ()
+(ert-deftest org-chronicle-wikibase-test-import-create-place ()
   "Importing with kind=place writes to places file with BUILT and WIKIDATA."
   (let* ((root (make-temp-file "octw-place" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file (expand-file-name "people.org" root))
          (org-chronicle-places-file (expand-file-name "places.org" root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
          (org-id-locations-file (expand-file-name ".org-id-locations" root)))
     (unwind-protect
-        (cl-letf (((symbol-function 'org-chronicle-wikidata--label-at-point) (lambda () nil))
+        (cl-letf (((symbol-function 'org-chronicle-wikibase--label-at-point) (lambda () nil))
                   ((symbol-function 'completing-read) (lambda (&rest _) "place"))
-                  ((symbol-function 'org-chronicle-wikidata--resolve) (lambda (&rest _) "Q3505806"))
-                  ((symbol-function 'org-chronicle-wikidata--fetch-record)
+                  ((symbol-function 'org-chronicle-wikibase--resolve) (lambda (&rest _) "Q3505806"))
+                  ((symbol-function 'org-chronicle-wikibase--fetch-record)
                    (lambda (_qid _kind)
                      (list :qid "Q3505806" :kind 'place :label "Sutro Baths"
                            :start (org-chronicle--date-parse "1896") :end nil)))
-                  ((symbol-function 'org-chronicle-wikidata--review)
+                  ((symbol-function 'org-chronicle-wikibase--review)
                    (lambda (changes on-confirm) (funcall on-confirm changes))))
           (with-temp-file org-chronicle-people-file (insert "* placeholder\n"))
           (with-current-buffer (find-file-noselect org-chronicle-people-file)
             (goto-char (point-max))
             (insert "* Sutro Baths\nprose\n")
             (goto-char (point-max)) (forward-line -2)
-            (org-chronicle-wikidata-import))
+            (org-chronicle-wikibase-import))
           (let ((places (with-temp-buffer (insert-file-contents org-chronicle-places-file) (buffer-string))))
             (should (string-match-p ":KIND: *place" places))
             (should (string-match-p ":BUILT:" places))
             (should (string-match-p ":WIKIDATA: *Q3505806" places))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-reconcile-rejects-unknown-kind ()
+(ert-deftest org-chronicle-wikibase-test-reconcile-rejects-unknown-kind ()
   (with-temp-buffer
     (org-mode)
     (insert "* A topic\n:PROPERTIES:\n:KIND: topic\n:WIKIDATA: Q1\n:END:\n")
     (goto-char (point-min))
-    (should-error (org-chronicle-wikidata-reconcile) :type 'user-error)))
+    (should-error (org-chronicle-wikibase-reconcile) :type 'user-error)))
 
-(provide 'org-chronicle-wikidata-tests)
-;;; org-chronicle-wikidata-tests.el ends here
+(provide 'org-chronicle-wikibase-tests)
+;;; org-chronicle-wikibase-tests.el ends here

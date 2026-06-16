@@ -1,4 +1,4 @@
-;;; org-chronicle-wikidata-live-tests.el --- Live Wikidata tests -*- lexical-binding: t; -*-
+;;; org-chronicle-wikibase-live-tests.el --- Live Wikidata tests -*- lexical-binding: t; -*-
 
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -12,21 +12,21 @@
 
 (require 'ert)
 (require 'cl-lib)
-(require 'org-chronicle-wikidata)
+(require 'org-chronicle-wikibase)
 
-(defun org-chronicle-wikidata-live--fetch-or-skip (thunk)
+(defun org-chronicle-wikibase-live--fetch-or-skip (thunk)
   "Call THUNK; on a Wikidata transport error, skip the test instead of failing.
 Assertion failures in the caller still fail normally."
   (condition-case err
       (funcall thunk)
-    (org-chronicle-wikidata-error
+    (org-chronicle-wikibase-error
      (ert-skip (format "Wikidata unreachable — skipping: %S" err)))))
 
-(ert-deftest org-chronicle-wikidata-test-live-search ()
+(ert-deftest org-chronicle-wikibase-test-live-search ()
   "Live `wbsearchentities' returns Ada Lovelace (Q7259)."
   :tags '(:wikidata-live)
-  (let* ((cands (org-chronicle-wikidata-live--fetch-or-skip
-                 (lambda () (org-chronicle-wikidata--search-request "Ada Lovelace"))))
+  (let* ((cands (org-chronicle-wikibase-live--fetch-or-skip
+                 (lambda () (org-chronicle-wikibase--search-request "Ada Lovelace"))))
          (hit (cl-find "Q7259" cands
                        :key (lambda (c) (plist-get c :qid)) :test #'equal)))
     (should hit)
@@ -34,11 +34,11 @@ Assertion failures in the caller still fail normally."
     (should (> (length (plist-get hit :label)) 0))
     (should (stringp (plist-get hit :description)))))
 
-(ert-deftest org-chronicle-wikidata-test-live-fetch-ada ()
+(ert-deftest org-chronicle-wikibase-test-live-fetch-ada ()
   "Live fetch of Ada Lovelace (Q7259) parses vitals, a spouse, and aliases."
   :tags '(:wikidata-live)
-  (let* ((rec (org-chronicle-wikidata-live--fetch-or-skip
-               (lambda () (org-chronicle-wikidata--fetch-person "Q7259"))))
+  (let* ((rec (org-chronicle-wikibase-live--fetch-or-skip
+               (lambda () (org-chronicle-wikibase--fetch-person "Q7259"))))
          (born (plist-get rec :born))
          (died (plist-get rec :died))
          (spouse (car (plist-get rec :spouses)))
@@ -59,55 +59,55 @@ Assertion failures in the caller still fail normally."
     (should (>= (length aliases) 1))
     (should (cl-every #'stringp aliases))))
 
-(ert-deftest org-chronicle-wikidata-test-live-position-brannan ()
+(ert-deftest org-chronicle-wikibase-test-live-position-brannan ()
   "Live fetch of Samuel Brannan (Q936075) parses a position-held event."
   :tags '(:wikidata-live)
-  (let* ((rec (org-chronicle-wikidata-live--fetch-or-skip
-               (lambda () (org-chronicle-wikidata--fetch-person "Q936075"))))
+  (let* ((rec (org-chronicle-wikibase-live--fetch-or-skip
+               (lambda () (org-chronicle-wikibase--fetch-person "Q936075"))))
          (event (car (plist-get rec :events))))
     (should (equal (plist-get (plist-get rec :born) :year) 1819))
     (should event)
     (should (equal (plist-get event :kind) "position"))
     (should (string-match-p "\\`Q[0-9]+\\'" (plist-get event :qid)))))
 
-(ert-deftest org-chronicle-wikidata-test-live-import-capstone ()
+(ert-deftest org-chronicle-wikibase-test-live-import-capstone ()
   "Live end-to-end import of Ada Lovelace into a sandbox writes entity + event."
   :tags '(:wikidata-live)
   (let* ((root (make-temp-file "octw-live" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file (expand-file-name "people.org" root))
-         (org-chronicle-wikidata-file (expand-file-name "imported/events.org" root))
+         (org-chronicle-wikibase-file (expand-file-name "imported/events.org" root))
          (org-chronicle-timeline-file (expand-file-name "timeline.org" root))
          (org-id-locations-file (expand-file-name ".org-id-locations" root)))
     (unwind-protect
         (progn
           (with-temp-file org-chronicle-people-file
             (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:WIKIDATA: Q7259\n:END:\n"))
-          (cl-letf (((symbol-function 'org-chronicle-wikidata--review)
+          (cl-letf (((symbol-function 'org-chronicle-wikibase--review)
                      (lambda (changes on-confirm) (funcall on-confirm changes))))
-            (org-chronicle-wikidata-live--fetch-or-skip
+            (org-chronicle-wikibase-live--fetch-or-skip
              (lambda ()
                (with-current-buffer (find-file-noselect org-chronicle-people-file)
                  (goto-char (point-min))
-                 (org-chronicle-wikidata-import)))))
+                 (org-chronicle-wikibase-import)))))
           (let ((people (with-temp-buffer
                           (insert-file-contents org-chronicle-people-file)
                           (buffer-string))))
             (should (string-match-p ":BORN: *<?1815-12-10" people))
             (should (string-match-p ":WIKIDATA: *Q7259" people)))
           (let ((events (with-temp-buffer
-                          (insert-file-contents org-chronicle-wikidata-file)
+                          (insert-file-contents org-chronicle-wikibase-file)
                           (buffer-string))))
             (should (string-match-p "Birth of Ada Lovelace" events))
             (should (string-match-p ":IMPORT-KEY: *birth:" events))
             (should (string-match-p ":DATE: *<?1815-12-10" events))))
       (delete-directory root t))))
 
-(ert-deftest org-chronicle-wikidata-test-live-newton-ranks ()
+(ert-deftest org-chronicle-wikibase-test-live-newton-ranks ()
   "Live: Newton (Q935) resolves competing date statements by rank and precision."
   :tags '(:wikidata-live)
-  (let* ((rec (org-chronicle-wikidata-live--fetch-or-skip
-               (lambda () (org-chronicle-wikidata--fetch-person "Q935"))))
+  (let* ((rec (org-chronicle-wikibase-live--fetch-or-skip
+               (lambda () (org-chronicle-wikibase--fetch-person "Q935"))))
          (born (plist-get rec :born))
          (died (plist-get rec :died)))
     (should (equal (plist-get born :year) 1643))
@@ -119,27 +119,27 @@ Assertion failures in the caller still fail normally."
     (should (equal (plist-get died :day) 31))
     (should (member "1727" (plist-get rec :died-alternates)))))
 
-(ert-deftest org-chronicle-wikidata-test-live-homer-coarse ()
+(ert-deftest org-chronicle-wikibase-test-live-homer-coarse ()
   "Live: Homer (Q6691) has a century-precision BCE birth, dropped as unrepresentable."
   :tags '(:wikidata-live)
-  (let ((rec (org-chronicle-wikidata-live--fetch-or-skip
-              (lambda () (org-chronicle-wikidata--fetch-person "Q6691")))))
+  (let ((rec (org-chronicle-wikibase-live--fetch-or-skip
+              (lambda () (org-chronicle-wikibase--fetch-person "Q6691")))))
     (should (null (plist-get rec :born)))))
 
-(ert-deftest org-chronicle-wikidata-test-live-place-sutro ()
+(ert-deftest org-chronicle-wikibase-test-live-place-sutro ()
   "Live: Sutro Baths (Q3505806) imports as a place with a BUILT span."
   :tags '(:wikidata-live)
-  (let ((rec (org-chronicle-wikidata-live--fetch-or-skip
-              (lambda () (org-chronicle-wikidata--fetch-record "Q3505806" 'place)))))
+  (let ((rec (org-chronicle-wikibase-live--fetch-or-skip
+              (lambda () (org-chronicle-wikibase--fetch-record "Q3505806" 'place)))))
     (should (eq (plist-get rec :kind) 'place))
     (should (equal (plist-get (plist-get rec :start) :year) 1896))
     (should (null (plist-get rec :end)))))
 
-(ert-deftest org-chronicle-wikidata-test-live-group-panam ()
+(ert-deftest org-chronicle-wikibase-test-live-group-panam ()
   "Live: Pan Am (Q8681) imports as a group with a FOUNDED/DISBANDED span."
   :tags '(:wikidata-live)
-  (let* ((rec (org-chronicle-wikidata-live--fetch-or-skip
-               (lambda () (org-chronicle-wikidata--fetch-record "Q8681" 'group))))
+  (let* ((rec (org-chronicle-wikibase-live--fetch-or-skip
+               (lambda () (org-chronicle-wikibase--fetch-record "Q8681" 'group))))
          (start (plist-get rec :start)) (end (plist-get rec :end)))
     (should (eq (plist-get rec :kind) 'group))
     (should (equal (plist-get start :year) 1927))
@@ -149,5 +149,5 @@ Assertion failures in the caller still fail normally."
     (should (equal (plist-get end :month) 12))
     (should (equal (plist-get end :day) 4))))
 
-(provide 'org-chronicle-wikidata-live-tests)
-;;; org-chronicle-wikidata-live-tests.el ends here
+(provide 'org-chronicle-wikibase-live-tests)
+;;; org-chronicle-wikibase-live-tests.el ends here
