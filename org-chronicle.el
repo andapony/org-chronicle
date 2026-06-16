@@ -693,29 +693,38 @@ DATE-END, LOCATION, and SOURCES are optional strings."
      (format ":SOURCES:  %s\n" sources))
    ":END:\n"))
 
-(defun org-chronicle--collect-names (event-name-key entity-kinds)
+(defun org-chronicle--collect-names (event-name-key entity-kinds &optional preferred)
   "Return a sorted, de-duplicated list of names for completion.
 Gathers the EVENT-NAME-KEY value of every event (a string, or a list of
 strings) and the name plus aliases of every entity whose `:kind' is in
-ENTITY-KINDS."
-  (let ((names (make-hash-table :test #'equal)))
+ENTITY-KINDS.  When PREFERRED is non-nil, resolve every gathered name to
+its canonical (preferred) form via the alias index, so aliases fold into
+the owning entity's preferred name and only preferred names are returned."
+  (let ((names (make-hash-table :test #'equal))
+        (entities (ignore-errors (org-chronicle--all-entities))))
     (dolist (e (ignore-errors (org-chronicle--all-events)))
       (let ((v (plist-get e event-name-key)))
         (cond ((listp v) (dolist (x v) (when x (puthash x t names))))
               (v (puthash v t names)))))
-    (dolist (e (ignore-errors (org-chronicle--all-entities)))
+    (dolist (e entities)
       (when (memq (plist-get e :kind) entity-kinds)
         (puthash (plist-get e :name) t names)
         (dolist (a (plist-get e :aliases)) (puthash a t names))))
-    (sort (hash-table-keys names) #'string<)))
+    (let ((keys (hash-table-keys names)))
+      (when preferred
+        (let ((idx (org-chronicle--alias-index entities)))
+          (setq keys (delete-dups
+                      (mapcar (lambda (n) (org-chronicle--canonical n idx))
+                              keys)))))
+      (sort keys #'string<))))
 
 (defun org-chronicle--known-people ()
-  "Return known person and group names from events and entities."
-  (org-chronicle--collect-names :people '(person group)))
+  "Return preferred names of known people and groups from events and entities."
+  (org-chronicle--collect-names :people '(person group) t))
 
 (defun org-chronicle--known-locations ()
-  "Return known location names from event locations and place entities."
-  (org-chronicle--collect-names :location '(place)))
+  "Return preferred names of known locations from event locations and places."
+  (org-chronicle--collect-names :location '(place) t))
 
 (defun org-chronicle--known-topics ()
   "Return known topic names from event topics and topic entities."

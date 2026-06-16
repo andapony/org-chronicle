@@ -679,9 +679,9 @@ global root differs."
                  "[[id:abc123][Foote]]")))
 
 (ert-deftest org-chronicle-test-known-people ()
-  "Known people come from event participants and person/group entities, not places."
+  "Known people present only preferred names; aliases fold to the entity name."
   (cl-letf (((symbol-function 'org-chronicle--all-events)
-             (lambda () (list (list :people '("Abraham Lincoln" "U.S. Grant")))))
+             (lambda () (list (list :people '("Abraham Lincoln" "U.S. Grant" "Grant")))))
             ((symbol-function 'org-chronicle--all-entities)
              (lambda () (list (list :name "Ulysses S. Grant" :kind 'person :aliases '("Grant"))
                               (list :name "Pinkerton Agency" :kind 'group :aliases nil)
@@ -690,12 +690,14 @@ global root differs."
       (should (member "Abraham Lincoln" people))
       (should (member "U.S. Grant" people))
       (should (member "Ulysses S. Grant" people))
-      (should (member "Grant" people))
       (should (member "Pinkerton Agency" people))
+      ;; The alias "Grant" (entity- and event-supplied) folds into the
+      ;; preferred name, and places never appear among people.
+      (should-not (member "Grant" people))
       (should-not (member "Vicksburg" people)))))
 
 (ert-deftest org-chronicle-test-known-locations ()
-  "Known locations come from event locations and place entities, not people."
+  "Known locations present only preferred names; aliases fold to the place name."
   (cl-letf (((symbol-function 'org-chronicle--all-events)
              (lambda () (list (list :location "Vicksburg, Mississippi"))))
             ((symbol-function 'org-chronicle--all-entities)
@@ -704,7 +706,8 @@ global root differs."
     (let ((locs (org-chronicle--known-locations)))
       (should (member "Vicksburg, Mississippi" locs))
       (should (member "Sultana" locs))
-      (should (member "the Sultana" locs))
+      ;; The alias "the Sultana" folds into the preferred name.
+      (should-not (member "the Sultana" locs))
       (should-not (member "Grant" locs)))))
 
 (ert-deftest org-chronicle-test-known-topics ()
