@@ -435,6 +435,82 @@
                             (split-string body "\n")))))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-sources-test-region-or-read ()
+  "Region text (trimmed) is the name when active; otherwise prompt."
+  (with-temp-buffer
+    (insert "  Samuel Brannan  ")
+    (let ((transient-mark-mode t))
+      (push-mark (point-min) t t)
+      (goto-char (point-max))
+      (should (equal (org-chronicle-sources--region-or-read "x: ") "Samuel Brannan"))))
+  (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Typed Name")))
+    (with-temp-buffer
+      (should (equal (org-chronicle-sources--region-or-read "x: ") "Typed Name")))))
+
+(ert-deftest org-chronicle-sources-test-add-person-from-source ()
+  "Add-person-from-source resolves, creates the entity, and applies the record."
+  (let* ((root (make-temp-file "ocaps" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file (expand-file-name "people.org" root))
+         (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt &rest _)
+                     (if (string-prefix-p "Source" prompt) "wikidata" "")))
+                  ((symbol-function 'org-chronicle-wikibase--resolve)
+                   (lambda (_source seed)
+                     (should (equal seed "Samuel Brannan")) "Q2"))
+                  ((symbol-function 'org-chronicle-wikibase--fetch-record)
+                   (lambda (source _qid _kind)
+                     (list :source source :qid "Q2" :kind 'person
+                           :born (org-chronicle--date-parse "1819-03-02")
+                           :birthplace "Saco, Maine")))
+                  ((symbol-function 'org-chronicle-sources--review)
+                   (lambda (changes on-confirm) (funcall on-confirm changes))))
+          (org-chronicle-add-person-from-source "Samuel Brannan")
+          (let ((people (with-temp-buffer
+                          (insert-file-contents org-chronicle-people-file)
+                          (buffer-string))))
+            (should (string-match-p "^\\* Samuel Brannan" people))
+            (should (string-match-p ":WIKIDATA:.*Q2" people))
+            (should (string-match-p ":BORN:" people)))
+          (let ((events (with-temp-buffer
+                          (insert-file-contents org-chronicle-sources-events-file)
+                          (buffer-string))))
+            (should (string-match-p "Birth of Samuel Brannan" events))))
+      (delete-directory root t))))
+
+(ert-deftest org-chronicle-sources-test-add-person-from-source-idempotent ()
+  "Running add-person-from-source twice reuses the entity, no duplicate."
+  (let* ((root (make-temp-file "ocaps2" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file (expand-file-name "people.org" root))
+         (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt &rest _)
+                     (if (string-prefix-p "Source" prompt) "wikidata" "")))
+                  ((symbol-function 'org-chronicle-wikibase--resolve)
+                   (lambda (&rest _) "Q2"))
+                  ((symbol-function 'org-chronicle-wikibase--fetch-record)
+                   (lambda (source _qid _kind)
+                     (list :source source :qid "Q2" :kind 'person
+                           :born (org-chronicle--date-parse "1819-03-02"))))
+                  ((symbol-function 'org-chronicle-sources--review)
+                   (lambda (changes on-confirm) (funcall on-confirm changes))))
+          (org-chronicle-add-person-from-source "Samuel Brannan")
+          (org-chronicle-add-person-from-source "Samuel Brannan")
+          (let ((people (with-temp-buffer
+                          (insert-file-contents org-chronicle-people-file)
+                          (buffer-string))))
+            (should (= 1 (cl-count-if
+                          (lambda (l) (string-match-p "^\\* Samuel Brannan" l))
+                          (split-string people "\n"))))))
+      (delete-directory root t))))
+
+
+
+
 (ert-deftest org-chronicle-sources-test-import-create-place ()
   "Importing with kind=place writes to places file with BUILT and WIKIDATA."
   (let* ((root (make-temp-file "octs-place" t))

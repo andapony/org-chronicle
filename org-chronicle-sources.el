@@ -350,6 +350,33 @@ SUBJECT-ORGID, SOURCE, and SUBJECT-QID."
                   c)))))
          changes)))
 
+(defun org-chronicle-sources--region-or-read (prompt)
+  "Return the active region's text (trimmed), else read a string with PROMPT."
+  (if (use-region-p)
+      (string-trim (buffer-substring-no-properties (region-beginning) (region-end)))
+    (read-string prompt)))
+
+(defun org-chronicle-sources--import-record (source kind seed marker qid)
+  "Fetch SOURCE's record for QID, classify against MARKER, review, and apply.
+KIND is the entity kind; SEED labels the entity and its events."
+  (let* ((rec (org-chronicle-wikibase--fetch-record source qid kind))
+         (changes (org-chronicle-wikibase--record->changes rec seed)))
+    (when (seq-empty-p changes)
+      (user-error "Nothing to import for %s (%s)" seed qid))
+    (let* ((subject-orgid (org-with-point-at marker (org-id-get-create)))
+           (index (org-chronicle-sources--events-index)))
+      (setq changes (org-chronicle-sources--classify-changes
+                     changes marker subject-orgid source qid index))
+      (org-chronicle-sources--review
+       changes
+       (lambda (selected)
+         (org-with-point-at marker
+           (org-chronicle-sources--apply-changes selected index)
+           (when (buffer-file-name) (save-buffer))
+           (message "Imported %d change(s) for %s" (length selected) seed)))))))
+
+
+
 ;;;###autoload
 (defun org-chronicle-import ()
   "Import historical facts into the chronicle from a configured source.
@@ -382,22 +409,29 @@ write the approved set.  A heading accretes one key property per source."
            (marker (if heading-kind
                        (save-excursion (org-back-to-heading t) (point-marker))
                      (org-chronicle-wikibase--resolve-or-create-entity
-                      seed kind qid key-prop)))
-           (rec (org-chronicle-wikibase--fetch-record source qid kind))
-           (changes (org-chronicle-wikibase--record->changes rec seed)))
-      (when (seq-empty-p changes)
-        (user-error "Nothing to import for %s (%s)" seed qid))
-      (let* ((subject-orgid (org-with-point-at marker (org-id-get-create)))
-             (index (org-chronicle-sources--events-index)))
-        (setq changes (org-chronicle-sources--classify-changes
-                       changes marker subject-orgid source qid index))
-        (org-chronicle-sources--review
-         changes
-         (lambda (selected)
-           (org-with-point-at marker
-			      (org-chronicle-sources--apply-changes selected index)
-			      (when (buffer-file-name) (save-buffer))
-			      (message "Imported %d change(s) for %s" (length selected) seed))))))))
+                      seed kind qid key-prop))))
+      (org-chronicle-sources--import-record source kind seed marker qid))))
+
+;;;###autoload
+(defun org-chronicle-add-person-from-source (name)
+  "Add a historical person NAME by importing facts from a configured source.
+Resolve NAME against the chosen source, create or reuse the person entity,
+and review the proposed vitals, relations, and life events before writing.
+Interactively, use the active region as NAME when there is one, else prompt."
+  (interactive
+   (list (org-chronicle-sources--region-or-read "Person (from source): ")))
+  (let* ((source-id (intern (completing-read
+                             "Source: " (mapcar #'symbol-name
+                                                (org-chronicle-sources--ids))
+                             nil t nil nil
+                             (symbol-name org-chronicle-default-source))))
+         (source (org-chronicle-sources--get source-id))
+         (key-prop (plist-get source :key-property))
+         (qid (org-chronicle-wikibase--resolve source name))
+         (marker (org-chronicle-wikibase--resolve-or-create-entity
+                  name 'person qid key-prop)))
+    (org-chronicle-sources--import-record source 'person name marker qid)))
+
 
 (define-obsolete-function-alias 'org-chronicle-wikidata-import
   'org-chronicle-import "org-chronicle 0.5")
