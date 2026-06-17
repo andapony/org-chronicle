@@ -467,7 +467,7 @@
                            :birthplace "Saco, Maine")))
                   ((symbol-function 'org-chronicle-sources--review)
                    (lambda (changes on-confirm) (funcall on-confirm changes))))
-          (org-chronicle-add-person-from-source "Samuel Brannan")
+          (org-chronicle-add-entity-from-source "Samuel Brannan" 'person)
           (let ((people (with-temp-buffer
                           (insert-file-contents org-chronicle-people-file)
                           (buffer-string))))
@@ -481,7 +481,7 @@
       (delete-directory root t))))
 
 (ert-deftest org-chronicle-sources-test-add-person-from-source-idempotent ()
-  "Running add-person-from-source twice reuses the entity, no duplicate."
+  "Running add-entity-from-source twice reuses the entity, no duplicate."
   (let* ((root (make-temp-file "ocaps2" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file (expand-file-name "people.org" root))
@@ -498,8 +498,8 @@
                            :born (org-chronicle--date-parse "1819-03-02"))))
                   ((symbol-function 'org-chronicle-sources--review)
                    (lambda (changes on-confirm) (funcall on-confirm changes))))
-          (org-chronicle-add-person-from-source "Samuel Brannan")
-          (org-chronicle-add-person-from-source "Samuel Brannan")
+          (org-chronicle-add-entity-from-source "Samuel Brannan" 'person)
+          (org-chronicle-add-entity-from-source "Samuel Brannan" 'person)
           (let ((people (with-temp-buffer
                           (insert-file-contents org-chronicle-people-file)
                           (buffer-string))))
@@ -507,6 +507,32 @@
                           (lambda (l) (string-match-p "^\\* Samuel Brannan" l))
                           (split-string people "\n"))))))
       (delete-directory root t))))
+
+(ert-deftest org-chronicle-sources-test-add-entity-from-source-place ()
+  "add-entity-from-source with kind=place creates a place entity from the source."
+  (let* ((root (make-temp-file "ocaps3" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-places-file (expand-file-name "places.org" root)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt &rest _)
+                     (if (string-prefix-p "Source" prompt) "wikidata" "")))
+                  ((symbol-function 'org-chronicle-wikibase--resolve) (lambda (&rest _) "Q5"))
+                  ((symbol-function 'org-chronicle-wikibase--fetch-record)
+                   (lambda (source _qid _kind)
+                     (list :source source :qid "Q5" :kind 'place
+                           :start (org-chronicle--date-parse "1762"))))
+                  ((symbol-function 'org-chronicle-sources--review)
+                   (lambda (changes on-confirm) (funcall on-confirm changes))))
+          (org-chronicle-add-entity-from-source "Saco" 'place)
+          (let ((places (with-temp-buffer
+                          (insert-file-contents org-chronicle-places-file)
+                          (buffer-string))))
+            (should (string-match-p "^\\* Saco" places))
+            (should (string-match-p ":KIND:.*place" places))
+            (should (string-match-p ":WIKIDATA:.*Q5" places))))
+      (delete-directory root t))))
+
 
 
 

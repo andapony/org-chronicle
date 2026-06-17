@@ -413,13 +413,17 @@ write the approved set.  A heading accretes one key property per source."
       (org-chronicle-sources--import-record source kind seed marker qid))))
 
 ;;;###autoload
-(defun org-chronicle-add-person-from-source (name)
-  "Add a historical person NAME by importing facts from a configured source.
-Resolve NAME against the chosen source, create or reuse the person entity,
-and review the proposed vitals, relations, and life events before writing.
-Interactively, use the active region as NAME when there is one, else prompt."
+(defun org-chronicle-add-entity-from-source (name kind)
+  "Add an entity NAME of KIND by importing facts from a configured source.
+KIND is `person', `place', or `group'.  Resolve NAME against the chosen
+source, create or reuse the entity, and review the proposed facts before
+writing.  Interactively, take NAME from the active region when there is one,
+else prompt, and prompt for KIND."
   (interactive
-   (list (org-chronicle-sources--region-or-read "Person (from source): ")))
+   (list (org-chronicle-sources--region-or-read "Entity (from source): ")
+         (intern (completing-read "Kind: " '("person" "place" "group")
+                                  nil t nil nil "person"))))
+  (org-chronicle-sources--check-kind kind)
   (let* ((source-id (intern (completing-read
                              "Source: " (mapcar #'symbol-name
                                                 (org-chronicle-sources--ids))
@@ -429,8 +433,8 @@ Interactively, use the active region as NAME when there is one, else prompt."
          (key-prop (plist-get source :key-property))
          (qid (org-chronicle-wikibase--resolve source name))
          (marker (org-chronicle-wikibase--resolve-or-create-entity
-                  name 'person qid key-prop)))
-    (org-chronicle-sources--import-record source 'person name marker qid)))
+                  name kind qid key-prop)))
+    (org-chronicle-sources--import-record source kind name marker qid)))
 
 
 (define-obsolete-function-alias 'org-chronicle-wikidata-import
