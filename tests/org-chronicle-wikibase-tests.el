@@ -47,6 +47,41 @@ claimed by a different QID is not reused."
           (should-not (org-chronicle-wikibase--reuse-marker "Nobody" 'person "Q9" "WIKIDATA")))
       (delete-directory dir t))))
 
+(ert-deftest org-chronicle-wikibase-test-wikidata-references ()
+  "Wikidata references yield a WIKIPEDIA GoToLinkedPage URL honoring the language."
+  (let ((org-chronicle-wikipedia-language "en"))
+    (should (equal (org-chronicle-wikibase--wikidata-references nil "Q2")
+                   '(("WIKIPEDIA" . "https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/Q2")))))
+  (let ((org-chronicle-wikipedia-language "de"))
+    (should (equal (cdr (car (org-chronicle-wikibase--wikidata-references nil "Q2")))
+                   "https://www.wikidata.org/wiki/Special:GoToLinkedPage/dewiki/Q2"))))
+
+(ert-deftest org-chronicle-wikibase-test-references ()
+  "--references uses the source's reference-fn, or nil when the source has none."
+  (let ((org-chronicle-wikipedia-language "en"))
+    (should (equal (org-chronicle-wikibase--references
+                    (org-chronicle-sources--get 'wikidata) "Q2")
+                   '(("WIKIPEDIA" . "https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/Q2"))))
+    (should-not (org-chronicle-wikibase--references
+                 (org-chronicle-sources--get 'factgrid) "FG2"))))
+
+(ert-deftest org-chronicle-wikibase-test-record-changes-reference ()
+  "Record->changes adds a WIKIPEDIA vitals change for a Wikidata person, none for FactGrid."
+  (let ((org-chronicle-wikipedia-language "en"))
+    (let* ((wd (org-chronicle-sources--get 'wikidata))
+           (rec (list :source wd :qid "Q2" :kind 'person
+                      :born (org-chronicle--date-parse "1819")))
+           (changes (org-chronicle-wikibase--record->changes rec "Sam Brannan")))
+      (should (cl-find-if (lambda (c) (equal (plist-get c :property) "WIKIPEDIA")) changes)))
+    (let* ((fg (org-chronicle-sources--get 'factgrid))
+           (rec (list :source fg :qid "FG2" :kind 'person
+                      :born (org-chronicle--date-parse "1819")))
+           (changes (org-chronicle-wikibase--record->changes rec "X")))
+      (should-not (cl-find-if (lambda (c) (equal (plist-get c :property) "WIKIPEDIA")) changes)))))
+
+
+
+
 (ert-deftest org-chronicle-wikibase-test-resolve-or-create-entity ()
   "Resolve reuses a QID-matched entity without duplicating it, and creates a
 new entity for a different person."

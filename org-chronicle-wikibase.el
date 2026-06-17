@@ -466,6 +466,36 @@ by rank then precision (see `org-chronicle-wikibase--select-candidate')."
   "Return the provenance URL for QID using SOURCE's item-url-format."
   (format (plist-get source :item-url-format) qid))
 
+(defcustom org-chronicle-wikipedia-language "en"
+  "Language code for Wikipedia reference links built from a source id."
+  :type 'string
+  :group 'org-chronicle)
+
+(defun org-chronicle-wikibase--wikidata-references (_source id)
+  "Return the Wikipedia reference for Wikidata ID as a list of (PROPERTY . URL)."
+  (list (cons "WIKIPEDIA"
+              (format "https://www.wikidata.org/wiki/Special:GoToLinkedPage/%swiki/%s"
+                      org-chronicle-wikipedia-language id))))
+
+(defun org-chronicle-wikibase--references (source id)
+  "Return SOURCE's reference links for ID as a list of (PROPERTY . URL) conses.
+Empty when SOURCE defines no `:reference-fn'."
+  (let ((fn (plist-get source :reference-fn)))
+    (and fn (funcall fn source id))))
+
+(defun org-chronicle-wikibase--reference-changes (source qid url)
+  "Return vitals entity-change plists for SOURCE's reference links for QID.
+URL is the provenance URL recorded on each change."
+  (delq nil
+        (mapcar (lambda (ref)
+                  (org-chronicle-wikibase--entity-change
+                   'vitals (car ref) (cdr ref) url))
+                (org-chronicle-wikibase--references source qid))))
+
+
+
+
+
 (defun org-chronicle-wikibase--entity-change (group property value url &optional alternates)
   "Build an entity change plist for PROPERTY=VALUE in GROUP, sourced to URL.
 ALTERNATES, when non-nil, is a list of display strings attached as :alternates.
@@ -477,7 +507,7 @@ Return nil when VALUE is nil or empty."
 
 (defun org-chronicle-wikibase--entity-record->changes (rec)
   "Build entity change plists for place/group record REC.
-Return span, aliases, and WIKIDATA property changes."
+Return span, aliases, key-property, and any source reference changes."
   (let* ((source (plist-get rec :source))
          (qid (plist-get rec :qid))
          (kind (plist-get rec :kind))
@@ -486,20 +516,22 @@ Return span, aliases, and WIKIDATA property changes."
          (start (plist-get rec :start))
          (end (plist-get rec :end))
          (aliases (plist-get rec :aliases)))
-    (delq nil
-          (list
-           (org-chronicle-wikibase--entity-change
-            'vitals (car props)
-            (and start (org-chronicle--ts (org-chronicle--date-format start)))
-            url (plist-get rec :start-alternates))
-           (org-chronicle-wikibase--entity-change
-            'vitals (cdr props)
-            (and end (org-chronicle--ts (org-chronicle--date-format end)))
-            url (plist-get rec :end-alternates))
-           (org-chronicle-wikibase--entity-change
-            'vitals (plist-get source :key-property) qid url)
-           (org-chronicle-wikibase--entity-change
-            'relations "ALIASES" (and aliases (org-chronicle--join aliases)) url)))))
+    (append
+     (delq nil
+           (list
+            (org-chronicle-wikibase--entity-change
+             'vitals (car props)
+             (and start (org-chronicle--ts (org-chronicle--date-format start)))
+             url (plist-get rec :start-alternates))
+            (org-chronicle-wikibase--entity-change
+             'vitals (cdr props)
+             (and end (org-chronicle--ts (org-chronicle--date-format end)))
+             url (plist-get rec :end-alternates))
+            (org-chronicle-wikibase--entity-change
+             'vitals (plist-get source :key-property) qid url)
+            (org-chronicle-wikibase--entity-change
+             'relations "ALIASES" (and aliases (org-chronicle--join aliases)) url)))
+     (org-chronicle-wikibase--reference-changes source qid url))))
 
 (defun org-chronicle-wikibase--record->changes (rec name)
   "Map person record REC (for person NAME) to a list of change plists.
@@ -588,7 +620,8 @@ See the data contract in the package commentary for field names."
                                    :people (list name)
                                    :location (plist-get ev :location)))
                 changes)))
-      (nreverse changes))))
+      (append (nreverse changes)
+              (org-chronicle-wikibase--reference-changes source qid url)))))
 
 (defun org-chronicle-wikibase--candidate-line (cand)
   "Format candidate plist CAND as a completion line."

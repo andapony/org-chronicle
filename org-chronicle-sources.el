@@ -491,6 +491,7 @@ When several source keys are present, prompt for which to reconcile."
      :key-property "WIKIDATA"
      :curie "wd:"
      :item-url-format "https://www.wikidata.org/wiki/%s"
+     :reference-fn org-chronicle-wikibase--wikidata-references
      :label-language ("en")
      :property-map ( :span  ((person "P569" . "P570")
                              (place  "P571" . "P576")
