@@ -206,6 +206,21 @@ directories are created.  The temp dir is removed afterward."
       (should-not (member "notes.txt" rels))
       (should-not (member "drafts/d1.org" rels)))))
 
+(ert-deftest org-chronicle-test-source-files-skips-lock-files ()
+  "`org-chronicle--source-files' ignores Emacs lock files (.#*.org)."
+  (let* ((dir (make-temp-file "ocsf" t))
+         (org-chronicle-root dir)
+         (org-chronicle-exclude nil))
+    (unwind-protect
+        (progn
+          (with-temp-file (expand-file-name "people.org" dir) (insert "* X\n"))
+          (with-temp-file (expand-file-name ".#people.org" dir) (insert "lock"))
+          (let ((files (mapcar #'file-name-nondirectory (org-chronicle--source-files))))
+            (should (member "people.org" files))
+            (should-not (member ".#people.org" files))))
+      (delete-directory dir t))))
+
+
 (ert-deftest org-chronicle-test-source-files-missing-root ()
   "A nonexistent root yields nil, not an error."
   (let ((org-chronicle-root "/no/such/dir/xyzzy"))

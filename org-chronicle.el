@@ -206,8 +206,9 @@ otherwise drop into Org's \"non-existent agenda file\" prompt."
 
 (defun org-chronicle--source-files ()
   "Return the Org files to gather from under `org-chronicle-root'.
-Lists *.org recursively under the root (symlinks not followed), dropping any
-whose path relative to the root matches a regexp in `org-chronicle-exclude'."
+Lists *.org recursively under the root (symlinks not followed), dropping
+Emacs lock files (.#*) and any whose path relative to the root matches a
+regexp in `org-chronicle-exclude'."
   (let ((root (expand-file-name org-chronicle-root)))
     (when (file-directory-p root)
       (cl-remove-if
@@ -215,7 +216,8 @@ whose path relative to the root matches a regexp in `org-chronicle-exclude'."
          ;; Match against a leading-slash-prefixed relative path so a pattern
          ;; like "/drafts/" anchors a top-level subtree.
          (let ((rel (concat "/" (file-relative-name f root))))
-           (cl-some (lambda (re) (string-match-p re rel)) org-chronicle-exclude)))
+           (or (string-prefix-p ".#" (file-name-nondirectory f))
+               (cl-some (lambda (re) (string-match-p re rel)) org-chronicle-exclude))))
        (directory-files-recursively root "\\.org\\'")))))
 
 (defvar org-chronicle-people-file)
