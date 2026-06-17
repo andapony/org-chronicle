@@ -237,6 +237,27 @@ OPTIONAL { ?st pqv:%s ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?
              (org-chronicle-wikibase--label-filter source "?title")
              qs qe))))
 
+(defun org-chronicle-wikibase--place-events->changes (source rows place-label)
+  "Map result ROWS to event-creation change plists located at PLACE-LABEL.
+SOURCE supplies the curie and provenance URL.  Rows without a representable
+date are dropped."
+  (delq nil
+        (mapcar
+         (lambda (row)
+           (let ((date (org-chronicle-wikibase--row-date row "date" "prec"))
+                 (qid (org-chronicle-wikibase--parse-qid
+                       (org-chronicle-wikibase--cell row "event"))))
+             (when (and date qid)
+               (list :target 'event :group 'events
+                     :key (concat "event:" (plist-get source :curie) qid)
+                     :provenance (org-chronicle-wikibase--url source qid)
+                     :default t
+                     :event (list :title (org-chronicle-wikibase--cell row "eventLabel")
+                                  :date (org-chronicle--date-format date)
+                                  :location place-label)))))
+         rows)))
+
+
 (defun org-chronicle-wikibase--rank-symbol (uri)
   "Return `preferred', `normal', or `deprecated' for a wikibase:rank URI, else nil."
   (cond ((not (stringp uri)) nil)
@@ -558,6 +579,28 @@ URL is the provenance URL recorded on each change."
                   (org-chronicle-wikibase--entity-change
                    'vitals (car ref) (cdr ref) url))
                 (org-chronicle-wikibase--references source qid))))
+
+(defun org-chronicle-wikibase--place-events-query (source place-qid from until &optional limit)
+  "Return SOURCE's SPARQL query for events located at PLACE-QID dated FROM..UNTIL.
+An event matches when its location is PLACE-QID via either the event-location
+or the located-in property.  Each row carries the event item, its label, its
+point-in-time value, and that value's precision.  LIMIT, when a positive
+integer, caps the row count."
+  (let ((loc (org-chronicle-sources--pid source :event-location))
+        (within (org-chronicle-sources--pid source :located-in))
+        (pit (org-chronicle-sources--pid source :point-in-time)))
+    (concat
+     (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
+     (format "SELECT DISTINCT ?event ?eventLabel ?date ?prec WHERE { \
+VALUES ?locProp { wdt:%s wdt:%s } \
+?event ?locProp wd:%s ; p:%s ?stmt. \
+?stmt psv:%s ?node. ?node wikibase:timeValue ?date; wikibase:timePrecision ?prec. \
+FILTER(YEAR(?date) >= %d && YEAR(?date) <= %d) \
+?event rdfs:label ?eventLabel. %s} ORDER BY ?date"
+             loc within place-qid pit pit from until
+             (org-chronicle-wikibase--label-filter source "?eventLabel"))
+     (if (and limit (> limit 0)) (format " LIMIT %d" limit) ""))))
+
 
 (defun org-chronicle-wikibase--entity-change (group property value url &optional alternates)
   "Build an entity change plist for PROPERTY=VALUE in GROUP, sourced to URL.

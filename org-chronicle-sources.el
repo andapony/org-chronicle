@@ -31,6 +31,12 @@ When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
   :type 'symbol
   :group 'org-chronicle)
 
+(defcustom org-chronicle-sources-bulk-limit 500
+  "Maximum number of rows a bulk import query requests, or nil for no limit."
+  :type '(choice (integer :tag "Maximum rows") (const :tag "No limit" nil))
+  :group 'org-chronicle)
+
+
 (defun org-chronicle-sources--events-file ()
   "Return the file imported events are written to.
 Defaults to \"imported/events.org\" under `org-chronicle-root'."
@@ -431,6 +437,43 @@ else prompt, and prompt for KIND."
     (org-chronicle-sources--import-record source kind name marker qid)))
 
 ;;;###autoload
+(defun org-chronicle-import-events (&optional source-id)
+  "Import events located at a place within a year range from a source.
+Prompt for a source (SOURCE-ID non-interactively), a place, and a from/until
+year range; fetch the matching events; review the proposed event headings;
+and write the approved set idempotently to the imported events file."
+  (interactive)
+  (let* ((source-id (or source-id
+                        (intern (completing-read
+                                 "Source: " (mapcar #'symbol-name
+                                                    (org-chronicle-sources--ids))
+                                 nil t nil nil
+                                 (symbol-name org-chronicle-default-source)))))
+         (source (org-chronicle-sources--get source-id))
+         (place (org-chronicle-sources--region-or-read "Place (events located in): "))
+         (place-qid (org-chronicle-wikibase--resolve source place))
+         (from (read-number "From year: "))
+         (until (read-number "Until year: "))
+         (rows (org-chronicle-wikibase--sparql-request
+                source (org-chronicle-wikibase--place-events-query
+                source place-qid from until org-chronicle-sources-bulk-limit)))
+         (changes (org-chronicle-wikibase--place-events->changes source rows place))
+         (index (org-chronicle-sources--events-index)))
+    (when (seq-empty-p changes)
+      (user-error "No dated events found at %s for %d-%d" place from until))
+    (dolist (c changes)
+      (plist-put c :status
+                 (org-chronicle-sources--classify-event
+                  c (gethash (plist-get c :key) index))))
+    (org-chronicle-sources--review
+     changes
+     (lambda (selected)
+       (dolist (c selected)
+         (org-chronicle-sources--apply-event-change c index))
+       (message "Imported %d event(s) for %s" (length selected) place)))))
+
+
+;;;###autoload
 (defun org-chronicle-reconcile ()
   "Re-query a source linked from the heading and present drift as opt-in pulls.
 When several source keys are present, prompt for which to reconcile."
@@ -489,6 +532,7 @@ When several source keys are present, prompt for which to reconcile."
                              (group  "P571" . "P576"))
                      :birthplace "P19" :deathplace "P20"
                      :country "P17" :located-in "P131" :admin-class "Q10864048"
+                     :event-location "P276" :point-in-time "P585"
                      :father "P22" :mother "P25"
                      :spouse "P26" :position "P39"
                      :qual-start "P580" :qual-end "P582" ))

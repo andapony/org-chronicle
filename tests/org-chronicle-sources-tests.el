@@ -327,6 +327,40 @@
               (should (string-match-p ":WIKIDATA:.*Q7259" content)))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-sources-test-import-events ()
+  "import-events writes event headings and is idempotent on re-run."
+  (let* ((root (make-temp-file "ocie" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt &rest _) (if (string-prefix-p "Source" prompt) "wikidata" "")))
+                  ((symbol-function 'read-string) (lambda (&rest _) "San Francisco"))
+                  ((symbol-function 'read-number)
+                   (let ((n 0)) (lambda (&rest _) (setq n (1+ n)) (if (cl-oddp n) 1845 1859))))
+                  ((symbol-function 'org-chronicle-wikibase--resolve) (lambda (&rest _) "Q62"))
+                  ((symbol-function 'org-chronicle-wikibase--sparql-request)
+                   (lambda (_source _q)
+                     (list '((event (value . "http://www.wikidata.org/entity/Q123"))
+                             (eventLabel (value . "Founding of Foo"))
+                             (date (value . "1846-07-09T00:00:00Z"))
+                             (prec (value . "11"))))))
+                  ((symbol-function 'org-chronicle-sources--review)
+                   (lambda (changes on-confirm) (funcall on-confirm changes))))
+          (org-chronicle-import-events)
+          (org-chronicle-import-events)
+          (let ((events (with-temp-buffer
+                          (insert-file-contents org-chronicle-sources-events-file)
+                          (buffer-string))))
+            (should (string-match-p "Founding of Foo" events))
+            (should (string-match-p "LOCATION:.*San Francisco" events))
+            (should (string-match-p ":DATE:.*1846" events))
+            (should (= 1 (cl-count-if
+                          (lambda (l) (string-match-p "^\\* Founding of Foo" l))
+                          (split-string events "\n"))))))
+      (delete-directory root t))))
+
+
 (ert-deftest org-chronicle-sources-test-import-create ()
   "Non-entity heading triggers entity creation then enriches the new entity."
   (let* ((root (make-temp-file "octs-root" t))

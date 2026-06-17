@@ -65,6 +65,51 @@ claimed by a different QID is not reused."
     (should-not (org-chronicle-wikibase--references
                  (org-chronicle-sources--get 'factgrid) "FG2"))))
 
+(ert-deftest org-chronicle-wikibase-test-events-query ()
+  "The events query targets the place, the date range, and fetches labels."
+  (let ((q (org-chronicle-wikibase--place-events-query
+            (org-chronicle-sources--get 'wikidata) "Q62" 1845 1859)))
+    (should (string-match-p "wd:Q62" q))
+    (should (string-match-p "VALUES" q))
+    (should (string-match-p "wdt:P276" q))
+    (should (string-match-p "wdt:P131" q))
+    (should (string-match-p "P585" q))
+    (should (string-match-p ">= 1845" q))
+    (should (string-match-p "<= 1859" q))
+    (should (string-match-p "eventLabel" q))))
+
+(ert-deftest org-chronicle-wikibase-test-place-events-query-limit ()
+  "A positive limit appends a LIMIT clause; nil omits it."
+  (let ((wd (org-chronicle-sources--get 'wikidata)))
+    (should (string-match-p "LIMIT 25"
+                            (org-chronicle-wikibase--place-events-query wd "Q62" 1845 1859 25)))
+    (should-not (string-match-p "LIMIT"
+                                (org-chronicle-wikibase--place-events-query wd "Q62" 1845 1859 nil)))))
+
+
+(ert-deftest org-chronicle-wikibase-test-events-changes ()
+  "Each dated event row becomes an event-creation change keyed on the event id;
+coarse-precision rows are dropped."
+  (let* ((wd (org-chronicle-sources--get 'wikidata))
+         (rows (list '((event (value . "http://www.wikidata.org/entity/Q123"))
+                       (eventLabel (value . "Founding of Foo"))
+                       (date (value . "1846-07-09T00:00:00Z"))
+                       (prec (value . "11")))
+                     '((event (value . "http://www.wikidata.org/entity/Q124"))
+                       (eventLabel (value . "Vague Decade Thing"))
+                       (date (value . "1850-01-01T00:00:00Z"))
+                       (prec (value . "8")))))
+         (changes (org-chronicle-wikibase--place-events->changes wd rows "San Francisco")))
+    (should (= (length changes) 1))
+    (let* ((c (car changes)) (ev (plist-get c :event)))
+      (should (eq (plist-get c :target) 'event))
+      (should (equal (plist-get c :key) "event:wd:Q123"))
+      (should (equal (plist-get ev :title) "Founding of Foo"))
+      (should (equal (plist-get ev :location) "San Francisco"))
+      (should (string-match-p "1846-07-09" (plist-get ev :date))))))
+
+
+
 (ert-deftest org-chronicle-wikibase-test-record-changes-reference ()
   "Record->changes adds a WIKIPEDIA vitals change for a Wikidata person, none for FactGrid."
   (let ((org-chronicle-wikipedia-language "en"))
