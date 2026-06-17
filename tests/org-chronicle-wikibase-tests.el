@@ -19,6 +19,59 @@
   "The integration loads and defines its group."
   (should (featurep 'org-chronicle-wikibase)))
 
+(ert-deftest org-chronicle-wikibase-test-reuse-marker ()
+  "Reuse finds an entity by QID, then by unclaimed name; a same-name entity
+claimed by a different QID is not reused."
+  (let* ((dir (make-temp-file "ocw-reuse" t))
+         (org-chronicle-root dir)
+         (org-chronicle-people-file nil)
+         (org-chronicle-exclude nil))
+    (unwind-protect
+        (progn
+          (with-temp-file (expand-file-name "people.org" dir)
+            (insert "* John Doe\n:PROPERTIES:\n:ID:       ent-jd1\n"
+                    ":KIND:     person\n:WIKIDATA:  Q1\n:END:\n\n"
+                    "* Jane Roe\n:PROPERTIES:\n:ID:       ent-jr\n"
+                    ":KIND:     person\n:END:\n"))
+          ;; QID match wins regardless of the name passed.
+          (let ((m (org-chronicle-wikibase--reuse-marker "Whoever" 'person "Q1" "WIKIDATA")))
+            (should m)
+            (should (equal (org-with-point-at m (org-get-heading t t t t)) "John Doe")))
+          ;; Name match on an unclaimed entity (no WIKIDATA yet).
+          (let ((m (org-chronicle-wikibase--reuse-marker "Jane Roe" 'person "Q9" "WIKIDATA")))
+            (should m)
+            (should (equal (org-with-point-at m (org-get-heading t t t t)) "Jane Roe")))
+          ;; Same name, different QID -> distinct individual, not reused.
+          (should-not (org-chronicle-wikibase--reuse-marker "John Doe" 'person "Q2" "WIKIDATA"))
+          ;; No match at all.
+          (should-not (org-chronicle-wikibase--reuse-marker "Nobody" 'person "Q9" "WIKIDATA")))
+      (delete-directory dir t))))
+
+(ert-deftest org-chronicle-wikibase-test-resolve-or-create-entity ()
+  "Resolve reuses a QID-matched entity without duplicating it, and creates a
+new entity for a different person."
+  (let* ((dir (make-temp-file "ocw-resolve" t))
+         (org-chronicle-root dir)
+         (org-chronicle-people-file nil))
+    (unwind-protect
+        (progn
+          (with-temp-file (expand-file-name "people.org" dir)
+            (insert "* John Doe\n:PROPERTIES:\n:ID: ent-jd1\n:KIND: person\n:WIKIDATA: Q1\n:END:\n"))
+          ;; Reuse the existing John Doe by QID, do not create a second.
+          (let ((m (org-chronicle-wikibase--resolve-or-create-entity "John Doe" 'person "Q1" "WIKIDATA")))
+            (should (equal (org-with-point-at m (org-get-heading t t t t)) "John Doe")))
+          (with-current-buffer (find-file-noselect (expand-file-name "people.org" dir))
+            (revert-buffer t t)
+            (goto-char (point-min))
+            (let ((n 0)) (while (re-search-forward "^\\* John Doe$" nil t) (setq n (1+ n)))
+                 (should (= n 1))))
+          ;; A different person is created.
+          (let ((m (org-chronicle-wikibase--resolve-or-create-entity "Sam Brannan" 'person "Q2" "WIKIDATA")))
+            (should (equal (org-with-point-at m (org-get-heading t t t t)) "Sam Brannan"))))
+      (delete-directory dir t))))
+
+
+
 (ert-deftest org-chronicle-wikibase-test-parse-qid ()
   "Test QID extraction from various string formats."
   (should (equal (org-chronicle-wikibase--parse-qid "Q42") "Q42"))

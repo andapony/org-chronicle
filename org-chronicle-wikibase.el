@@ -349,6 +349,45 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
     (save-buffer)
     (point-marker)))
 
+(defun org-chronicle-wikibase--reuse-marker (name kind qid key-prop)
+  "Return a marker to an existing entity to reuse for NAME, or nil.
+KIND is the entity kind, QID the resolved source id, KEY-PROP the property
+storing it.  Prefer any heading whose KEY-PROP equals QID; otherwise a KIND
+heading whose name or alias matches NAME and whose KEY-PROP is unset or
+already QID.  A name match claimed by a different KEY-PROP is skipped, so
+distinct same-name individuals stay separate."
+  (let ((by-key nil) (by-name nil)
+        (dname (downcase name))
+        (kindstr (symbol-name kind)))
+    (dolist (file (org-chronicle--source-files))
+      (with-current-buffer (find-file-noselect file)
+        (org-with-wide-buffer
+         (goto-char (point-min))
+         (org-map-entries
+          (lambda ()
+            (when (org-entry-get nil "KIND")
+              (let* ((claimed (org-entry-get nil key-prop))
+                     (claimed (and claimed (not (string-empty-p claimed)) claimed))
+                     (names (cons (org-get-heading t t t t)
+                                  (org-chronicle--split (org-entry-get nil "ALIASES")))))
+                (when (and (null by-key) qid claimed (equal claimed qid))
+                  (setq by-key (point-marker)))
+                (when (and (null by-name)
+                           (equal (org-entry-get nil "KIND") kindstr)
+                           (member dname (mapcar #'downcase names))
+                           (or (null claimed) (equal claimed qid)))
+                  (setq by-name (point-marker))))))))))
+    (or by-key by-name)))
+
+(defun org-chronicle-wikibase--resolve-or-create-entity (name kind qid key-prop)
+  "Return a marker to the chronicle entity for NAME with QID under KEY-PROP.
+Reuse an existing entity when possible (see
+`org-chronicle-wikibase--reuse-marker'); otherwise create a new KIND entity."
+  (or (org-chronicle-wikibase--reuse-marker name kind qid key-prop)
+      (org-chronicle-wikibase--create-entity name kind)))
+
+
+
 (defun org-chronicle-wikibase--fetch-record (source qid kind)
   "Fetch QID from SOURCE as a KIND record (person, place, or group)."
   (let* ((pids (org-chronicle-sources--span-pids source kind))

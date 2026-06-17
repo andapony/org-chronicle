@@ -381,7 +381,8 @@ write the approved set.  A heading accretes one key property per source."
     (let* ((qid (or stored (org-chronicle-wikibase--resolve source seed)))
            (marker (if heading-kind
                        (save-excursion (org-back-to-heading t) (point-marker))
-                     (org-chronicle-wikibase--create-entity seed kind)))
+                     (org-chronicle-wikibase--resolve-or-create-entity
+                      seed kind qid key-prop)))
            (rec (org-chronicle-wikibase--fetch-record source qid kind))
            (changes (org-chronicle-wikibase--record->changes rec seed)))
       (when (seq-empty-p changes)
