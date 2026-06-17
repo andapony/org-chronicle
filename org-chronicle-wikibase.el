@@ -166,8 +166,6 @@ Return the candidate list from the first term that yields matches, or nil."
            for cands = (org-chronicle-wikibase--search-request source tm)
            when cands return cands))
 
-
-
 (defun org-chronicle-wikibase--label-filter (source var)
   "Return a SPARQL FILTER restricting VAR to any of SOURCE's label languages.
 SOURCE's :label-language is a list; each language produces a LANG(VAR)
@@ -176,7 +174,6 @@ clause, and the clauses are joined by || so VAR may match any of them."
           (mapconcat (lambda (l) (format "LANG(%s)=\"%s\"" var l))
                      (plist-get source :label-language) "||")
           ") "))
-
 
 (defun org-chronicle-wikibase--vitals-query (source qid)
   "Return the SPARQL vitals query for QID against SOURCE (single result row)."
@@ -348,7 +345,6 @@ BASE-URI; wikibase:/rdfs:/skos:/bd: are instance-independent."
    "PREFIX skos: <http://www.w3.org/2004/02/skos/core#> "
    "PREFIX bd: <http://www.bigdata.com/rdf#> "))
 
-
 (defun org-chronicle-wikibase--span-select (rows)
   "Select start and end dates from span-query ROWS (parsed bindings).
 Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
@@ -408,8 +404,6 @@ Reuse an existing entity when possible (see
 `org-chronicle-wikibase--reuse-marker'); otherwise create a new KIND entity."
   (or (org-chronicle-wikibase--reuse-marker name kind qid key-prop)
       (org-chronicle-wikibase--create-entity name kind)))
-
-
 
 (defun org-chronicle-wikibase--fetch-record (source qid kind)
   "Fetch QID from SOURCE as a KIND record (person, place, or group)."
@@ -539,10 +533,6 @@ e.g. \"birthPlace\".  Both strings are empty when SOURCE lacks the
                    pvar located av av adminc av alv (org-chronicle-wikibase--label-filter source alv))))
       (cons "" ""))))
 
-
-
-
-
 (defcustom org-chronicle-wikipedia-language "en"
   "Language code for Wikipedia reference links built from a source id."
   :type 'string
@@ -568,10 +558,6 @@ URL is the provenance URL recorded on each change."
                   (org-chronicle-wikibase--entity-change
                    'vitals (car ref) (cdr ref) url))
                 (org-chronicle-wikibase--references source qid))))
-
-
-
-
 
 (defun org-chronicle-wikibase--entity-change (group property value url &optional alternates)
   "Build an entity change plist for PROPERTY=VALUE in GROUP, sourced to URL.
@@ -722,14 +708,6 @@ matches, fall back to successively comma-trimmed prefixes.  Return the id."
           (let* ((choice (completing-read "Select item: " lines nil t))
                  (cand (cdr (assoc choice table))))
             (plist-get cand :qid))))))
-
-;; Backward-compatibility aliases for the pre-sources public commands.
-;; The commands now live in `org-chronicle-sources'.
-(define-obsolete-function-alias 'org-chronicle-wikibase-import
-  'org-chronicle-import "org-chronicle 0.5")
-
-(define-obsolete-function-alias 'org-chronicle-wikibase-reconcile
-  'org-chronicle-reconcile "org-chronicle 0.5")
 
 ;; Backward-compatibility: the module was named org-chronicle-wikidata before
 ;; the multi-source split.  Keep the old feature loadable.

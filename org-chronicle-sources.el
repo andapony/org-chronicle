@@ -20,9 +20,6 @@
 (require 'subr-x)
 (require 'org-element)
 
-(define-obsolete-variable-alias 'org-chronicle-wikidata-file
-  'org-chronicle-sources-events-file "org-chronicle 0.5")
-
 (defcustom org-chronicle-sources-events-file nil
   "File where imported events are filed.
 When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
@@ -33,7 +30,6 @@ When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
   "Default import source id, used as the prompt default in `org-chronicle-import'."
   :type 'symbol
   :group 'org-chronicle)
-
 
 (defun org-chronicle-sources--events-file ()
   "Return the file imported events are written to.
@@ -375,8 +371,6 @@ KIND is the entity kind; SEED labels the entity and its events."
            (when (buffer-file-name) (save-buffer))
            (message "Imported %d change(s) for %s" (length selected) seed)))))))
 
-
-
 ;;;###autoload
 (defun org-chronicle-import ()
   "Import historical facts into the chronicle from a configured source.
@@ -436,10 +430,6 @@ else prompt, and prompt for KIND."
                   name kind qid key-prop)))
     (org-chronicle-sources--import-record source kind name marker qid)))
 
-
-(define-obsolete-function-alias 'org-chronicle-wikidata-import
-  'org-chronicle-import "org-chronicle 0.5")
-
 ;;;###autoload
 (defun org-chronicle-reconcile ()
   "Re-query a source linked from the heading and present drift as opt-in pulls.
@@ -481,9 +471,6 @@ When several source keys are present, prompt for which to reconcile."
 			      (org-chronicle-sources--apply-changes selected index)
 			      (when (buffer-file-name) (save-buffer))
 			      (message "Reconciled %d change(s) for %s" (length selected) name))))))))
-
-(define-obsolete-function-alias 'org-chronicle-wikidata-reconcile
-  'org-chronicle-reconcile "org-chronicle 0.5")
 
 (defconst org-chronicle-sources--registry
   '((wikidata
