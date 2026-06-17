@@ -4,7 +4,7 @@
 
 ;; Author: Rob Duncan
 ;; URL: https://github.com/andapony/org-chronicle
-;; Version: 0.5.1
+;; Version: 0.5.2
 ;; Package-Requires: ((emacs "27.2") (org "9.4"))
 ;; Keywords: outlines, calendar
 ;; SPDX-License-Identifier: GPL-3.0-or-later
@@ -1059,8 +1059,10 @@ Records the jump in the chronicle link history."
   "Keymap active on entity-link buttons in event property values.")
 
 (defconst org-chronicle--entity-link-prop-regexp
-  "^[ \t]*:\\(?:PEOPLE\\|LOCATION\\|TOPICS\\|SUBJECT\\):[ \t]*\\(.*\\)$"
-  "Match an in-scope event property line; group 1 is the value region.")
+  "^[ \t]*:\\(?:PEOPLE\\|LOCATION\\|TOPICS\\|SUBJECT\\|BIRTHPLACE\\|DEATHPLACE\\):[ \t]*\\(.*\\)$"
+  "Match an in-scope property line; group 1 is the value region.
+Covers event participant/place/topic properties and entity
+birthplace/deathplace vitals.")
 
 (defun org-chronicle--fontify-entity-value (beg end)
   "Buttonize resolving entity names in buffer region BEG..END.
@@ -1096,7 +1098,8 @@ Always returns nil; faces are applied per segment, not over the region."
 
 (define-minor-mode org-chronicle-entity-links-mode
   "Buttonize event property values that name promoted entities.
-Names in PEOPLE/LOCATION/TOPICS/SUBJECT that resolve to an entity become
+Names in PEOPLE/LOCATION/TOPICS/SUBJECT/BIRTHPLACE/DEATHPLACE that resolve
+to an entity become
 clickable links to that entity's heading; unresolved names stay plain.
 The entity set is cached and invalidated on save or revert of files under
 `org-chronicle-root', so external changes picked up by auto-revert keep

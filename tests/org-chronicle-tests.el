@@ -490,6 +490,24 @@ directories are created.  The temp dir is removed afterward."
           (org-chronicle-visit-entity-at-point))
         (should (equal visited "ent-grant"))))))
 
+(ert-deftest org-chronicle-test-entity-links-buttonizes-vitals ()
+  "BIRTHPLACE/DEATHPLACE values buttonize like event property values."
+  (cl-letf (((symbol-function 'org-chronicle--all-entities)
+             (lambda () (list (list :name "Saco, Maine, United States" :kind 'place
+                                    :aliases nil :id "ent-saco")))))
+    (let ((org-chronicle--entity-cache nil)
+          (org-chronicle--entity-link-buffers nil))
+      (with-temp-buffer
+        (org-mode)
+        (insert "* Someone\n:PROPERTIES:\n:BIRTHPLACE: Saco, Maine, United States\n:END:\n")
+        (org-chronicle-entity-links-mode 1)
+        (font-lock-ensure)
+        (goto-char (point-min))
+        (search-forward "Saco")
+        (should (equal (get-text-property (match-beginning 0) 'org-chronicle-entity-id)
+                       "ent-saco"))))))
+
+
 (ert-deftest org-chronicle-test-entity-links-refresh ()
   "The refresh command clears the entity cache so it rebuilds from disk."
   (let ((org-chronicle--entity-cache (cons 'stale (make-hash-table :test #'equal)))
