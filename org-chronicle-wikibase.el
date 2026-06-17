@@ -239,11 +239,11 @@ OPTIONAL { ?st pqv:%s ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?
 
 (defun org-chronicle-wikibase--place-events->changes (source rows place-label)
   "Map result ROWS to event-creation change plists located at PLACE-LABEL.
-SOURCE supplies the curie and provenance URL.  Rows whose start/point date is
-not representable are dropped; a non-representable end date is omitted while the
-event is kept.  When an event appears more than once (e.g. carrying both a
-point-in-time and a span) it collapses to one change, preferring the entry that
-carries an end date."
+SOURCE supplies the curie, provenance URL, and reference links.  Rows whose
+start/point date is not representable are dropped; a non-representable end date
+is omitted while the event is kept.  When an event appears more than once (e.g.
+carrying both a point-in-time and a span) it collapses to one change, preferring
+the entry that carries an end date."
   (let ((all (delq nil
                    (mapcar
                     (lambda (row)
@@ -255,6 +255,7 @@ carries an end date."
                           (list :target 'event :group 'events
                                 :key (concat "event:" (plist-get source :curie) qid)
                                 :provenance (org-chronicle-wikibase--url source qid)
+                                :references (org-chronicle-wikibase--references source qid)
                                 :default t
                                 :event (list :title (org-chronicle-wikibase--cell row "eventLabel")
                                              :date (org-chronicle--date-format date)

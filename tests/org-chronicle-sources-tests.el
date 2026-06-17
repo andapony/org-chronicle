@@ -360,6 +360,29 @@
                           (split-string events "\n"))))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-sources-test-apply-event-references ()
+  "Applying an event change writes its reference links as properties, once."
+  (let* ((root (make-temp-file "ocer" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root)))
+    (unwind-protect
+        (let ((change (list :target 'event :key "event:wd:Q5"
+                            :provenance "https://www.wikidata.org/wiki/Q5"
+                            :references '(("WIKIPEDIA" . "https://example.org/wiki/Foo"))
+                            :event (list :title "Some Event" :date "1850" :location "Place"))))
+          (org-chronicle-sources--apply-event-change
+           change (org-chronicle-sources--events-index))
+          (org-chronicle-sources--apply-event-change
+           change (org-chronicle-sources--events-index))
+          (let ((text (with-temp-buffer
+                        (insert-file-contents org-chronicle-sources-events-file)
+                        (buffer-string))))
+            (should (string-match-p "WIKIPEDIA:.*example.org/wiki/Foo" text))
+            (should (= 1 (cl-count-if (lambda (l) (string-match-p "WIKIPEDIA:" l))
+                                      (split-string text "\n"))))))
+      (delete-directory root t))))
+
+
 
 (ert-deftest org-chronicle-sources-test-import-create ()
   "Non-entity heading triggers entity creation then enriches the new entity."

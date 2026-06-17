@@ -157,6 +157,18 @@ the span (the entry carrying an end date)."
       (should (string-match-p "1848" (plist-get ev :date)))
       (should (string-match-p "1854" (plist-get ev :date-end))))))
 
+(ert-deftest org-chronicle-wikibase-test-place-events-changes-references ()
+  "A Wikidata event change carries the source's WIKIPEDIA reference link."
+  (let* ((org-chronicle-wikipedia-language "en")
+         (wd (org-chronicle-sources--get 'wikidata))
+         (rows (list '((event (value . "http://www.wikidata.org/entity/Q5"))
+                       (eventLabel (value . "Some Event"))
+                       (date (value . "1850-01-01T00:00:00Z")) (prec (value . "9")))))
+         (change (car (org-chronicle-wikibase--place-events->changes wd rows "Place"))))
+    (should (equal (assoc "WIKIPEDIA" (plist-get change :references))
+                   '("WIKIPEDIA" . "https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/Q5")))))
+
+
 
 
 

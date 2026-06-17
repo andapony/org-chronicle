@@ -189,26 +189,41 @@ fields match, or `conflict' otherwise."
 (defun org-chronicle-sources--apply-event-change (change index)
   "Apply event CHANGE idempotently using INDEX (IMPORT-KEY -> marker).
 Update the keyed heading's managed properties in place when it exists,
-otherwise append a new heading carrying the key."
+otherwise append a new heading carrying the key.  Reference links in CHANGE
+are written as properties on the heading in either case."
   (let* ((key (plist-get change :key))
          (existing (and key (gethash key index)))
          (ev (plist-get change :event)))
     (if existing
         (org-with-point-at existing
-          (org-set-property "DATE" (org-chronicle--ts (plist-get ev :date)))
-          (if (plist-get ev :date-end)
-              (org-set-property "DATE-END" (org-chronicle--ts (plist-get ev :date-end)))
-            (org-delete-property "DATE-END"))
-          (if (and (plist-get ev :location)
-                   (not (string-empty-p (plist-get ev :location))))
-              (org-set-property "LOCATION" (plist-get ev :location))
-            (org-delete-property "LOCATION"))
-          (org-chronicle-sources--add-source (plist-get change :provenance))
-          (unless (org-entry-get nil "TRUTH")
-            (org-set-property "TRUTH" "historical"))
-          (save-buffer))
+			   (org-set-property "DATE" (org-chronicle--ts (plist-get ev :date)))
+			   (if (plist-get ev :date-end)
+			       (org-set-property "DATE-END" (org-chronicle--ts (plist-get ev :date-end)))
+			     (org-delete-property "DATE-END"))
+			   (if (and (plist-get ev :location)
+				    (not (string-empty-p (plist-get ev :location))))
+			       (org-set-property "LOCATION" (plist-get ev :location))
+			     (org-delete-property "LOCATION"))
+			   (org-chronicle-sources--add-source (plist-get change :provenance))
+			   (org-chronicle-sources--apply-references change)
+			   (unless (org-entry-get nil "TRUTH")
+			     (org-set-property "TRUTH" "historical"))
+			   (save-buffer))
       (org-chronicle-sources--append-to-events-file
-       (org-chronicle-sources--event-change-string change) key index))))
+       (org-chronicle-sources--event-change-string change) key index)
+      (let ((marker (and key (gethash key index))))
+        (when (and marker (plist-get change :references))
+          (org-with-point-at marker
+			     (org-chronicle-sources--apply-references change)
+			     (save-buffer)))))))
+
+(defun org-chronicle-sources--apply-references (change)
+  "Set CHANGE's reference links as properties on the heading at point.
+Each link is a (PROPERTY . URL) cons; links with no URL are skipped."
+  (dolist (ref (plist-get change :references))
+    (when (cdr ref)
+      (org-set-property (car ref) (cdr ref)))))
+
 
 (defun org-chronicle-sources--apply-changes (changes index)
   "Write approved change plists to the chronicle at the heading at point.
