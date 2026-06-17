@@ -497,6 +497,7 @@ When several source keys are present, prompt for which to reconcile."
                              (place  "P571" . "P576")
                              (group  "P571" . "P576"))
                      :birthplace "P19" :deathplace "P20"
+                     :country "P17" :located-in "P131" :admin-class "Q10864048"
                      :father "P22" :mother "P25"
                      :spouse "P26" :position "P39"
                      :qual-start "P580" :qual-end "P582" ))

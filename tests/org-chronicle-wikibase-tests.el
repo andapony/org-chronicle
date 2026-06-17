@@ -79,6 +79,51 @@ claimed by a different QID is not reused."
            (changes (org-chronicle-wikibase--record->changes rec "X")))
       (should-not (cl-find-if (lambda (c) (equal (plist-get c :property) "WIKIPEDIA")) changes)))))
 
+(ert-deftest org-chronicle-wikibase-test-compose-place ()
+  "Compose-place appends admin only for flagged countries, then the country."
+  (let ((org-chronicle-place-admin-countries '("Q30")))
+    (should (equal (org-chronicle-wikibase--compose-place "Saco" "Maine" "United States" "Q30")
+                   "Saco, Maine, United States"))
+    ;; Unflagged country: admin ignored even when present.
+    (should (equal (org-chronicle-wikibase--compose-place "Lyon" "Auvergne-Rhone-Alpes" "France" "Q142")
+                   "Lyon, France"))
+    ;; Flagged but no admin found.
+    (should (equal (org-chronicle-wikibase--compose-place "Saco" nil "United States" "Q30")
+                   "Saco, United States"))
+    ;; No country: bare label.
+    (should (equal (org-chronicle-wikibase--compose-place "Saco" nil nil nil) "Saco"))
+    ;; No label: nil.
+    (should-not (org-chronicle-wikibase--compose-place nil "Maine" "United States" "Q30"))))
+
+(ert-deftest org-chronicle-wikibase-test-rows-record-place ()
+  "Rows->record composes birthplace/deathplace from the new query columns."
+  (let ((org-chronicle-place-admin-countries '("Q30"))
+        (row '((birthPlaceLabel (value . "Saco"))
+               (birthPlaceAdminLabel (value . "Maine"))
+               (birthPlaceCountryLabel (value . "United States"))
+               (birthPlaceCountry (value . "http://www.wikidata.org/entity/Q30"))
+               (deathPlaceLabel (value . "New York City"))
+               (deathPlaceCountryLabel (value . "United States"))
+               (deathPlaceCountry (value . "http://www.wikidata.org/entity/Q30")))))
+    (let ((rec (org-chronicle-wikibase--rows->record '(:property-map nil) "Q1" (list row) nil nil nil)))
+      (should (equal (plist-get rec :birthplace) "Saco, Maine, United States"))
+      (should (equal (plist-get rec :deathplace) "New York City, United States")))))
+
+(ert-deftest org-chronicle-wikibase-test-vitals-query-place-detail ()
+  "The vitals query carries place-detail clauses when the source has the PIDs."
+  (let ((q (org-chronicle-wikibase--vitals-query (org-chronicle-sources--get 'wikidata) "Q1")))
+    (should (string-match-p "wdt:P17" q))
+    (should (string-match-p "wdt:P131\\*" q))
+    (should (string-match-p "Q10864048" q))
+    (should (string-match-p "birthPlaceAdminLabel" q))
+    (should (string-match-p "deathPlaceCountryLabel" q)))
+  ;; FactGrid lacks the place-detail PIDs, so no admin clause.
+  (let ((q (org-chronicle-wikibase--vitals-query (org-chronicle-sources--get 'factgrid) "FG1")))
+    (should-not (string-match-p "Q10864048" q))))
+
+
+
+
 
 
 

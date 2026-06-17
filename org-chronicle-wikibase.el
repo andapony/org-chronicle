@@ -161,27 +161,31 @@ clause, and the clauses are joined by || so VAR may match any of them."
 
 (defun org-chronicle-wikibase--vitals-query (source qid)
   "Return the SPARQL vitals query for QID against SOURCE (single result row)."
-  (let ((bpl (org-chronicle-sources--pid source :birthplace))
-        (dpl (org-chronicle-sources--pid source :deathplace))
-        (fa (org-chronicle-sources--pid source :father))
-        (mo (org-chronicle-sources--pid source :mother)))
+  (let* ((bpl (org-chronicle-sources--pid source :birthplace))
+         (dpl (org-chronicle-sources--pid source :deathplace))
+         (fa (org-chronicle-sources--pid source :father))
+         (mo (org-chronicle-sources--pid source :mother))
+         (bpd (org-chronicle-wikibase--place-detail source "?bp" "birthPlace"))
+         (dpd (org-chronicle-wikibase--place-detail source "?dp" "deathPlace")))
     (concat
      (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
-     (format "SELECT ?label (SAMPLE(?bpl) AS ?birthPlaceLabel) \
-(SAMPLE(?dpl) AS ?deathPlaceLabel) (SAMPLE(?fl) AS ?fatherLabel) \
+     (format "SELECT ?label (SAMPLE(?bpl) AS ?birthPlaceLabel)%s \
+(SAMPLE(?dpl) AS ?deathPlaceLabel)%s (SAMPLE(?fl) AS ?fatherLabel) \
 (SAMPLE(?ml) AS ?motherLabel) \
 (GROUP_CONCAT(DISTINCT ?alias; separator=\"\\u001f\") AS ?aliases) WHERE { \
 BIND(wd:%s AS ?p) \
 ?p rdfs:label ?label. %s\
-OPTIONAL { ?p wdt:%s ?bp. ?bp rdfs:label ?bpl. %s} \
-OPTIONAL { ?p wdt:%s ?dp. ?dp rdfs:label ?dpl. %s} \
+OPTIONAL { ?p wdt:%s ?bp. ?bp rdfs:label ?bpl. %s%s} \
+OPTIONAL { ?p wdt:%s ?dp. ?dp rdfs:label ?dpl. %s%s} \
 OPTIONAL { ?p wdt:%s ?f. ?f rdfs:label ?fl. %s} \
 OPTIONAL { ?p wdt:%s ?m. ?m rdfs:label ?ml. %s} \
 OPTIONAL { ?p skos:altLabel ?alias. %s} } GROUP BY ?label"
+             (car bpd)
+             (car dpd)
              qid
              (org-chronicle-wikibase--label-filter source "?label")
-             bpl (org-chronicle-wikibase--label-filter source "?bpl")
-             dpl (org-chronicle-wikibase--label-filter source "?dpl")
+             bpl (org-chronicle-wikibase--label-filter source "?bpl") (cdr bpd)
+             dpl (org-chronicle-wikibase--label-filter source "?dpl") (cdr dpd)
              fa (org-chronicle-wikibase--label-filter source "?fl")
              mo (org-chronicle-wikibase--label-filter source "?ml")
              (org-chronicle-wikibase--label-filter source "?alias")))))
@@ -439,8 +443,8 @@ by rank then precision (see `org-chronicle-wikibase--select-candidate')."
      :born-alternates (plist-get span :start-alternates)
      :died (plist-get span :end)
      :died-alternates (plist-get span :end-alternates)
-     :birthplace (and v (org-chronicle-wikibase--cell v "birthPlaceLabel"))
-     :deathplace (and v (org-chronicle-wikibase--cell v "deathPlaceLabel"))
+     :birthplace (org-chronicle-wikibase--record-place v "birthPlace")
+     :deathplace (org-chronicle-wikibase--record-place v "deathPlace")
      :father (and v (org-chronicle-wikibase--cell v "fatherLabel"))
      :mother (and v (org-chronicle-wikibase--cell v "motherLabel"))
      :aliases (and alias-str (not (string-empty-p alias-str))
@@ -465,6 +469,60 @@ by rank then precision (see `org-chronicle-wikibase--select-candidate')."
 (defun org-chronicle-wikibase--url (source qid)
   "Return the provenance URL for QID using SOURCE's item-url-format."
   (format (plist-get source :item-url-format) qid))
+
+(defcustom org-chronicle-place-admin-countries '("Q30")
+  "Country QIDs whose places include the first-level admin division.
+For a place in one of these countries an imported birthplace or deathplace
+is composed as \"City, Admin, Country\"; otherwise as \"City, Country\"."
+  :type '(repeat string)
+  :group 'org-chronicle)
+
+(defun org-chronicle-wikibase--compose-place (label admin country country-qid)
+  "Compose a place string from LABEL, ADMIN, and COUNTRY labels.
+Append ADMIN only when COUNTRY-QID is in `org-chronicle-place-admin-countries',
+then append COUNTRY when present.  Return nil for a nil or empty LABEL."
+  (and label (not (string-empty-p label))
+       (let ((parts (list label)))
+         (when (and admin (not (string-empty-p admin))
+                    (member country-qid org-chronicle-place-admin-countries))
+           (setq parts (append parts (list admin))))
+         (when (and country (not (string-empty-p country)))
+           (setq parts (append parts (list country))))
+         (mapconcat #'identity parts ", "))))
+
+(defun org-chronicle-wikibase--record-place (v prefix)
+  "Compose the place named by PREFIX columns (\"birthPlace\"/\"deathPlace\") in row V."
+  (and v (org-chronicle-wikibase--compose-place
+          (org-chronicle-wikibase--cell v (concat prefix "Label"))
+          (org-chronicle-wikibase--cell v (concat prefix "AdminLabel"))
+          (org-chronicle-wikibase--cell v (concat prefix "CountryLabel"))
+          (org-chronicle-wikibase--parse-qid
+           (org-chronicle-wikibase--cell v (concat prefix "Country"))))))
+
+(defun org-chronicle-wikibase--place-detail (source pvar prefix)
+  "Return a cons (SELECT-COLS . WHERE-CLAUSES) of place-detail SPARQL.
+PVAR is a place variable such as \"?bp\"; PREFIX names the output columns,
+e.g. \"birthPlace\".  Both strings are empty when SOURCE lacks the
+:country, :located-in, and :admin-class property ids."
+  (let ((country (org-chronicle-sources--pid source :country))
+        (located (org-chronicle-sources--pid source :located-in))
+        (adminc (org-chronicle-sources--pid source :admin-class)))
+    (if (and country located adminc)
+        (let ((cv (concat pvar "Country"))
+              (clv (concat pvar "CountryLabel"))
+              (av (concat pvar "Adm"))
+              (alv (concat pvar "AdmLabel")))
+          (cons
+           (format " (SAMPLE(%s) AS ?%sCountry) (SAMPLE(%s) AS ?%sCountryLabel) (SAMPLE(%s) AS ?%sAdminLabel)"
+                   cv prefix clv prefix alv prefix)
+           (format " OPTIONAL { %s wdt:%s %s. %s rdfs:label %s. %s} OPTIONAL { %s wdt:%s* %s. %s wdt:P31/wdt:P279* wd:%s. %s rdfs:label %s. %s}"
+                   pvar country cv cv clv (org-chronicle-wikibase--label-filter source clv)
+                   pvar located av av adminc av alv (org-chronicle-wikibase--label-filter source alv))))
+      (cons "" ""))))
+
+
+
+
 
 (defcustom org-chronicle-wikipedia-language "en"
   "Language code for Wikipedia reference links built from a source id."
