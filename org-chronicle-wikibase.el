@@ -239,23 +239,39 @@ OPTIONAL { ?st pqv:%s ?en. ?en wikibase:timeValue ?end; wikibase:timePrecision ?
 
 (defun org-chronicle-wikibase--place-events->changes (source rows place-label)
   "Map result ROWS to event-creation change plists located at PLACE-LABEL.
-SOURCE supplies the curie and provenance URL.  Rows without a representable
-date are dropped."
-  (delq nil
-        (mapcar
-         (lambda (row)
-           (let ((date (org-chronicle-wikibase--row-date row "date" "prec"))
-                 (qid (org-chronicle-wikibase--parse-qid
-                       (org-chronicle-wikibase--cell row "event"))))
-             (when (and date qid)
-               (list :target 'event :group 'events
-                     :key (concat "event:" (plist-get source :curie) qid)
-                     :provenance (org-chronicle-wikibase--url source qid)
-                     :default t
-                     :event (list :title (org-chronicle-wikibase--cell row "eventLabel")
-                                  :date (org-chronicle--date-format date)
-                                  :location place-label)))))
-         rows)))
+SOURCE supplies the curie and provenance URL.  Rows whose start/point date is
+not representable are dropped; a non-representable end date is omitted while the
+event is kept.  When an event appears more than once (e.g. carrying both a
+point-in-time and a span) it collapses to one change, preferring the entry that
+carries an end date."
+  (let ((all (delq nil
+                   (mapcar
+                    (lambda (row)
+                      (let ((date (org-chronicle-wikibase--row-date row "date" "prec"))
+                            (end (org-chronicle-wikibase--row-date row "end" "endprec"))
+                            (qid (org-chronicle-wikibase--parse-qid
+                                  (org-chronicle-wikibase--cell row "event"))))
+                        (when (and date qid)
+                          (list :target 'event :group 'events
+                                :key (concat "event:" (plist-get source :curie) qid)
+                                :provenance (org-chronicle-wikibase--url source qid)
+                                :default t
+                                :event (list :title (org-chronicle-wikibase--cell row "eventLabel")
+                                             :date (org-chronicle--date-format date)
+                                             :date-end (and end (org-chronicle--date-format end))
+                                             :location place-label)))))
+                    rows)))
+        (best (make-hash-table :test 'equal))
+        (order '()))
+    (dolist (c all)
+      (let* ((k (plist-get c :key))
+             (prev (gethash k best)))
+        (unless prev (push k order))
+        (when (or (null prev)
+                  (and (not (plist-get (plist-get prev :event) :date-end))
+                       (plist-get (plist-get c :event) :date-end)))
+          (puthash k c best))))
+    (mapcar (lambda (k) (gethash k best)) (nreverse order))))
 
 
 (defun org-chronicle-wikibase--rank-symbol (uri)
@@ -581,23 +597,35 @@ URL is the provenance URL recorded on each change."
                 (org-chronicle-wikibase--references source qid))))
 
 (defun org-chronicle-wikibase--place-events-query (source place-qid from until &optional limit)
-  "Return SOURCE's SPARQL query for events located at PLACE-QID dated FROM..UNTIL.
+  "Return SOURCE's SPARQL query for events located at PLACE-QID in FROM..UNTIL.
 An event matches when its location is PLACE-QID via either the event-location
-or the located-in property.  Each row carries the event item, its label, its
-point-in-time value, and that value's precision.  LIMIT, when a positive
-integer, caps the row count."
+or located-in property, and it either has a point-in-time date inside the
+window or a start date whose span overlaps it.  Each row carries the event, its
+label, the point/start date and precision, and -- for spans -- the end date and
+precision.  LIMIT, when a positive integer, caps the row count."
   (let ((loc (org-chronicle-sources--pid source :event-location))
         (within (org-chronicle-sources--pid source :located-in))
-        (pit (org-chronicle-sources--pid source :point-in-time)))
+        (pit (org-chronicle-sources--pid source :point-in-time))
+        (start (org-chronicle-sources--pid source :qual-start))
+        (end (org-chronicle-sources--pid source :qual-end)))
     (concat
      (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
-     (format "SELECT DISTINCT ?event ?eventLabel ?date ?prec WHERE { \
+     (format "SELECT DISTINCT ?event ?eventLabel ?date ?prec ?end ?endprec WHERE { \
 VALUES ?locProp { wdt:%s wdt:%s } \
-?event ?locProp wd:%s ; p:%s ?stmt. \
-?stmt psv:%s ?node. ?node wikibase:timeValue ?date; wikibase:timePrecision ?prec. \
-FILTER(YEAR(?date) >= %d && YEAR(?date) <= %d) \
+?event ?locProp wd:%s . \
+{ ?event p:%s ?pstmt. ?pstmt psv:%s ?pnode. \
+?pnode wikibase:timeValue ?date; wikibase:timePrecision ?prec. \
+FILTER(YEAR(?date) >= %d && YEAR(?date) <= %d) } \
+UNION \
+{ ?event p:%s ?sstmt. ?sstmt psv:%s ?snode. \
+?snode wikibase:timeValue ?date; wikibase:timePrecision ?prec. \
+OPTIONAL { ?event p:%s ?estmt. ?estmt psv:%s ?enode. \
+?enode wikibase:timeValue ?end; wikibase:timePrecision ?endprec. } \
+FILTER(YEAR(?date) <= %d && (!BOUND(?end) || YEAR(?end) >= %d)) } \
 ?event rdfs:label ?eventLabel. %s} ORDER BY ?date"
-             loc within place-qid pit pit from until
+             loc within place-qid
+             pit pit from until
+             start start end end until from
              (org-chronicle-wikibase--label-filter source "?eventLabel"))
      (if (and limit (> limit 0)) (format " LIMIT %d" limit) ""))))
 

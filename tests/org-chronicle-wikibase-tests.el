@@ -74,6 +74,10 @@ claimed by a different QID is not reused."
     (should (string-match-p "wdt:P276" q))
     (should (string-match-p "wdt:P131" q))
     (should (string-match-p "P585" q))
+    (should (string-match-p "UNION" q))
+    (should (string-match-p "P580" q))
+    (should (string-match-p "P582" q))
+    (should (string-match-p "BOUND" q))
     (should (string-match-p ">= 1845" q))
     (should (string-match-p "<= 1859" q))
     (should (string-match-p "eventLabel" q))))
@@ -107,6 +111,53 @@ coarse-precision rows are dropped."
       (should (equal (plist-get ev :title) "Founding of Foo"))
       (should (equal (plist-get ev :location) "San Francisco"))
       (should (string-match-p "1846-07-09" (plist-get ev :date))))))
+
+(ert-deftest org-chronicle-wikibase-test-place-events-changes-spans ()
+  "Span rows yield :date + :date-end; start-only yields :date only;
+a coarse end is omitted while the event is kept."
+  (let* ((wd (org-chronicle-sources--get 'wikidata))
+         (rows (list
+                '((event (value . "http://www.wikidata.org/entity/Q1"))
+                  (eventLabel (value . "California Gold Rush"))
+                  (date (value . "1848-01-24T00:00:00Z")) (prec (value . "11"))
+                  (end (value . "1855-01-01T00:00:00Z")) (endprec (value . "9")))
+                '((event (value . "http://www.wikidata.org/entity/Q2"))
+                  (eventLabel (value . "Long War"))
+                  (date (value . "1846-01-01T00:00:00Z")) (prec (value . "9")))
+                '((event (value . "http://www.wikidata.org/entity/Q3"))
+                  (eventLabel (value . "Fuzzy End"))
+                  (date (value . "1850-01-01T00:00:00Z")) (prec (value . "9"))
+                  (end (value . "1850-01-01T00:00:00Z")) (endprec (value . "7")))))
+         (changes (org-chronicle-wikibase--place-events->changes wd rows "California")))
+    (should (= (length changes) 3))
+    (let ((gold (plist-get (nth 0 changes) :event)))
+      (should (string-match-p "1848-01-24" (plist-get gold :date)))
+      (should (plist-get gold :date-end))
+      (should (string-match-p "1855" (plist-get gold :date-end))))
+    (should-not (plist-get (plist-get (nth 1 changes) :event) :date-end))
+    (let ((fuzzy (plist-get (nth 2 changes) :event)))
+      (should (string-match-p "1850" (plist-get fuzzy :date)))
+      (should-not (plist-get fuzzy :date-end)))))
+
+(ert-deftest org-chronicle-wikibase-test-place-events-changes-dedup ()
+  "An event appearing as both a point and a span yields one change, preferring
+the span (the entry carrying an end date)."
+  (let* ((wd (org-chronicle-sources--get 'wikidata))
+         (rows (list
+                '((event (value . "http://www.wikidata.org/entity/Q1"))
+                  (eventLabel (value . "Gold Rush"))
+                  (date (value . "1848-01-01T00:00:00Z")) (prec (value . "9"))
+                  (end (value . "1854-01-01T00:00:00Z")) (endprec (value . "9")))
+                '((event (value . "http://www.wikidata.org/entity/Q1"))
+                  (eventLabel (value . "Gold Rush"))
+                  (date (value . "1855-01-01T00:00:00Z")) (prec (value . "9")))))
+         (changes (org-chronicle-wikibase--place-events->changes wd rows "California")))
+    (should (= (length changes) 1))
+    (let ((ev (plist-get (car changes) :event)))
+      (should (string-match-p "1848" (plist-get ev :date)))
+      (should (string-match-p "1854" (plist-get ev :date-end))))))
+
+
 
 
 
