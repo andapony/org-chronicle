@@ -149,6 +149,25 @@ Each candidate is (:qid :label :description)."
                     :description (or (alist-get 'description hit) "")))
             (alist-get 'search data))))
 
+(defun org-chronicle-wikibase--search-terms (term)
+  "Return TERM and its successive comma-trimmed prefixes, longest first.
+\"Saco, Maine, US\" yields (\"Saco, Maine, US\" \"Saco, Maine\" \"Saco\")."
+  (let ((terms (list term))
+        (cur term))
+    (while (string-match "\\`\\(.+\\),[^,]+\\'" cur)
+      (setq cur (string-trim (match-string 1 cur)))
+      (setq terms (append terms (list cur))))
+    terms))
+
+(defun org-chronicle-wikibase--search (source term)
+  "Search SOURCE for TERM, falling back to comma-trimmed prefixes.
+Return the candidate list from the first term that yields matches, or nil."
+  (cl-loop for tm in (org-chronicle-wikibase--search-terms term)
+           for cands = (org-chronicle-wikibase--search-request source tm)
+           when cands return cands))
+
+
+
 (defun org-chronicle-wikibase--label-filter (source var)
   "Return a SPARQL FILTER restricting VAR to any of SOURCE's label languages.
 SOURCE's :label-language is a list; each language produces a LANG(VAR)
@@ -691,11 +710,12 @@ See the data contract in the package commentary for field names."
 (defun org-chronicle-wikibase--resolve (source seed)
   "Resolve SEED (a name) to a confirmed item id from SOURCE.
 Read a term defaulting to SEED; a pasted QID/URL short-circuits search,
-otherwise present search candidates for selection.  Return the id string."
+otherwise present search candidates for selection.  When a term has no
+matches, fall back to successively comma-trimmed prefixes.  Return the id."
   (let* ((term (read-string "Wikidata search (or paste QID/URL): " seed))
          (pasted (org-chronicle-wikibase--parse-qid term)))
     (or pasted
-        (let* ((cands (org-chronicle-wikibase--search-request source term))
+        (let* ((cands (org-chronicle-wikibase--search source term))
                (lines (mapcar #'org-chronicle-wikibase--candidate-line cands))
                (table (cl-mapcar #'cons lines cands)))
           (unless cands (user-error "No Wikidata matches for %S" term))

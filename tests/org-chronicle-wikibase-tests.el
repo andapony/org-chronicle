@@ -214,6 +214,25 @@ new entity for a different person."
       (should (string-match-p "mathematician"
                               (plist-get (car cands) :description))))))
 
+(ert-deftest org-chronicle-wikibase-test-search-terms ()
+  "Search terms are the full term then its comma-trimmed prefixes, longest first."
+  (should (equal (org-chronicle-wikibase--search-terms "Saco, Maine, United States")
+                 '("Saco, Maine, United States" "Saco, Maine" "Saco")))
+  (should (equal (org-chronicle-wikibase--search-terms "Vicksburg, Mississippi")
+                 '("Vicksburg, Mississippi" "Vicksburg")))
+  (should (equal (org-chronicle-wikibase--search-terms "Saco") '("Saco"))))
+
+(ert-deftest org-chronicle-wikibase-test-search-fallback ()
+  "Search falls back to trimmed prefixes until one yields candidates."
+  (cl-letf (((symbol-function 'org-chronicle-wikibase--search-request)
+             (lambda (_source tm)
+               (when (equal tm "Saco") (list (list :qid "Q1001891" :label "Saco"))))))
+    (should (equal (org-chronicle-wikibase--search nil "Saco, Maine, United States")
+                   (list (list :qid "Q1001891" :label "Saco"))))
+    (should-not (org-chronicle-wikibase--search nil "Nowhere, Noplace"))))
+
+
+
 (ert-deftest org-chronicle-wikibase-test-http-error ()
   (cl-letf (((symbol-function 'org-chronicle-wikibase--http-get)
              (lambda (&rest _) (signal 'org-chronicle-wikibase-rate-limited nil))))
