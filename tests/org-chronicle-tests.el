@@ -63,6 +63,20 @@
       (should (equal (org-chronicle--read-names "P: " cands nil)
                      (list org-chronicle--all-lanes-token))))))
 
+(ert-deftest org-chronicle-test-render-drops-empty-rows ()
+  "Render omits date rows where no selected lane has any content."
+  (let* ((idx (org-chronicle--alias-index nil))
+         (e1 (list :title "Heist" :truth "historical"
+                   :date (org-chronicle--date-parse "1850") :people '("Ada")))
+         (e2 (list :title "Cargo" :truth "historical"
+                   :date (org-chronicle--date-parse "1851") :people '("Bob")))
+         (lane (list :domain 'people :names '("Ada") :label "Ada"))
+         (out (org-chronicle--render (list e1 e2) (list lane) idx 22)))
+    (should (string-match-p "^1850" out))
+    (should (string-match-p "Heist" out))
+    (should-not (string-match-p "^1851" out))))
+
+
 
 
 (ert-deftest org-chronicle-test-date-format ()

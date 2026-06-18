@@ -544,7 +544,9 @@ The truth marker leads so it survives column truncation."
   "Render EVENTS into a swimlane string across LANES.
 IDX is an alias index; COL-WIDTH is the width of each lane column.  Rows
 are dates (ascending); each lane column shows that lane's events on that
-date.  EVENTS are assumed already filtered and sorted ascending."
+date.  A date whose events fall in none of the LANES is omitted, so the
+view never shows an empty row.  EVENTS are assumed already filtered and
+sorted ascending."
   (let* ((dcw org-chronicle--date-col-width)
          (header (concat (org-chronicle--pad "DATE" dcw)
                          (mapconcat (lambda (l) (org-chronicle--pad
@@ -560,14 +562,20 @@ date.  EVENTS are assumed already filtered and sorted ascending."
       (dolist (cell by-date)
         (let* ((date (car cell))
                (day-events (reverse (cdr cell)))
-               (row (org-chronicle--pad date dcw)))
+               (cells '())
+               (any nil))
           (dolist (lane lanes)
             (let* ((hits (cl-remove-if-not
                           (lambda (e) (org-chronicle--event-in-lane-p e lane idx))
                           day-events))
-                   (txt (mapconcat (lambda (e) (org-chronicle--cell-text-for-lane e lane)) hits " / ")))
-              (setq row (concat row (org-chronicle--pad txt col-width)))))
-          (push row lines))))
+                   (txt (mapconcat (lambda (e) (org-chronicle--cell-text-for-lane e lane))
+                                   hits " / ")))
+              (unless (string-empty-p txt) (setq any t))
+              (push (org-chronicle--pad txt col-width) cells)))
+          (when any
+            (push (concat (org-chronicle--pad date dcw)
+                          (apply #'concat (nreverse cells)))
+                  lines)))))
     (mapconcat #'identity (nreverse lines) "\n")))
 
 ;;;; View
