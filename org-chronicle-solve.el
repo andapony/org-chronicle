@@ -217,6 +217,52 @@ resolved as constants/variables; AFTER/BEFORE accept either."
                                   (plist-get ref :marker))) edges))))))))))
     (list :nodes (delete-dups nodes) :edges edges :starts starts :ends ends)))
 
+(defun org-chronicle--ordinal-date (n)
+  "Return a day-precision date plist for absolute Gregorian day number N."
+  (when n
+    (let ((g (calendar-gregorian-from-absolute n)))
+      ;; g is (MONTH DAY YEAR).
+      (org-chronicle--date-parse
+       (format "%04d-%02d-%02d" (nth 2 g) (nth 0 g) (nth 1 g))))))
+
+(defun org-chronicle--solution (scenes ctx)
+  "Solve SCENES under CTX; return (:consistent :windows :conflict).
+:windows maps each scene :marker to (LO . HI) date plists (nil = open).
+On inconsistency :windows is nil and :conflict holds offending edge labels."
+  (let* ((net (org-chronicle--build-network scenes ctx))
+         (sol (org-chronicle--stn-solve net)))
+    (if (not (plist-get sol :consistent))
+        (list :consistent nil :windows nil
+              :conflict (org-chronicle--stn-conflict net))
+      (let ((windows (make-hash-table :test #'equal))
+            (lo (plist-get sol :lo)) (hi (plist-get sol :hi)))
+        (dolist (s scenes)
+          (let* ((m (plist-get s :marker))
+                 (sn (gethash m (plist-get net :starts)))
+                 (en (gethash m (plist-get net :ends))))
+            (puthash m
+                     (cons (org-chronicle--ordinal-date (gethash sn lo))
+                           (org-chronicle--ordinal-date (gethash en hi)))
+                     windows)))
+        (list :consistent t :windows windows :conflict nil)))))
+
+(defun org-chronicle--earliest-placement (scenes ctx)
+  "Return a hash from each floating SCENES entry's :marker to its earliest date.
+CTX supplies events and entity spans.  A floating scene is one without an own
+DATE.  The date is the window's lower bound, or nil when unbounded below.
+Empty when the network is inconsistent."
+  (let ((out (make-hash-table :test #'equal))
+        (sol (org-chronicle--solution scenes ctx)))
+    (when (plist-get sol :consistent)
+      (dolist (s scenes)
+        (unless (plist-get s :own-date)
+          (let ((win (gethash (plist-get s :marker) (plist-get sol :windows))))
+            (puthash (plist-get s :marker) (car win) out)))))
+    out))
+
+
+
+
 
 
 

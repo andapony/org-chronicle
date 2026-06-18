@@ -135,6 +135,39 @@
                (org-chronicle--date-ordinal
                 (org-chronicle--date-lower-bound (org-chronicle--date-parse "1870")))))))
 
+(ert-deftest org-chronicle-solve-test-solution-window ()
+  "The solution exposes each scene's window as date plists."
+  (let* ((s (org-chronicle-solve-tests--scene
+             'm :earliest (org-chronicle--date-parse "1850")
+             :latest (org-chronicle--date-parse "1855")))
+         (sol (org-chronicle--solution (list s)
+                                       (org-chronicle-solve-tests--ctx nil)))
+         (win (gethash 'm (plist-get sol :windows))))
+    (should (plist-get sol :consistent))
+    (should (equal (plist-get (car win) :year) 1850))
+    (should (equal (plist-get (cdr win) :year) 1855))))
+
+(ert-deftest org-chronicle-solve-test-solution-conflict ()
+  "An over-constrained scene reports inconsistency with conflict labels."
+  (let* ((s (org-chronicle-solve-tests--scene
+             'm :earliest (org-chronicle--date-parse "1862")
+             :latest (org-chronicle--date-parse "1858")))
+         (sol (org-chronicle--solution (list s)
+                                       (org-chronicle-solve-tests--ctx nil))))
+    (should-not (plist-get sol :consistent))
+    (should (plist-get sol :conflict))))
+
+(ert-deftest org-chronicle-solve-test-earliest-placement ()
+  "Earliest placement returns each floating scene's lower-bound date."
+  (let* ((s (org-chronicle-solve-tests--scene
+             'm :earliest (org-chronicle--date-parse "1850")))
+         (place (org-chronicle--earliest-placement
+                 (list s) (org-chronicle-solve-tests--ctx nil))))
+    (should (equal (plist-get (gethash 'm place) :year) 1850))))
+
+
+
+
 
 
 
