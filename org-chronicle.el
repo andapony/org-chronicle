@@ -1656,21 +1656,45 @@ the event's date.  IDX is the alias index.  Empty list means clean."
   :group 'org-chronicle)
 
 (defun org-chronicle--reference-title (id)
-  "Return the heading title for ID among events and entities, or nil."
+  "Return the heading title for ID among events, entities, and scenes, or nil."
   (or (cl-loop for e in (org-chronicle--all-events)
                when (equal (plist-get e :id) id) return (plist-get e :title))
       (cl-loop for e in (org-chronicle--all-entities)
-               when (equal (plist-get e :id) id) return (plist-get e :name))))
+               when (equal (plist-get e :id) id) return (plist-get e :name))
+      (cdr (assoc id (mapcar (lambda (c) (cons (cdr c) (car c)))
+                             (org-chronicle--scene-targets
+                              (org-chronicle--all-scenes)))))))
 
 (defun org-chronicle--reference-targets ()
-  "Return an alist of (DISPLAY . ID) for events and entities carrying an id."
+  "Return an alist of (DISPLAY . ID) for events, entities, and scenes with an id."
   (append
    (cl-loop for e in (org-chronicle--all-entities)
             for id = (plist-get e :id)
             when id collect (cons (plist-get e :name) id))
    (cl-loop for e in (org-chronicle--all-events)
             for id = (plist-get e :id)
-            when id collect (cons (plist-get e :title) id))))
+            when id collect (cons (plist-get e :title) id))
+   (org-chronicle--scene-targets (org-chronicle--all-scenes))))
+
+(defun org-chronicle--scene-targets (scenes)
+  "Return an alist of (TITLE . ID) for SCENES that carry an Org id."
+  (cl-loop for s in scenes
+           for id = (org-entry-get (plist-get s :marker) "ID")
+           when (and id (plist-get s :title))
+           collect (cons (plist-get s :title) id)))
+
+(defun org-chronicle--all-scenes ()
+  "Return scene plists across all source files, in document order."
+  (let ((out '()))
+    (dolist (file (org-chronicle--source-files))
+      (when (file-exists-p file)
+        (with-current-buffer (find-file-noselect file)
+          (unless (org-chronicle--file-ignored-p)
+            (dolist (scene (org-chronicle--buffer-scenes))
+              (push scene out))))))
+    (nreverse out)))
+
+
 
 (defun org-chronicle--link-follow (path &optional _arg)
   "Follow a chronicle: link by visiting the heading whose id is PATH.
@@ -2163,8 +2187,19 @@ KIND is the symbol `after' or `before'."
    (list (intern (completing-read "Constraint: " '("after" "before") nil t))))
   (let* ((prop (upcase (symbol-name kind)))
          (target (org-chronicle--read-reference))
+         (target-id (car target))
          (existing (org-entry-get nil prop))
-         (link (format "[[id:%s]]" (car target))))
+         (link (format "[[id:%s]]" target-id)))
+    (when (null target-id)
+      (let* ((name (cdr target))
+             (scene (cl-find name (org-chronicle--all-scenes)
+                             :key (lambda (s) (plist-get s :title))
+                             :test #'equal)))
+        (when scene
+          (with-current-buffer (marker-buffer (plist-get scene :marker))
+            (goto-char (plist-get scene :marker))
+            (setq target-id (org-id-get-create))
+            (setq link (format "[[id:%s]]" target-id))))))
     (org-set-property
      prop (if (and existing (not (string-blank-p existing)))
               (org-chronicle--join (list existing link))

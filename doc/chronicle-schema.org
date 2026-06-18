@@ -58,6 +58,14 @@
   org-chronicle-set-scene-date= (also =s= in the lint buffer) sets the
   scene's =DATE= to a value from that window.
 
+  Scenes carrying an =:ID:= property are *reference targets*: they appear in
+  the completion list for =chronicle:= links and for =AFTER=/=BEFORE=
+  constraints, just like events and entities.  A =chronicle:= link to a scene
+  is navigational only — it does not impose any temporal bound on the scene
+  that contains the link.  =M-x org-chronicle-add-constraint= mints an =:ID:=
+  on a target scene heading that lacks one (via =org-id-get-create=), so the
+  resulting =[[id:…]]= link resolves immediately.
+
 * Entities
   One heading per entity; identified by a =KIND= property.  Entity
   headings may appear in any =*.org= file under =org-chronicle-root=.

@@ -1456,5 +1456,16 @@ Eliza, called [[chronicle:eliza][Mrs. Grant]], watched.
       (should (equal (plist-get (plist-get h :latest) :month) 6))
       (should (org-chronicle--structural-scene-p h)))))
 
+(ert-deftest org-chronicle-test-scene-reference-targets ()
+  "A titled scene heading appears among reference targets."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* The duel\n:PROPERTIES:\n:ID: duel-1\n:EARLIEST: 1850\n:END:\n")
+    (let* ((scenes (org-chronicle--buffer-scenes))
+           (targets (org-chronicle--scene-targets scenes)))
+      (should (assoc "The duel" targets))
+      (should (equal (cdr (assoc "The duel" targets)) "duel-1")))))
+
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
