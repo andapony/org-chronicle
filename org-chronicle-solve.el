@@ -105,6 +105,123 @@ a negative cycle, then walks predecessors to collect the cycle's labels."
                 (setq node (nth 0 e)))))
           (delete-dups labels))))))
 
+(defun org-chronicle--scene-start-node (scene)
+  "Return the STN start-node id for SCENE."
+  (cons :start (plist-get scene :marker)))
+
+(defun org-chronicle--scene-end-node (scene)
+  "Return the STN end-node id for SCENE."
+  (cons :end (plist-get scene :marker)))
+
+(defun org-chronicle--stn-upper (node date label)
+  "Return an edge bounding NODE on/before DATE (a date plist), tagged LABEL."
+  (list :zero node (org-chronicle--date-ordinal
+                    (org-chronicle--date-upper-bound date))
+        label))
+
+(defun org-chronicle--stn-lower (node date label)
+  "Return an edge bounding NODE on/after DATE (a date plist), tagged LABEL."
+  (list node :zero (- (org-chronicle--date-ordinal
+                       (org-chronicle--date-lower-bound date)))
+        label))
+
+(defun org-chronicle--build-network (scenes ctx)
+  "Return the constraint network for SCENES under context CTX.
+Result is (:nodes NODES :edges EDGES :starts HASH :ends HASH); HASHes map a
+scene's :marker to its start/end node ids.  Events and other scenes are
+resolved as constants/variables; AFTER/BEFORE accept either."
+  (let* ((by-event (plist-get ctx :events-by-id))
+         (by-scene (make-hash-table :test #'equal))
+         (starts (make-hash-table :test #'equal))
+         (ends (make-hash-table :test #'equal))
+         (nodes (list :zero))
+         (edges '()))
+    (dolist (s scenes)
+      (when (plist-get s :id) (puthash (plist-get s :id) s by-scene)))
+    (cl-labels
+        ((lbl (desc marker) (list :desc desc :marker marker))
+         (referent-end-date (id)
+           ;; Date plist for "after this referent's end", or nil if undated.
+           (let ((ev (gethash id by-event)))
+             (if ev (or (plist-get ev :date-end) (plist-get ev :date))
+               (let ((sc (gethash id by-scene)))
+                 (and sc (or (plist-get sc :own-date-end)
+                             (plist-get sc :own-date)))))))
+         (referent-start-date (id)
+           (let ((ev (gethash id by-event)))
+             (if ev (plist-get ev :date)
+               (let ((sc (gethash id by-scene)))
+                 (and sc (plist-get sc :own-date))))))
+         (referent-start-node (id)
+           (let ((sc (gethash id by-scene)))
+             (and sc (not (plist-get sc :own-date))
+                  (org-chronicle--scene-start-node sc))))
+         (referent-end-node (id)
+           (let ((sc (gethash id by-scene)))
+             (and sc (not (plist-get sc :own-date))
+                  (org-chronicle--scene-end-node sc)))))
+      (dolist (s scenes)
+        (let ((sn (org-chronicle--scene-start-node s))
+              (en (org-chronicle--scene-end-node s))
+              (m (plist-get s :marker)))
+          (puthash m sn starts)
+          (puthash m en ends)
+          (push sn nodes)
+          (push en nodes)
+          ;; internal start <= end: sn - en <= 0 => edge (en sn 0)
+          (push (list en sn 0 (lbl "start before end" m)) edges)
+          ;; own DATE fixes the scene (constant) as a closed [start,end].
+          (when (plist-get s :own-date)
+            (push (org-chronicle--stn-lower sn (plist-get s :own-date)
+                                            (lbl "own date" m)) edges)
+            (push (org-chronicle--stn-upper
+                   en (or (plist-get s :own-date-end) (plist-get s :own-date))
+                   (lbl "own date" m)) edges))
+          ;; EARLIEST / LATEST authored bounds.
+          (when (plist-get s :earliest)
+            (push (org-chronicle--stn-lower sn (plist-get s :earliest)
+                                            (lbl "EARLIEST" m)) edges))
+          (when (plist-get s :latest)
+            (push (org-chronicle--stn-upper en (plist-get s :latest)
+                                            (lbl "LATEST" m)) edges))
+          ;; AFTER: start >= referent end.
+          ;; sn >= rn => rn - sn <= 0 => edge (sn rn 0).
+          (dolist (id (plist-get s :after-ids))
+            (let ((d (referent-end-date id)) (rn (referent-end-node id)))
+              (cond (d (push (org-chronicle--stn-lower sn d (lbl "AFTER" m)) edges))
+                    (rn (push (list sn rn 0 (lbl "AFTER scene" m)) edges)))))
+          ;; BEFORE: end <= referent start.
+          ;; en <= rn => en - rn <= 0 => edge (rn en 0).
+          (dolist (id (plist-get s :before-ids))
+            (let ((d (referent-start-date id)) (rn (referent-start-node id)))
+              (cond (d (push (org-chronicle--stn-upper en d (lbl "BEFORE" m)) edges))
+                    (rn (push (list rn en 0 (lbl "BEFORE scene" m)) edges)))))
+          ;; Entity mentions: existence span as a box on [start,end].
+          (dolist (ref (plist-get s :refs))
+            (let ((ent (org-chronicle--entity-by-id
+                        (plist-get ref :id) (plist-get ctx :entities))))
+              (when ent
+                (let ((span (org-chronicle--span-for-name
+                             (plist-get ent :name) (plist-get ctx :entities)
+                             (plist-get ctx :idx) (plist-get ctx :index))))
+                  (when span
+                    (when (car span)
+                      (push (org-chronicle--stn-lower
+                             sn (car span)
+                             (lbl (format "%s extant" (plist-get ent :name))
+                                  (plist-get ref :marker))) edges))
+                    (when (cdr span)
+                      (push (org-chronicle--stn-upper
+                             en (cdr span)
+                             (lbl (format "%s extant" (plist-get ent :name))
+                                  (plist-get ref :marker))) edges))))))))))
+    (list :nodes (delete-dups nodes) :edges edges :starts starts :ends ends)))
+
+
+
+
+
+
 (provide 'org-chronicle-solve)
 
 ;;; org-chronicle-solve.el ends here

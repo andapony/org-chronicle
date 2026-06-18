@@ -74,6 +74,72 @@
               '(:zero x) '((x :zero -10 lo) (:zero x 20 hi)))))
     (should (null (org-chronicle--stn-conflict net)))))
 
+(defun org-chronicle-solve-tests--ctx (events)
+  "Return a context plist whose :events-by-id is keyed by EVENTS' :id."
+  (let ((by-id (make-hash-table :test #'equal)))
+    (dolist (e events) (puthash (plist-get e :id) e by-id))
+    (list :entities nil :idx nil :index nil :events-by-id by-id)))
+
+(defun org-chronicle-solve-tests--scene (marker &rest kvs)
+  "Return a scene plist with MARKER and KVS, defaulting list fields to nil."
+  (append (list :marker marker) kvs
+          (list :refs nil :event-ids nil
+                :after-ids nil :before-ids nil
+                :own-date nil :own-date-end nil :earliest nil :latest nil)))
+
+(ert-deftest org-chronicle-solve-test-earliest-latest-window ()
+  "EARLIEST/LATEST bound a floating scene's start/end."
+  (let* ((s (org-chronicle-solve-tests--scene
+             'm :earliest (org-chronicle--date-parse "1850")
+             :latest (org-chronicle--date-parse "1855")))
+         (net (org-chronicle--build-network (list s)
+                                            (org-chronicle-solve-tests--ctx nil)))
+         (sol (org-chronicle--stn-solve net))
+         (start (gethash 'm (plist-get net :starts)))
+         (end (gethash 'm (plist-get net :ends))))
+    (should (plist-get sol :consistent))
+    (should (= (gethash start (plist-get sol :lo))
+               (org-chronicle--date-ordinal
+                (org-chronicle--date-lower-bound (org-chronicle--date-parse "1850")))))
+    (should (= (gethash end (plist-get sol :hi))
+               (org-chronicle--date-ordinal
+                (org-chronicle--date-upper-bound (org-chronicle--date-parse "1855")))))))
+
+(ert-deftest org-chronicle-solve-test-after-event-propagates ()
+  "A scene AFTER a dated event gets a lower bound from the event's end."
+  (let* ((ev (list :id "E1" :title "Duel" :date (org-chronicle--date-parse "1862")
+                   :date-end nil))
+         (s (org-chronicle-solve-tests--scene 'm :after-ids '("E1")))
+         (net (org-chronicle--build-network
+               (list s) (org-chronicle-solve-tests--ctx (list ev))))
+         (sol (org-chronicle--stn-solve net))
+         (start (gethash 'm (plist-get net :starts))))
+    (should (= (gethash start (plist-get sol :lo))
+               (org-chronicle--date-ordinal
+                (org-chronicle--date-lower-bound (org-chronicle--date-parse "1862")))))))
+
+(ert-deftest org-chronicle-solve-test-floating-to-floating ()
+  "B AFTER floating A: bounding A bounds B even though neither is dated."
+  (let* ((a (org-chronicle-solve-tests--scene
+             'ma :earliest (org-chronicle--date-parse "1870")))
+         ;; B references A's id; A's marker is its node key, but AFTER uses
+         ;; ids, so give A an :id and register scenes-by-id via ctx extension.
+         (a (plist-put a :id "A"))
+         (b (org-chronicle-solve-tests--scene 'mb :after-ids '("A")))
+         (ctx (org-chronicle-solve-tests--ctx nil))
+         (net (org-chronicle--build-network (list a b) ctx))
+         (sol (org-chronicle--stn-solve net))
+         (bstart (gethash 'mb (plist-get net :starts))))
+    (should (plist-get sol :consistent))
+    (should (= (gethash bstart (plist-get sol :lo))
+               (org-chronicle--date-ordinal
+                (org-chronicle--date-lower-bound (org-chronicle--date-parse "1870")))))))
+
+
+
+
+
+
 (provide 'org-chronicle-solve-tests)
 
 ;;; org-chronicle-solve-tests.el ends here
