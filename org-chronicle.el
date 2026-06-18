@@ -2350,7 +2350,7 @@ date for the scene at point, \\[org-chronicle-accept-all-placements] accepts all
   "Read an event/entity target with completion; return (ID . NAME).
 Scene candidates are annotated with [chapter · window].  When the
 most-recent `org-stored-links' entry resolves to a known target, it
-seeds the initial input."
+seeds the default (shown as \"(default X)\", returned on empty RET)."
   (require 'org-chronicle-solve)
   (let* ((targets (org-chronicle--reference-targets))
          (scenes (org-chronicle--all-scenes))
@@ -2385,7 +2385,7 @@ seeds the initial input."
     (let* ((completion-extra-properties
             (list :affixation-function
                   (org-chronicle--affixation-function annotations)))
-           (name (completing-read "Reference: " targets nil t default)))
+           (name (completing-read "Reference: " targets nil t nil nil default)))
       (cons (cdr (assoc name targets)) name))))
 
 (defun org-chronicle--affixation-function (annotations)
@@ -2404,8 +2404,6 @@ Stores an id link to the heading via `org-store-link'."
     (org-back-to-heading t)
     (org-id-get-create)
     (call-interactively #'org-store-link)))
-
-
 
 ;;;###autoload
 (defun org-chronicle-insert-reference ()
@@ -2584,11 +2582,6 @@ are never written to disk and do not set the buffer-modified flag."
               #'org-chronicle--annotate-windows-refresh nil t)
     (message "Window overlays drawn (%d floating scene(s))."
              (length org-chronicle--window-overlays))))
-
-
-
-
-
 
 ;;;; (sections added by later tasks)
 

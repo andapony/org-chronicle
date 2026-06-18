@@ -1555,12 +1555,5 @@ Buffer-modified-p must stay nil throughout."
         (should-error (org-chronicle-add-constraint 'after)
                       :type 'user-error)))))
 
-
-
-
-
-
-
-
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
