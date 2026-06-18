@@ -1466,6 +1466,18 @@ Eliza, called [[chronicle:eliza][Mrs. Grant]], watched.
       (should (assoc "The duel" targets))
       (should (equal (cdr (assoc "The duel" targets)) "duel-1")))))
 
+(ert-deftest org-chronicle-test-context-cache ()
+  "Cached context is reused until invalidated."
+  (let ((org-chronicle--context-cache nil)
+        (calls 0))
+    (cl-letf (((symbol-function 'org-chronicle--scene-context)
+               (lambda () (cl-incf calls) (list :stamp calls))))
+      (should (= (plist-get (org-chronicle--cached-context) :stamp) 1))
+      (should (= (plist-get (org-chronicle--cached-context) :stamp) 1))
+      (org-chronicle--invalidate-context)
+      (should (= (plist-get (org-chronicle--cached-context) :stamp) 2)))))
+
+
 
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

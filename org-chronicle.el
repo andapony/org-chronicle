@@ -1863,6 +1863,32 @@ Returns a plist with :entities :idx :events :index :adoption :events-by-id."
     (list :entities entities :idx idx :events events :index index
           :adoption adoption :events-by-id by-id)))
 
+(defvar org-chronicle--context-cache nil
+  "Cached value of `org-chronicle--scene-context', or nil when stale.")
+
+(defun org-chronicle--cached-context ()
+  "Return the scene context, computing and caching it when stale."
+  (or org-chronicle--context-cache
+      (setq org-chronicle--context-cache (org-chronicle--scene-context))))
+
+(defun org-chronicle--invalidate-context ()
+  "Drop the cached scene context so the next solve recomputes it."
+  (setq org-chronicle--context-cache nil))
+
+(defun org-chronicle--maybe-invalidate-context ()
+  "Invalidate the context cache when the buffer's file is under the root.
+Used on `after-save-hook' and `after-revert-hook' so the cache stays
+consistent with saves and auto-reverted external changes."
+  (when (org-chronicle--file-under-root-p buffer-file-name)
+    (org-chronicle--invalidate-context)))
+
+(add-hook 'after-save-hook #'org-chronicle--maybe-invalidate-context)
+
+
+
+
+
+
 ;;;; Scenes: window and anchor
 
 (defun org-chronicle--scene-window (scene ctx)
