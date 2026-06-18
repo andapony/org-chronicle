@@ -683,17 +683,19 @@ Lane width is computed from the window width and the lane count, so
 refreshing with \\[org-chronicle-view-refresh] re-fits the view after a
 resize.  Interactively, prompts for people, locations, topics, and a
 truth subset, completing against the names used in events and promoted
-entities."
+entities; entering \"all\" (`org-chronicle--all-lanes-token') at any of
+those lane prompts selects every known name for that lane, while a blank
+entry selects none."
   (interactive
    (list :people (org-chronicle--read-names
                   "People/groups (lanes): "
-                  (org-chronicle--known-people) 'org-chronicle-person)
+                  (org-chronicle--known-people) 'org-chronicle-person t)
          :locations (org-chronicle--read-names
                      "Places (lanes): "
-                     (org-chronicle--known-locations) 'org-chronicle-place)
+                     (org-chronicle--known-locations) 'org-chronicle-place t)
          :topics (org-chronicle--read-names
                   "Topics (lanes): "
-                  (org-chronicle--known-topics) 'org-chronicle-topic)
+                  (org-chronicle--known-topics) 'org-chronicle-topic t)
          :truth (let ((v (completing-read-multiple
                           "Truth (blank=all): "
                           '("historical" "fictionalized" "fictional"))))
@@ -806,21 +808,45 @@ all behaviour inside the standard `completing-read' machinery."
         `(metadata (category . ,category))
       (complete-with-action action candidates string predicate))))
 
-(defun org-chronicle--read-names (prompt candidates category)
+(defconst org-chronicle--all-lanes-token "all"
+  "Pseudo-name selecting every known name at a timeline lane prompt.
+Offered as a completion candidate only when `org-chronicle--read-names' is
+called with ALLOW-ALL; entering it expands to all candidates for that lane
+category.  Blank input still selects no lanes.")
+
+
+(defun org-chronicle--expand-all (selected candidates)
+  "Return CANDIDATES when SELECTED contains the all-lanes token, else SELECTED.
+SELECTED is the list of chosen names; CANDIDATES the full completion set.
+See `org-chronicle--all-lanes-token'."
+  (if (member org-chronicle--all-lanes-token selected)
+      (copy-sequence candidates)
+    selected))
+
+
+(defun org-chronicle--read-names (prompt candidates category &optional allow-all)
   "Read multiple names with completion; return a list (nil when blank).
 PROMPT is the minibuffer prompt, CANDIDATES the completion set, CATEGORY
 the completion category.  Entries are separated by
 `org-chronicle-multi-value-separator', so names that themselves contain a
 comma (e.g. \"Vicksburg, Mississippi\") are not split, and new names not
-in CANDIDATES are still accepted."
-  (let ((crm-separator
-         (concat "[ \t]*"
-                 (regexp-quote (string-trim org-chronicle-multi-value-separator))
-                 "[ \t]*")))
-    (delete "" (completing-read-multiple
-                prompt
-                (org-chronicle--completion-table candidates category)
-                nil nil))))
+in CANDIDATES are still accepted.  When ALLOW-ALL is non-nil the
+`org-chronicle--all-lanes-token' pseudo-name is also offered, and choosing
+it expands the result to all of CANDIDATES."
+  (let* ((crm-separator
+          (concat "[ \t]*"
+                  (regexp-quote (string-trim org-chronicle-multi-value-separator))
+                  "[ \t]*"))
+         (offered (if allow-all
+                      (cons org-chronicle--all-lanes-token candidates)
+                    candidates))
+         (selected (delete "" (completing-read-multiple
+                               prompt
+                               (org-chronicle--completion-table offered category)
+                               nil nil))))
+    (if allow-all
+        (org-chronicle--expand-all selected candidates)
+      selected)))
 
 (defun org-chronicle--read-location ()
   "Read a single location with completion; return nil when blank."

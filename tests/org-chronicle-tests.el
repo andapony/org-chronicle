@@ -42,6 +42,29 @@
     (should-not (org-chronicle--date-lessp b a))
     (should-not (org-chronicle--date-lessp a a))))
 
+(ert-deftest org-chronicle-test-expand-all ()
+  "The all-lanes token expands to every candidate; other input passes through."
+  (let ((cands '("Ada" "Bram" "Cleo")))
+    (should (equal (org-chronicle--expand-all
+                    (list org-chronicle--all-lanes-token) cands)
+                   cands))
+    (should (equal (org-chronicle--expand-all '("Bram") cands) '("Bram")))
+    (should (null (org-chronicle--expand-all nil cands)))
+    (should (equal (org-chronicle--expand-all
+                    (list "Bram" org-chronicle--all-lanes-token) cands)
+                   cands))))
+
+(ert-deftest org-chronicle-test-read-names-all ()
+  "ALLOW-ALL expands the all token to every candidate; otherwise it is literal."
+  (let ((cands '("Ada" "Bram")))
+    (cl-letf (((symbol-function 'completing-read-multiple)
+               (lambda (&rest _) (list org-chronicle--all-lanes-token))))
+      (should (equal (org-chronicle--read-names "P: " cands nil t) cands))
+      (should (equal (org-chronicle--read-names "P: " cands nil)
+                     (list org-chronicle--all-lanes-token))))))
+
+
+
 (ert-deftest org-chronicle-test-date-format ()
   (should (equal (org-chronicle--date-format (org-chronicle--date-parse "1863-07-04")) "1863-07-04"))
   (should (equal (org-chronicle--date-format (org-chronicle--date-parse "1863-07")) "1863-07"))
