@@ -382,6 +382,70 @@
                                       (split-string text "\n"))))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-sources-test-apply-person ()
+  "Applying a person change creates a lean entity in the bulk people file and is
+idempotent (matched by id on re-run)."
+  (let* ((root (make-temp-file "ocpe" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file nil) (org-chronicle-places-file nil)
+         (org-chronicle-exclude nil)
+         (org-chronicle-sources-people-file (expand-file-name "imported/people.org" root)))
+    (unwind-protect
+        (let ((change (list :target 'person :source (org-chronicle-sources--get 'wikidata)
+                            :qid "Q10" :name "Jane Doe" :born "1820" :died "1880"
+                            :provenance "https://www.wikidata.org/wiki/Q10"
+                            :references '(("WIKIPEDIA" . "https://example.org/wiki/Jane")))))
+          (org-chronicle-sources--apply-person-change change)
+          (org-chronicle-sources--apply-person-change change)
+          (let ((text (with-temp-buffer
+                        (insert-file-contents (expand-file-name "imported/people.org" root))
+                        (buffer-string))))
+            (should (string-match-p "^\\* Jane Doe" text))
+            (should (string-match-p ":WIKIDATA:.*Q10" text))
+            (should (string-match-p ":BORN:.*1820" text))
+            (should (string-match-p ":DIED:.*1880" text))
+            (should (string-match-p ":WIKIPEDIA:.*example.org/wiki/Jane" text))
+            (should (= 1 (cl-count-if (lambda (l) (string-match-p "^\\* Jane Doe" l))
+                                      (split-string text "\n"))))))
+      (delete-directory root t))))
+
+(ert-deftest org-chronicle-sources-test-import-people ()
+  "import-people writes lean people to the bulk people file, blank occupation
+allowed, idempotent on re-run."
+  (let* ((root (make-temp-file "ocip" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file nil) (org-chronicle-places-file nil)
+         (org-chronicle-exclude nil)
+         (org-chronicle-sources-people-file (expand-file-name "imported/people.org" root)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt &rest _) (if (string-prefix-p "Source" prompt) "wikidata" "")))
+                  ((symbol-function 'org-chronicle-sources--region-or-read) (lambda (&rest _) ""))
+                  ((symbol-function 'read-string) (lambda (&rest _) "California"))
+                  ((symbol-function 'read-number)
+                   (let ((n 0)) (lambda (&rest _) (setq n (1+ n)) (if (cl-oddp n) 1845 1859))))
+                  ((symbol-function 'org-chronicle-wikibase--resolve) (lambda (&rest _) "Q99"))
+                  ((symbol-function 'org-chronicle-wikibase--sparql-request)
+                   (lambda (_s _q)
+                     (list '((person (value . "http://www.wikidata.org/entity/Q10"))
+                             (personLabel (value . "Jane Doe"))
+                             (born (value . "1820-01-01T00:00:00Z")) (bornprec (value . "9"))
+                             (died (value . "1880-01-01T00:00:00Z")) (diedprec (value . "9"))))))
+                  ((symbol-function 'org-chronicle-sources--review)
+                   (lambda (changes on-confirm) (funcall on-confirm changes))))
+          (org-chronicle-import-people)
+          (org-chronicle-import-people)
+          (let ((text (with-temp-buffer
+                        (insert-file-contents (expand-file-name "imported/people.org" root))
+                        (buffer-string))))
+            (should (string-match-p "Jane Doe" text))
+            (should (string-match-p ":BORN:.*1820" text))
+            (should (= 1 (cl-count-if (lambda (l) (string-match-p "^\\* Jane Doe" l))
+                                      (split-string text "\n"))))))
+      (delete-directory root t))))
+
+
+
 
 
 (ert-deftest org-chronicle-sources-test-import-create ()

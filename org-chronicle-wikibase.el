@@ -274,6 +274,65 @@ the entry that carries an end date."
           (puthash k c best))))
     (mapcar (lambda (k) (gethash k best)) (nreverse order))))
 
+(defun org-chronicle-wikibase--people-query (source occupation-qid place-qid from until &optional limit)
+  "Return SOURCE's SPARQL query for people in PLACE-QID alive during FROM..UNTIL.
+People match when their residence or work location is within PLACE-QID; when
+OCCUPATION-QID is non-nil they must also hold that occupation.  Each row carries
+the person, label, birth date and precision, and -- when known -- death date and
+precision.  LIMIT, when a positive integer, caps the row count."
+  (let* ((res (org-chronicle-sources--pid source :residence))
+         (work (org-chronicle-sources--pid source :work-location))
+         (within (org-chronicle-sources--pid source :located-in))
+         (occ (org-chronicle-sources--pid source :occupation))
+         (span (org-chronicle-sources--span-pids source 'person))
+         (born-pid (car span))
+         (died-pid (cdr span)))
+    (concat
+     (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
+     (format "SELECT DISTINCT ?person ?personLabel ?born ?bornprec ?died ?diedprec WHERE { \
+VALUES ?locProp { wdt:%s wdt:%s } \
+?person ?locProp ?loc . ?loc wdt:%s* wd:%s . \
+%s?person p:%s ?bstmt. ?bstmt psv:%s ?bnode. \
+?bnode wikibase:timeValue ?born; wikibase:timePrecision ?bornprec. \
+FILTER(YEAR(?born) <= %d) \
+OPTIONAL { ?person p:%s ?dstmt. ?dstmt psv:%s ?dnode. \
+?dnode wikibase:timeValue ?died; wikibase:timePrecision ?diedprec. } \
+FILTER(!BOUND(?died) || YEAR(?died) >= %d) \
+?person rdfs:label ?personLabel. %s} ORDER BY ?born"
+             res work within place-qid
+             (if occupation-qid (format "?person wdt:%s wd:%s . " occ occupation-qid) "")
+             born-pid born-pid until
+             died-pid died-pid from
+             (org-chronicle-wikibase--label-filter source "?personLabel"))
+     (if (and limit (> limit 0)) (format " LIMIT %d" limit) ""))))
+
+(defun org-chronicle-wikibase--people->changes (source rows)
+  "Map people result ROWS to one `person' seed change per individual.
+SOURCE supplies the curie, provenance URL, and reference links.  Rows collapse
+by QID (a person matched via several location paths appears once).  A
+non-representable birth or death date is omitted; the person is still seeded."
+  (let ((best (make-hash-table :test 'equal))
+        (order '()))
+    (dolist (row rows)
+      (let ((qid (org-chronicle-wikibase--parse-qid
+                  (org-chronicle-wikibase--cell row "person"))))
+        (when (and qid (not (gethash qid best)))
+          (push qid order)
+          (let ((born (org-chronicle-wikibase--row-date row "born" "bornprec"))
+                (died (org-chronicle-wikibase--row-date row "died" "diedprec")))
+            (puthash qid
+                     (list :target 'person :group 'people :status 'new :default t
+                           :source source :qid qid
+                           :name (org-chronicle-wikibase--cell row "personLabel")
+                           :born (and born (org-chronicle--date-format born))
+                           :died (and died (org-chronicle--date-format died))
+                           :provenance (org-chronicle-wikibase--url source qid)
+                           :references (org-chronicle-wikibase--references source qid))
+                     best)))))
+    (mapcar (lambda (q) (gethash q best)) (nreverse order))))
+
+
+
 
 (defun org-chronicle-wikibase--rank-symbol (uri)
   "Return `preferred', `normal', or `deprecated' for a wikibase:rank URI, else nil."
@@ -394,17 +453,20 @@ Return (:start DATE :start-alternates LIST :end DATE :end-alternates LIST)."
     (list :start (plist-get start :date) :start-alternates (plist-get start :alternates)
           :end (plist-get end :date) :end-alternates (plist-get end :alternates))))
 
-(defun org-chronicle-wikibase--create-entity (name kind)
-  "Create a minimal KIND entity NAME in the kind's file; return a marker."
-  (with-current-buffer (find-file-noselect (org-chronicle-sources--kind-file kind))
-    (goto-char (point-max))
-    (unless (bolp) (insert "\n"))
-    (insert (org-chronicle--entity-string :name name :kind kind))
-    (forward-line -1)
-    (org-back-to-heading t)
-    (org-id-get-create)
-    (save-buffer)
-    (point-marker)))
+(defun org-chronicle-wikibase--create-entity (name kind &optional file)
+  "Create a minimal KIND entity NAME and return a marker.
+Write to FILE when given, otherwise the kind's default file."
+  (let ((target (or file (org-chronicle-sources--kind-file kind))))
+    (make-directory (file-name-directory target) t)
+    (with-current-buffer (find-file-noselect target)
+      (goto-char (point-max))
+      (unless (bolp) (insert "\n"))
+      (insert (org-chronicle--entity-string :name name :kind kind))
+      (forward-line -1)
+      (org-back-to-heading t)
+      (org-id-get-create)
+      (save-buffer)
+      (point-marker))))
 
 (defun org-chronicle-wikibase--reuse-marker (name kind qid key-prop)
   "Return a marker to an existing entity to reuse for NAME, or nil.
@@ -436,12 +498,13 @@ distinct same-name individuals stay separate."
                   (setq by-name (point-marker))))))))))
     (or by-key by-name)))
 
-(defun org-chronicle-wikibase--resolve-or-create-entity (name kind qid key-prop)
+(defun org-chronicle-wikibase--resolve-or-create-entity (name kind qid key-prop &optional file)
   "Return a marker to the chronicle entity for NAME with QID under KEY-PROP.
 Reuse an existing entity when possible (see
-`org-chronicle-wikibase--reuse-marker'); otherwise create a new KIND entity."
+`org-chronicle-wikibase--reuse-marker'); otherwise create a new KIND entity,
+writing it to FILE when given."
   (or (org-chronicle-wikibase--reuse-marker name kind qid key-prop)
-      (org-chronicle-wikibase--create-entity name kind)))
+      (org-chronicle-wikibase--create-entity name kind file)))
 
 (defun org-chronicle-wikibase--fetch-record (source qid kind)
   "Fetch QID from SOURCE as a KIND record (person, place, or group)."

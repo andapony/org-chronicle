@@ -4,7 +4,7 @@
 
 ;; Author: Rob Duncan
 ;; URL: https://github.com/andapony/org-chronicle
-;; Version: 0.6.2
+;; Version: 0.7.0
 ;; Package-Requires: ((emacs "27.2") (org "9.4"))
 ;; Keywords: outlines, calendar
 ;; SPDX-License-Identifier: GPL-3.0-or-later

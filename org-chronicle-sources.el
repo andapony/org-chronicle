@@ -26,6 +26,13 @@ When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
   :type '(choice (const :tag "Default under root" nil) file)
   :group 'org-chronicle)
 
+(defcustom org-chronicle-sources-people-file nil
+  "File where bulk-imported people are filed.
+When nil, defaults to \"imported/people.org\" under `org-chronicle-root'."
+  :type '(choice (const :tag "Default under root" nil) file)
+  :group 'org-chronicle)
+
+
 (defcustom org-chronicle-default-source 'wikidata
   "Default import source id, used as the prompt default in `org-chronicle-import'."
   :type 'symbol
@@ -42,6 +49,13 @@ When nil, defaults to \"imported/events.org\" under `org-chronicle-root'."
 Defaults to \"imported/events.org\" under `org-chronicle-root'."
   (or org-chronicle-sources-events-file
       (expand-file-name "imported/events.org" org-chronicle-root)))
+
+(defun org-chronicle-sources--people-file ()
+  "Return the file bulk-imported people are written to.
+Defaults to \"imported/people.org\" under `org-chronicle-root'."
+  (or org-chronicle-sources-people-file
+      (expand-file-name "imported/people.org" org-chronicle-root)))
+
 
 (defun org-chronicle-sources--dates-equal-p (a b)
   "Non-nil when date strings A and B denote the same Y/M/D after parsing."
@@ -217,6 +231,29 @@ are written as properties on the heading in either case."
 			     (org-chronicle-sources--apply-references change)
 			     (save-buffer)))))))
 
+(defun org-chronicle-sources--apply-person-change (change)
+  "Reuse-or-create the person entity in CHANGE and set its lean vitals.
+Idempotent: an existing entity (matched by id then name) is updated in place.
+New entities are written to `org-chronicle-sources--people-file'."
+  (let* ((source (plist-get change :source))
+         (qid (plist-get change :qid))
+         (name (plist-get change :name))
+         (key-prop (plist-get source :key-property))
+         (marker (org-chronicle-wikibase--resolve-or-create-entity
+                  name 'person qid key-prop (org-chronicle-sources--people-file))))
+    (org-with-point-at marker
+      (when (and key-prop qid) (org-set-property key-prop qid))
+      (when (plist-get change :born)
+        (org-set-property "BORN" (org-chronicle--ts (plist-get change :born))))
+      (when (plist-get change :died)
+        (org-set-property "DIED" (org-chronicle--ts (plist-get change :died))))
+      (unless (org-entry-get nil "TRUTH")
+        (org-set-property "TRUTH" "historical"))
+      (org-chronicle-sources--add-source (plist-get change :provenance))
+      (org-chronicle-sources--apply-references change)
+      (save-buffer))))
+
+
 (defun org-chronicle-sources--apply-references (change)
   "Set CHANGE's reference links as properties on the heading at point.
 Each link is a (PROPERTY . URL) cons; links with no URL are skipped."
@@ -249,7 +286,12 @@ written idempotently to the events file."
                          ""))))
     ('event (let ((ev (plist-get change :event)))
               (format "event       %s [%s]" (plist-get ev :title)
-                      (plist-get ev :date))))))
+                      (plist-get ev :date))))
+    ('person (format "person      %s [%s%s]"
+                     (plist-get change :name)
+                     (or (plist-get change :born) "?")
+                     (let ((d (plist-get change :died)))
+                       (if d (concat "–" d) ""))))))
 
 (defun org-chronicle-sources--review-rows (changes)
   "Build review rows from proposed change plists.
@@ -487,6 +529,43 @@ and write the approved set idempotently to the imported events file."
          (org-chronicle-sources--apply-event-change c index))
        (message "Imported %d event(s) for %s" (length selected) place)))))
 
+;;;###autoload
+(defun org-chronicle-import-people (&optional source-id)
+  "Bulk-import people who lived or worked in a place during a year range.
+Prompt for a source (SOURCE-ID non-interactively), an optional occupation
+\(blank means any), a place, and a from/until year range; fetch the matching
+people; review the proposed lean person headings; and write the approved set
+idempotently to the bulk people file."
+  (interactive)
+  (let* ((source-id (or source-id
+                        (intern (completing-read
+                                 "Source: " (mapcar #'symbol-name
+                                                    (org-chronicle-sources--ids))
+                                 nil t nil nil
+                                 (symbol-name org-chronicle-default-source)))))
+         (source (org-chronicle-sources--get source-id))
+         (occ-term (org-chronicle-sources--region-or-read "Occupation (blank = any): "))
+         (occ-qid (and (not (string-blank-p occ-term))
+                       (org-chronicle-wikibase--resolve source occ-term)))
+         (place (read-string "Place (lived or worked in): "))
+         (place-qid (org-chronicle-wikibase--resolve source place))
+         (from (read-number "From year: "))
+         (until (read-number "Until year: "))
+         (rows (org-chronicle-wikibase--sparql-request
+                source (org-chronicle-wikibase--people-query
+                        source occ-qid place-qid from until
+                        org-chronicle-sources-bulk-limit)))
+         (changes (org-chronicle-wikibase--people->changes source rows)))
+    (when (seq-empty-p changes)
+      (user-error "No people found for that occupation/place/range"))
+    (org-chronicle-sources--review
+     changes
+     (lambda (selected)
+       (dolist (c selected)
+         (org-chronicle-sources--apply-person-change c))
+       (message "Imported %d person(s)" (length selected))))))
+
+
 
 ;;;###autoload
 (defun org-chronicle-reconcile ()
@@ -548,6 +627,7 @@ When several source keys are present, prompt for which to reconcile."
                      :birthplace "P19" :deathplace "P20"
                      :country "P17" :located-in "P131" :admin-class "Q10864048"
                      :event-location "P276" :point-in-time "P585"
+                     :occupation "P106" :residence "P551" :work-location "P937"
                      :father "P22" :mother "P25"
                      :spouse "P26" :position "P39"
                      :qual-start "P580" :qual-end "P582" ))
