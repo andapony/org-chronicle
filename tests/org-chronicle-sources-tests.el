@@ -940,5 +940,33 @@ idempotent (matched by id on re-run)."
     (should (equal (org-chronicle-sources--span-pids s 'group)
                    (cons "P49" "P50")))))
 
+(ert-deftest org-chronicle-sources-test-entity-prefill ()
+  "Entity prefill returns (NAME . KIND) from the entity heading at point."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Ada Lovelace\n:PROPERTIES:\n:KIND: person\n:END:\n")
+    (goto-char (point-min))
+    (should (equal (org-chronicle-sources--entity-prefill)
+                   '("Ada Lovelace" . "person"))))
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Crime\n:PROPERTIES:\n:KIND: topic\n:END:\n")
+    (goto-char (point-min))
+    (should (equal (org-chronicle-sources--entity-prefill) '("Crime"))))
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Just a heading\nbody\n")
+    (goto-char (point-min))
+    (should (null (org-chronicle-sources--entity-prefill)))))
+
+(ert-deftest org-chronicle-sources-test-region-or-read-default ()
+  "Without a region, region-or-read offers DEFAULT to the prompt."
+  (cl-letf (((symbol-function 'use-region-p) (lambda () nil))
+            ((symbol-function 'read-string)
+             (lambda (_prompt &optional _init _hist default &rest _) default)))
+    (should (equal (org-chronicle-sources--region-or-read "P: " "Ada") "Ada"))))
+
+
+
 (provide 'org-chronicle-sources-tests)
 ;;; org-chronicle-sources-tests.el ends here

@@ -527,11 +527,28 @@ SUBJECT-ORGID, SOURCE, and SUBJECT-QID."
                   c)))))
          changes)))
 
-(defun org-chronicle-sources--region-or-read (prompt)
-  "Return the active region's text (trimmed), else read a string with PROMPT."
+(defun org-chronicle-sources--region-or-read (prompt &optional default)
+  "Return the active region's text (trimmed), else read a string with PROMPT.
+DEFAULT, when non-nil, is offered as the prompt's default value."
   (if (use-region-p)
       (string-trim (buffer-substring-no-properties (region-beginning) (region-end)))
-    (read-string prompt)))
+    (read-string prompt nil nil default)))
+
+(defun org-chronicle-sources--entity-prefill ()
+  "Return (NAME . KIND) defaults from the entity heading at point, or nil.
+NAME is the heading title; KIND is the heading's kind as a string when it is
+one this command imports (person, place, or group), else nil so the caller
+supplies its own default.  Returns nil when point is not on an entity heading."
+  (when (derived-mode-p 'org-mode)
+    (let ((ent (ignore-errors
+                 (save-excursion
+                   (org-back-to-heading t)
+                   (org-chronicle--entity-at-point)))))
+      (when ent
+        (cons (plist-get ent :name)
+              (let ((k (plist-get ent :kind)))
+                (and (memq k '(person place group)) (symbol-name k))))))))
+
 
 (defun org-chronicle-sources--import-record (source kind seed marker qid)
   "Fetch SOURCE's record for QID, classify against MARKER, review, and apply.
@@ -592,12 +609,14 @@ write the approved set.  A heading accretes one key property per source."
   "Add an entity NAME of KIND by importing facts from a configured source.
 KIND is `person', `place', or `group'.  Resolve NAME against the chosen
 source, create or reuse the entity, and review the proposed facts before
-writing.  Interactively, take NAME from the active region when there is one,
-else prompt, and prompt for KIND."
+writing.  Interactively, NAME and KIND default to the entity heading at
+point when there is one; otherwise NAME comes from the active region or a
+prompt, and KIND from a prompt."
   (interactive
-   (list (org-chronicle-sources--region-or-read "Entity (from source): ")
-         (intern (completing-read "Kind: " '("person" "place" "group")
-                                  nil t nil nil "person"))))
+   (let ((pre (org-chronicle-sources--entity-prefill)))
+     (list (org-chronicle-sources--region-or-read "Entity (from source): " (car pre))
+           (intern (completing-read "Kind: " '("person" "place" "group")
+                                    nil t nil nil (or (cdr pre) "person"))))))
   (org-chronicle-sources--check-kind kind)
   (let* ((source-id (intern (completing-read
                              "Source: " (mapcar #'symbol-name
