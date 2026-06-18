@@ -2145,6 +2145,7 @@ shared scene context."
     (define-key map (kbd "s") #'org-chronicle-set-scene-date)
     (define-key map (kbd "a") #'org-chronicle-accept-placement)
     (define-key map (kbd "A") #'org-chronicle-accept-all-placements)
+    (define-key map (kbd "m") #'org-chronicle-mark-scene)
     map)
   "Keymap for `org-chronicle-scene-lint-mode'.")
 
@@ -2346,10 +2347,65 @@ date for the scene at point, \\[org-chronicle-accept-all-placements] accepts all
 ;;;; Scenes: authoring commands
 
 (defun org-chronicle--read-reference ()
-  "Read an event/entity target with completion; return (ID . NAME)."
+  "Read an event/entity target with completion; return (ID . NAME).
+Scene candidates are annotated with [chapter · window].  When the
+most-recent `org-stored-links' entry resolves to a known target, it
+seeds the initial input."
+  (require 'org-chronicle-solve)
   (let* ((targets (org-chronicle--reference-targets))
-         (name (completing-read "Reference: " targets nil t)))
-    (cons (cdr (assoc name targets)) name)))
+         (scenes (org-chronicle--all-scenes))
+         (ctx (org-chronicle--scene-context))
+         (sol (org-chronicle--solution scenes ctx))
+         (windows (and (plist-get sol :consistent)
+                       (plist-get sol :windows)))
+         (annotations (make-hash-table :test #'equal))
+         (default
+          (let* ((entry (car org-stored-links))
+                 (link (and entry (car entry)))
+                 (id (and link
+                          (string-prefix-p "id:" link)
+                          (substring link 3)))
+                 (title (and id (org-chronicle--reference-title id))))
+            (and title (assoc title targets) title))))
+    (dolist (s scenes)
+      (let* ((title (plist-get s :title))
+             (marker (plist-get s :marker))
+             (chapter (and marker
+                           (buffer-file-name (marker-buffer marker))
+                           (file-name-nondirectory
+                            (buffer-file-name (marker-buffer marker)))))
+             (win (and windows (gethash marker windows)))
+             (win-str (if win (org-chronicle--window-string win) "")))
+        (when title
+          (puthash title
+                   (format "[%s · %s]"
+                           (or chapter "")
+                           win-str)
+                   annotations))))
+    (let* ((completion-extra-properties
+            (list :affixation-function
+                  (org-chronicle--affixation-function annotations)))
+           (name (completing-read "Reference: " targets nil t default)))
+      (cons (cdr (assoc name targets)) name))))
+
+(defun org-chronicle--affixation-function (annotations)
+  "Return a `completing-read' affixation function using ANNOTATIONS.
+ANNOTATIONS maps a candidate string to a suffix string."
+  (lambda (cands)
+    (mapcar (lambda (c)
+              (list c "" (concat "  " (or (gethash c annotations) ""))))
+            cands)))
+
+(defun org-chronicle-mark-scene ()
+  "Mark the scene at point as the default target for the next constraint.
+Stores an id link to the heading via `org-store-link'."
+  (interactive)
+  (save-excursion
+    (org-back-to-heading t)
+    (org-id-get-create)
+    (call-interactively #'org-store-link)))
+
+
 
 ;;;###autoload
 (defun org-chronicle-insert-reference ()
@@ -2386,6 +2442,8 @@ KIND is the symbol `after' or `before'."
             (goto-char (plist-get scene :marker))
             (setq target-id (org-id-get-create))
             (setq link (format "[[id:%s]]" target-id))))))
+    (unless target-id
+      (user-error "Could not resolve target %S to an id" (cdr target)))
     (org-set-property
      prop (if (and existing (not (string-blank-p existing)))
               (org-chronicle--join (list existing link))

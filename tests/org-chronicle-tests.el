@@ -1537,6 +1537,26 @@ Buffer-modified-p must stay nil throughout."
         (set-buffer-modified-p nil)
         (kill-buffer)))))
 
+(ert-deftest org-chronicle-test-affixation ()
+  "Candidate affixation appends the chapter and window annotation."
+  (let* ((annot (make-hash-table :test #'equal))
+         (_ (puthash "The duel" "[03-duel.org · 1850..1855]" annot))
+         (fn (org-chronicle--affixation-function annot))
+         (row (car (funcall fn '("The duel")))))
+    (should (equal (nth 0 row) "The duel"))
+    (should (string-match-p "1850\\.\\.1855" (nth 2 row)))))
+
+(ert-deftest org-chronicle-test-add-constraint-nil-id-guard ()
+  "Add-constraint signals user-error when target cannot be resolved to an id."
+  (org-chronicle-test--with-root org-chronicle-test--scene-root
+    (cl-letf (((symbol-function 'org-chronicle--read-reference)
+               (lambda () (cons nil "Unresolvable scene"))))
+      (org-chronicle-test--with-org "* A scene\nbody\n"
+        (should-error (org-chronicle-add-constraint 'after)
+                      :type 'user-error)))))
+
+
+
 
 
 
