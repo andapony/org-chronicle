@@ -60,11 +60,6 @@
          (sol (org-chronicle--stn-solve net)))
     (should-not (plist-get sol :consistent))))
 
-
-
-
-
-
 (provide 'org-chronicle-solve-tests)
 
 ;;; org-chronicle-solve-tests.el ends here

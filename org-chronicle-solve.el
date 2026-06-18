@@ -21,7 +21,9 @@
   "Return an all-pairs shortest-path distance hash for NODES and EDGES.
 Keys are (FROM . TO) conses; values are integer distances or
 `org-chronicle--stn-inf' when unreachable.  Each edge (FROM TO WEIGHT _)
-contributes TO - FROM <= WEIGHT."
+contributes TO - FROM <= WEIGHT.  Every node referenced by an edge must
+appear in NODES; violating this contract causes a nil distance lookup and
+a runtime error."
   (let ((dist (make-hash-table :test #'equal)))
     (dolist (a nodes)
       (puthash (cons a a) 0 dist)
@@ -66,9 +68,6 @@ network is inconsistent (any negative self-distance) :lo and :hi are nil."
               (puthash n (if (= up org-chronicle--stn-inf) nil up) hi)
               (puthash n (if (= down org-chronicle--stn-inf) nil (- down)) lo))))
         (list :consistent t :lo lo :hi hi)))))
-
-
-
 
 (provide 'org-chronicle-solve)
 
