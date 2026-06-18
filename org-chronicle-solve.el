@@ -99,12 +99,11 @@ a negative cycle, then walks predecessors to collect the cycle's labels."
           (while (or first (not (equal node start)))
             (setq first nil)
             (let ((e (gethash node pred)))
-              (unless e (setq node start))     ; defensive: break on gap
+              (unless e (error "Broken predecessor chain at %s" node))
               (when e
                 (push (nth 3 e) labels)
                 (setq node (nth 0 e)))))
           (delete-dups labels))))))
-
 
 (provide 'org-chronicle-solve)
 

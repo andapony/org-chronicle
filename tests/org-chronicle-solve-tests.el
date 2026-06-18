@@ -74,8 +74,6 @@
               '(:zero x) '((x :zero -10 lo) (:zero x 20 hi)))))
     (should (null (org-chronicle--stn-conflict net)))))
 
-
-
 (provide 'org-chronicle-solve-tests)
 
 ;;; org-chronicle-solve-tests.el ends here
