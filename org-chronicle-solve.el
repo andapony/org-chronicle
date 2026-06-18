@@ -69,6 +69,43 @@ network is inconsistent (any negative self-distance) :lo and :hi are nil."
               (puthash n (if (= down org-chronicle--stn-inf) nil (- down)) lo))))
         (list :consistent t :lo lo :hi hi)))))
 
+(defun org-chronicle--stn-conflict (network)
+  "Return the edge LABELs of one negative cycle in NETWORK, or nil if none.
+NETWORK is (:nodes NODES :edges EDGES) with edges (FROM TO WEIGHT LABEL).
+Uses Bellman-Ford from `:zero', relaxing one extra round to find an edge on
+a negative cycle, then walks predecessors to collect the cycle's labels."
+  (let* ((nodes (plist-get network :nodes))
+         (edges (plist-get network :edges))
+         (d (make-hash-table :test #'equal))
+         (pred (make-hash-table :test #'equal)))
+    (dolist (n nodes) (puthash n 0 d))   ; 0 init finds any negative cycle
+    (let ((culprit nil) (rounds (length nodes)))
+      (dotimes (_ rounds)
+        (dolist (e edges)
+          (let* ((from (nth 0 e)) (to (nth 1 e)) (w (nth 2 e)))
+            (when (< (+ (gethash from d) w) (gethash to d))
+              (puthash to (+ (gethash from d) w) d)
+              (puthash to e pred)))))
+      ;; One more round: any edge that still relaxes lies on a negative cycle.
+      (dolist (e edges)
+        (let* ((from (nth 0 e)) (to (nth 1 e)) (w (nth 2 e)))
+          (when (< (+ (gethash from d) w) (gethash to d))
+            (setq culprit to))))
+      (when culprit
+        ;; Walk predecessors far enough to be inside the cycle, then collect.
+        (dotimes (_ rounds)
+          (setq culprit (nth 0 (gethash culprit pred))))
+        (let ((labels '()) (node culprit) (start culprit) (first t))
+          (while (or first (not (equal node start)))
+            (setq first nil)
+            (let ((e (gethash node pred)))
+              (unless e (setq node start))     ; defensive: break on gap
+              (when e
+                (push (nth 3 e) labels)
+                (setq node (nth 0 e)))))
+          (delete-dups labels))))))
+
+
 (provide 'org-chronicle-solve)
 
 ;;; org-chronicle-solve.el ends here

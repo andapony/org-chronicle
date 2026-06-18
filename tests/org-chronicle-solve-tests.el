@@ -60,6 +60,22 @@
          (sol (org-chronicle--stn-solve net)))
     (should-not (plist-get sol :consistent))))
 
+(ert-deftest org-chronicle-solve-test-conflict-labels ()
+  "An over-constrained node yields the labels of its conflicting edges."
+  (let* ((net (org-chronicle-solve-tests--net
+               '(:zero x) '((x :zero -30 need-after) (:zero x 20 need-before))))
+         (labels (org-chronicle--stn-conflict net)))
+    (should (member 'need-after labels))
+    (should (member 'need-before labels))))
+
+(ert-deftest org-chronicle-solve-test-no-conflict-when-consistent ()
+  "A consistent network reports no conflict."
+  (let ((net (org-chronicle-solve-tests--net
+              '(:zero x) '((x :zero -10 lo) (:zero x 20 hi)))))
+    (should (null (org-chronicle--stn-conflict net)))))
+
+
+
 (provide 'org-chronicle-solve-tests)
 
 ;;; org-chronicle-solve-tests.el ends here
