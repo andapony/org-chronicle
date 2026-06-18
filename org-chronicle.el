@@ -109,6 +109,21 @@ All arguments are date plists (or nil for FROM/UNTIL)."
        (or (null from) (not (org-chronicle--date-lessp date from)))
        (or (null until) (not (org-chronicle--date-lessp until date)))))
 
+(defun org-chronicle--age-years (birth at)
+  "Return whole years from BIRTH to AT (date plists), or nil.
+Exact when both dates carry a month; year-difference for coarse dates.
+Returns nil when either date is missing or AT precedes BIRTH."
+  (when (and birth at)
+    (let ((age (- (plist-get at :year) (plist-get birth :year))))
+      (when (and (plist-get at :month) (plist-get birth :month)
+                 (let ((am (plist-get at :month)) (bm (plist-get birth :month))
+                       (ad (or (plist-get at :day) 1))
+                       (bd (or (plist-get birth :day) 1)))
+                   (or (< am bm) (and (= am bm) (< ad bd)))))
+        (setq age (1- age)))
+      (and (>= age 0) age))))
+
+
 (defun org-chronicle--date-lower-bound (d)
   "Return date plist D expanded to the earliest instant of its precision.
 A year-only date becomes its January 1, a month date its first day; a day
@@ -548,8 +563,9 @@ The truth marker leads so it survives column truncation."
 IDX is an alias index; COL-WIDTH is the width of each lane column.  Rows
 are dates (ascending); each lane column shows that lane's events on that
 date.  A date whose events fall in none of the LANES is omitted, so the
-view never shows an empty row.  EVENTS are assumed already filtered and
-sorted ascending."
+view never shows an empty row.  A cell in a person lane (one carrying a
+:birth date) gets a `help-echo' tooltip with the person's age at that date.
+EVENTS are assumed already filtered and sorted ascending."
   (let* ((dcw org-chronicle--date-col-width)
          (header (concat (org-chronicle--pad "DATE" dcw)
                          (mapconcat (lambda (l) (org-chronicle--pad
@@ -572,8 +588,17 @@ sorted ascending."
                           (lambda (e) (org-chronicle--event-in-lane-p e lane idx))
                           day-events))
                    (txt (mapconcat (lambda (e) (org-chronicle--cell-text-for-lane e lane))
-                                   hits " / ")))
+                                   hits " / "))
+                   (birth (plist-get lane :birth)))
               (unless (string-empty-p txt) (setq any t))
+              (when (and birth hits)
+                (let ((age (org-chronicle--age-years
+                            birth (plist-get (car hits) :date))))
+                  (when age
+                    (setq txt (copy-sequence txt))
+                    (put-text-property 0 (length txt) 'help-echo
+                                       (format "%s: age %d" (plist-get lane :label) age)
+                                       txt))))
               (push (org-chronicle--pad txt col-width) cells)))
           (when any
             (push (concat (org-chronicle--pad date dcw)
@@ -612,6 +637,18 @@ MODE is `:collapse' or `:expand'; ENTITIES is the entity list."
    (cl-loop for n in topics
             append (org-chronicle--build-lanes-for n 'topic entities mode))))
 
+(defun org-chronicle--lanes-with-birth (lanes entities idx index)
+  "Return LANES with a :birth date added to each single-person lane.
+ENTITIES, IDX, and the life-event INDEX resolve the lane's person via
+`org-chronicle--person-birth'."
+  (mapcar (lambda (lane)
+            (let ((birth (and (eq (plist-get lane :domain) 'people)
+                              (org-chronicle--person-birth
+                               (plist-get lane :label) entities idx index))))
+              (if birth (append lane (list :birth birth)) lane)))
+          lanes))
+
+
 (cl-defun org-chronicle--compose (&key people locations topics truth from until
                                        (mode :collapse)
                                        width
@@ -629,12 +666,16 @@ override `org-chronicle-root' and `org-chronicle-exclude' for this gather
         (org-chronicle-exclude (if exclude-p exclude org-chronicle-exclude)))
     (let* ((entities (org-chronicle--all-entities))
            (idx (org-chronicle--alias-index entities))
-           (lanes (org-chronicle--lanes-from-params people locations topics entities mode))
+           (all-events (org-chronicle--all-events))
+           (index (org-chronicle--life-index all-events idx))
+           (lanes (org-chronicle--lanes-with-birth
+                   (org-chronicle--lanes-from-params people locations topics entities mode)
+                   entities idx index))
            (col-width (if width
                           (org-chronicle--lane-width width (length lanes))
                         org-chronicle-lane-column-width))
            (events (org-chronicle--filter-events
-                    (org-chronicle--all-events) idx
+                    all-events idx
                     :truth truth
                     :from (and from (org-chronicle--date-parse from))
                     :until (and until (org-chronicle--date-parse until)))))
@@ -1638,6 +1679,19 @@ entity's BORN/DIED span in ENTITIES.  IDX is the alias index."
                  (and ent (plist-get ent :span-to)))))
     (when (or from to)
       (cons from to))))
+
+(defun org-chronicle--person-birth (name entities idx index)
+  "Return the birth date for the person named NAME, or nil.
+NAME is resolved through alias index IDX.  Returns nil for place, group, or
+topic entities (whose span start is not a birth) and when no birth is known;
+otherwise the existence-span start, taken from a birth life event in INDEX or
+a person entity's BORN (so people known only through life events are covered)."
+  (let* ((canon (org-chronicle--canonical name idx))
+         (ent (cl-find canon entities
+                       :key (lambda (e) (plist-get e :name)) :test #'equal)))
+    (unless (and ent (memq (plist-get ent :kind) '(place group topic)))
+      (car (org-chronicle--span-for-name canon entities idx index)))))
+
 
 (defun org-chronicle--event-anachronisms (event entities idx index)
   "Return a list of human-readable anachronism messages for EVENT.

@@ -76,6 +76,56 @@
     (should (string-match-p "Heist" out))
     (should-not (string-match-p "^1851" out))))
 
+(ert-deftest org-chronicle-test-age-years ()
+  "Age is whole years: day-precise for full dates, year-diff for coarse."
+  (let ((b (org-chronicle--date-parse "1815-12-10")))
+    (should (= (org-chronicle--age-years b (org-chronicle--date-parse "1852-11-27")) 36))
+    (should (= (org-chronicle--age-years b (org-chronicle--date-parse "1845-12-10")) 30))
+    (should (= (org-chronicle--age-years b (org-chronicle--date-parse "1845-12-09")) 29))
+    (should (= (org-chronicle--age-years b (org-chronicle--date-parse "1844")) 29))
+    (should (= (org-chronicle--age-years b b) 0))
+    (should (null (org-chronicle--age-years b (org-chronicle--date-parse "1800"))))
+    (should (null (org-chronicle--age-years nil (org-chronicle--date-parse "1844"))))))
+
+(ert-deftest org-chronicle-test-person-birth ()
+  "Person birth comes from a person entity's span or a birth life event;
+place/group entities and unknown names return nil."
+  (let* ((ada (list :name "Ada Lovelace" :kind 'person :aliases nil
+                    :span-from (org-chronicle--date-parse "1815-12-10")
+                    :span-to (org-chronicle--date-parse "1852-11-27")))
+         (london (list :name "London" :kind 'place :aliases nil
+                       :span-from (org-chronicle--date-parse "0043")))
+         (entities (list ada london))
+         (idx (org-chronicle--alias-index entities))
+         (index (org-chronicle--life-index nil idx)))
+    (should (equal (org-chronicle--person-birth "Ada Lovelace" entities idx index)
+                   (org-chronicle--date-parse "1815-12-10")))
+    (should (null (org-chronicle--person-birth "London" entities idx index)))
+    (should (null (org-chronicle--person-birth "Nobody" entities idx index))))
+  (let* ((idx (org-chronicle--alias-index nil))
+         (index (org-chronicle--life-index
+                 (list (list :life-event "birth" :subject '("Sam Brannan")
+                             :date (org-chronicle--date-parse "1819-03-02")))
+                 idx)))
+    (should (equal (org-chronicle--person-birth "Sam Brannan" nil idx index)
+                   (org-chronicle--date-parse "1819-03-02")))))
+
+(ert-deftest org-chronicle-test-render-age-help-echo ()
+  "An event cell in a person lane (with :birth) carries an age help-echo."
+  (let* ((idx (org-chronicle--alias-index nil))
+         (e (list :title "Wedding" :truth "historical"
+                  :date (org-chronicle--date-parse "1844") :people '("Ada")))
+         (lane (list :domain 'people :names '("Ada") :label "Ada"
+                     :birth (org-chronicle--date-parse "1815-12-10")))
+         (out (org-chronicle--render (list e) (list lane) idx 30))
+         (pos (string-match "Wedding" out)))
+    (should pos)
+    (should (string-match-p "age 29"
+                            (or (get-text-property pos 'help-echo out) "")))))
+
+
+
+
 (ert-deftest org-chronicle-test-read-truth ()
   "Truth read returns nil (all) for blank or \"all\", else the chosen subset."
   (cl-letf (((symbol-function 'completing-read-multiple)
