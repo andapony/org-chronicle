@@ -16,7 +16,6 @@
   (file-name-directory (or load-file-name buffer-file-name))
   "Directory of the test file, captured at load time.")
 
-
 (ert-deftest org-chronicle-test-loads ()
   "The package loads and defines its group."
   (should (featurep 'org-chronicle)))
@@ -87,9 +86,6 @@
              (org-chronicle--date-upper-bound (org-chronicle--date-parse "1880")))))
     (should (< lo hi))
     (should (= (- hi lo) 365))))
-
-
-
 
 ;;;; Store
 
@@ -258,7 +254,6 @@ directories are created.  The temp dir is removed afterward."
             (should-not (member ".#people.org" files))))
       (delete-directory dir t))))
 
-
 (ert-deftest org-chronicle-test-source-files-missing-root ()
   "A nonexistent root yields nil, not an error."
   (let ((org-chronicle-root "/no/such/dir/xyzzy"))
@@ -410,7 +405,6 @@ directories are created.  The temp dir is removed afterward."
     (should (string-prefix-p "F Wreck"
                              (org-chronicle--cell-text-for-lane event people-lane)))))
 
-
 (ert-deftest org-chronicle-test-render-columns ()
   (let* ((events
           (list (list :title "Vicksburg" :truth "historical"
@@ -545,7 +539,6 @@ directories are created.  The temp dir is removed afterward."
         (should (equal (get-text-property (match-beginning 0) 'org-chronicle-entity-id)
                        "ent-saco"))))))
 
-
 (ert-deftest org-chronicle-test-entity-links-refresh ()
   "The refresh command clears the entity cache so it rebuilds from disk."
   (let ((org-chronicle--entity-cache (cons 'stale (make-hash-table :test #'equal)))
@@ -661,19 +654,6 @@ directories are created.  The temp dir is removed afterward."
   (should (eq (lookup-key org-chronicle-view-mode-map "r")
               #'org-chronicle-history-forward)))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 ;;;; View
 
 (ert-deftest org-chronicle-test-dblock-writer ()
@@ -769,7 +749,6 @@ global root differs."
   (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "1863-07-04")))
     (should (equal (org-chronicle--read-date "Date: ") "1863-07-04"))))
 
-
 (ert-deftest org-chronicle-test-life-event-title ()
   (should (equal (org-chronicle--life-event-title "birth" '("Grant") nil) "Birth of Grant"))
   (should (equal (org-chronicle--life-event-title "death" '("Grant") nil) "Death of Grant"))
@@ -790,8 +769,6 @@ global root differs."
     (should (string-match-p ":SUBJECT:    Ulysses S. Grant" s))
     (should (string-match-p ":PEOPLE:     Ulysses S. Grant; Jesse Root Grant" s))
     (should (string-match-p ":LOCATION:   Point Pleasant, Ohio" s))))
-
-
 
 (ert-deftest org-chronicle-test-normalize-mirrors-tag ()
   (cl-letf (((symbol-function 'org-chronicle--all-entities) (lambda () '())))
@@ -964,10 +941,6 @@ global root differs."
       (should (equal (plist-get (gethash "Julia Dent" index) :spouses)
                      '("Ulysses S. Grant"))))))
 
-
-
-
-
 ;;;; Sources
 
 (ert-deftest org-chronicle-test-source-link-format ()
@@ -1022,7 +995,6 @@ global root differs."
       (should (member "Maritime shipping" topics))
       (should-not (member "Grant" topics)))))
 
-
 (ert-deftest org-chronicle-test-file-events-missing-is-nil ()
   "Reading events from a non-existent file returns nil without prompting."
   (should (null (org-chronicle--file-events "/tmp/org-chronicle-nonexistent-xyz.org"))))
@@ -1068,15 +1040,10 @@ global root differs."
                    '(metadata (category . org-chronicle-person))))
     (should (member "alpha" (funcall table "" nil t)))))
 
-
-
-
-
 (ert-deftest org-chronicle-test-add-source-free-text-when-no-reading-list ()
   (cl-letf (((symbol-function 'featurep)
              (lambda (f &rest _) (unless (eq f 'org-reading-list) t))))
     (should (equal (org-chronicle--read-source "NY Herald 1863") "NY Herald 1863"))))
-
 
 ;;;; Lint
 
@@ -1112,27 +1079,6 @@ global root differs."
     (let ((span (org-chronicle--span-for-name "Grant" entities idx index)))
       (should (equal (plist-get (car span) :year) 1822))
       (should (equal (plist-get (cdr span) :year) 1885)))))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 (ert-deftest org-chronicle-test-read-source-unmatched-is-free-text ()
   "An unlisted pick is returned as free text, not a [[id:nil]] link."
@@ -1371,7 +1317,6 @@ Marek is born 1870, but BEFORE Vicksburg (1863) caps the window earlier."
       (should (string-match-p
                "1866-01-01"
                (org-chronicle--scene-verdict-line f))))))
-
 
 (ert-deftest org-chronicle-test-lint-scenes-reports ()
   "The command lists an out-of-window scene and a clean run says so."

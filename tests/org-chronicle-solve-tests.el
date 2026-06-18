@@ -165,14 +165,6 @@
                  (list s) (org-chronicle-solve-tests--ctx nil))))
     (should (equal (plist-get (gethash 'm place) :year) 1850))))
 
-
-
-
-
-
-
-
-
 (provide 'org-chronicle-solve-tests)
 
 ;;; org-chronicle-solve-tests.el ends here

@@ -260,14 +260,6 @@ Empty when the network is inconsistent."
             (puthash (plist-get s :marker) (car win) out)))))
     out))
 
-
-
-
-
-
-
-
-
 (provide 'org-chronicle-solve)
 
 ;;; org-chronicle-solve.el ends here

@@ -61,7 +61,6 @@
 
 (require 'calendar)
 
-
 (require 'crm)
 
 (defgroup org-chronicle nil
@@ -138,9 +137,6 @@ Missing month/day default to 1, so callers expand coarse dates with
   (calendar-absolute-from-gregorian
    (list (or (plist-get d :month) 1) (or (plist-get d :day) 1)
          (plist-get d :year))))
-
-
-
 
 ;;;; Customization
 
@@ -1038,16 +1034,12 @@ Each element is a location plist (:marker M :file F :pos P).")
 (defvar org-chronicle--history-position -1
   "Index into `org-chronicle--history' of the current location, or -1.")
 
-
-
 (defun org-chronicle--entity-cache ()
   "Return cached (ENTITIES . IDX), building it from disk when stale."
   (or org-chronicle--entity-cache
       (let* ((entities (org-chronicle--all-entities))
              (idx (org-chronicle--alias-index entities)))
         (setq org-chronicle--entity-cache (cons entities idx)))))
-
-
 
 (defun org-chronicle--invalidate-entity-cache ()
   "Drop the entity cache and refontify entity-link buffers."
@@ -1129,7 +1121,6 @@ Always returns nil; faces are applied per segment, not over the region."
     (define-key map (kbd "C-c <right>") #'org-chronicle-history-forward)
     map)
   "Keymap for `org-chronicle-entity-links-mode'.")
-
 
 (define-minor-mode org-chronicle-entity-links-mode
   "Buttonize event property values that name promoted entities.
@@ -1247,16 +1238,6 @@ Signal a `user-error' when moving past either end."
   "Advance to the next location in the chronicle link history."
   (interactive)
   (org-chronicle--history-visit (org-chronicle--history-go 1)))
-
-
-
-
-
-
-
-
-
-
 
 (defun org-chronicle--groups (entities)
   "Return the entities in ENTITIES whose `:kind' is `group'."
@@ -1694,8 +1675,6 @@ the event's date.  IDX is the alias index.  Empty list means clean."
               (push scene out))))))
     (nreverse out)))
 
-
-
 (defun org-chronicle--link-follow (path &optional _arg)
   "Follow a chronicle: link by visiting the heading whose id is PATH.
 Records the jump in the chronicle link history."
@@ -2097,7 +2076,6 @@ shared scene context."
 (declare-function org-chronicle--solution "org-chronicle-solve" (scenes ctx))
 (declare-function org-chronicle--earliest-placement "org-chronicle-solve" (scenes ctx))
 
-
 ;;;; Scenes: the lint command
 
 (defun org-chronicle--all-scene-findings ()
@@ -2153,7 +2131,6 @@ shared scene context."
   "Hash table mapping each floating scene marker to its earliest placement.
 Set by `org-chronicle-lint-scenes' and read by the accept commands.")
 
-
 (define-derived-mode org-chronicle-scene-lint-mode org-chronicle-view-mode
   "Chronicle-Scenes"
   "Major mode for the scene continuity lint buffer.")
@@ -2199,8 +2176,6 @@ buffer afterward."
     (org-chronicle--invalidate-context)
     (org-chronicle-lint-scenes)
     (message "Accepted %d placement(s)." count)))
-
-
 
 ;;;###autoload
 (defun org-chronicle-lint-scenes ()
@@ -2482,7 +2457,6 @@ Signals if DATE is nil (an unbounded suggestion cannot be committed)."
                 (org-entry-get nil "TRUTH"))
       (org-set-property "TRUTH" "fictional"))))
 
-
 ;;;###autoload
 (defun org-chronicle-set-scene-date ()
   "Set a scene's :DATE: to a value within its feasible window.
@@ -2510,6 +2484,12 @@ buffer, act on the scene at the finding under point, then refresh the lint."
   "List of overlays placed by `org-chronicle-annotate-windows' in this buffer.
 All overlays are ephemeral: they carry no file content and are removed when
 the command is toggled off or the buffer is killed.")
+
+(defvar-local org-chronicle--window-overlays-active nil
+  "Non-nil when `org-chronicle-annotate-windows' is enabled in this buffer.
+Tracks enabled state independently of the overlay list so toggling works
+correctly even when there are zero floating scenes (overlay list stays nil).")
+
 
 (defun org-chronicle-peek ()
   "Show the feasible window for the scene at point in the echo area.
@@ -2570,16 +2550,18 @@ in `org-chronicle--window-overlays' and refreshed on `after-save-hook'.
 When disabling, removes all overlays and the save-hook refresh.  Overlays
 are never written to disk and do not set the buffer-modified flag."
   (interactive)
-  (if org-chronicle--window-overlays
+  (if org-chronicle--window-overlays-active
       (progn
         (mapc #'delete-overlay org-chronicle--window-overlays)
         (setq org-chronicle--window-overlays nil)
         (remove-hook 'after-save-hook
                      #'org-chronicle--annotate-windows-refresh t)
+        (setq org-chronicle--window-overlays-active nil)
         (message "Window overlays removed."))
     (org-chronicle--annotate-windows-refresh)
     (add-hook 'after-save-hook
               #'org-chronicle--annotate-windows-refresh nil t)
+    (setq org-chronicle--window-overlays-active t)
     (message "Window overlays drawn (%d floating scene(s))."
              (length org-chronicle--window-overlays))))
 
