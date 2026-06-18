@@ -1884,10 +1884,7 @@ consistent with saves and auto-reverted external changes."
 
 (add-hook 'after-save-hook #'org-chronicle--maybe-invalidate-context)
 
-
-
-
-
+(add-hook 'after-revert-hook #'org-chronicle--maybe-invalidate-context)
 
 ;;;; Scenes: window and anchor
 
