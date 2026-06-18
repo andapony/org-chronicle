@@ -444,6 +444,36 @@ allowed, idempotent on re-run."
                                       (split-string text "\n"))))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-sources-test-review-clear ()
+  "Clearing deselects every row."
+  (with-temp-buffer
+    (org-chronicle-sources-review-mode)
+    (setq org-chronicle-sources--rows
+          (list (list (list :selected t :status 'new) '(:target entity :property "A" :value "1"))
+                (list (list :selected t :status 'new) '(:target entity :property "B" :value "2"))))
+    (org-chronicle-sources--render-review)
+    (org-chronicle-sources-review-clear)
+    (should-not (plist-get (nth 0 (nth 0 org-chronicle-sources--rows)) :selected))
+    (should-not (plist-get (nth 0 (nth 1 org-chronicle-sources--rows)) :selected))))
+
+(ert-deftest org-chronicle-sources-test-review-toggle-advances ()
+  "Toggling a row selects it and moves point to the next row, not buffer end."
+  (with-temp-buffer
+    (org-chronicle-sources-review-mode)
+    (setq org-chronicle-sources--rows
+          (list (list (list :selected nil :status 'new) '(:target entity :property "A" :value "1"))
+                (list (list :selected nil :status 'new) '(:target entity :property "B" :value "2"))
+                (list (list :selected nil :status 'new) '(:target entity :property "C" :value "3"))))
+    (org-chronicle-sources--render-review)
+    (goto-char (point-min))
+    (forward-line 2)
+    (org-chronicle-sources-review-toggle)
+    (should (plist-get (nth 0 (nth 0 org-chronicle-sources--rows)) :selected))
+    (should (= (line-number-at-pos) 4))
+    (should-not (eobp))))
+
+
+
 
 
 

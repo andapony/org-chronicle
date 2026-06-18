@@ -319,14 +319,25 @@ CHANGES is a list of change plists.  Each row is a two-element list
   "Function called with the selected changes when the review is confirmed.")
 
 (defun org-chronicle-sources-review-toggle ()
-  "Toggle selection of the row at point."
+  "Toggle selection of the row at point, then move point to the next row."
   (interactive)
   (let ((idx (- (line-number-at-pos) 3)))
     (when (and (>= idx 0) (< idx (length org-chronicle-sources--rows)))
       (let ((state (nth 0 (nth idx org-chronicle-sources--rows))))
         (plist-put state :selected (not (plist-get state :selected))))
       (org-chronicle-sources--render-review)
+      (goto-char (point-min))
       (forward-line (+ idx 3)))))
+
+(defun org-chronicle-sources-review-clear ()
+  "Deselect every row in the review buffer."
+  (interactive)
+  (dolist (row org-chronicle-sources--rows)
+    (plist-put (nth 0 row) :selected nil))
+  (org-chronicle-sources--render-review)
+  (goto-char (point-min))
+  (forward-line 2))
+
 
 (defun org-chronicle-sources-review-confirm ()
   "Invoke the confirm callback with selected rows and close the review."
@@ -340,6 +351,7 @@ CHANGES is a list of change plists.  Each row is a two-element list
 (defvar org-chronicle-sources-review-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "TAB") #'org-chronicle-sources-review-toggle)
+    (define-key map (kbd "c") #'org-chronicle-sources-review-clear)
     (define-key map (kbd "RET") #'org-chronicle-sources-review-confirm)
     (define-key map (kbd "q") #'quit-window)
     map)
@@ -353,7 +365,7 @@ CHANGES is a list of change plists.  Each row is a two-element list
   "Render `org-chronicle-sources--rows' into the current buffer."
   (let ((inhibit-read-only t))
     (erase-buffer)
-    (insert "Import review — TAB toggles, RET applies selected, q cancels\n\n")
+    (insert "Import review — TAB toggles, c clears all, RET applies, q cancels\n\n")
     (dolist (row org-chronicle-sources--rows)
       (let* ((state (nth 0 row)) (change (nth 1 row)))
         (insert (format "[%s] %-8s %s\n"
