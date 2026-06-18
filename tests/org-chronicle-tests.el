@@ -1499,6 +1499,46 @@ Eliza, called [[chronicle:eliza][Mrs. Grant]], watched.
         (set-buffer-modified-p nil)
         (kill-buffer)))))
 
+(ert-deftest org-chronicle-test-peek-string ()
+  "The peek string names the verdict and window."
+  (let ((s (org-chronicle--peek-string
+            'floating (cons (org-chronicle--date-parse "1850")
+                            (org-chronicle--date-parse "1855")))))
+    (should (string-match-p "floating" s))
+    (should (string-match-p "1850" s))
+    (should (string-match-p "1855" s))))
+
+(ert-deftest org-chronicle-test-annotate-windows-overlay ()
+  "Annotate-windows draws overlays on floating scenes and toggle removes them.
+Buffer-modified-p must stay nil throughout."
+  (let* ((file (expand-file-name "fixtures/solver-scenes.org"
+                                 org-chronicle-tests--dir))
+         (org-chronicle-root (file-name-directory file))
+         (org-chronicle--context-cache nil))
+    (with-current-buffer (find-file-noselect file)
+      (unwind-protect
+          (progn
+            (set-buffer-modified-p nil)
+            ;; Enable annotations.
+            (org-chronicle-annotate-windows)
+            ;; At least one floating scene should have gotten an overlay.
+            (should (> (length org-chronicle--window-overlays) 0))
+            ;; Overlays should carry an after-string.
+            (should (cl-every (lambda (ov) (overlay-get ov 'after-string))
+                              org-chronicle--window-overlays))
+            ;; Buffer must NOT be marked modified.
+            (should-not (buffer-modified-p))
+            ;; Toggle off.
+            (org-chronicle-annotate-windows)
+            ;; Overlays gone.
+            (should (null org-chronicle--window-overlays))
+            ;; Still not modified.
+            (should-not (buffer-modified-p)))
+        (set-buffer-modified-p nil)
+        (kill-buffer)))))
+
+
+
 
 
 

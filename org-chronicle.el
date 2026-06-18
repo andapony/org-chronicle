@@ -2444,6 +2444,94 @@ buffer, act on the scene at the finding under point, then refresh the lint."
           (org-chronicle-lint-scenes))
       (org-chronicle--set-scene-date-here))))
 
+(defun org-chronicle--peek-string (verdict window)
+  "Return a one-line description of VERDICT and WINDOW for the echo area."
+  (format "%s — %s"
+          (symbol-name verdict)
+          (org-chronicle--window-string window)))
+
+(defvar-local org-chronicle--window-overlays nil
+  "List of overlays placed by `org-chronicle-annotate-windows' in this buffer.
+All overlays are ephemeral: they carry no file content and are removed when
+the command is toggled off or the buffer is killed.")
+
+(defun org-chronicle-peek ()
+  "Show the feasible window for the scene at point in the echo area.
+Computes the window by solving over all scenes so propagation is honoured,
+then reads the window for the heading at point from the solution."
+  (interactive)
+  (require 'org-chronicle-solve)
+  (let* ((scene (org-chronicle--scene-at-point))
+         (m (plist-get scene :marker))
+         (scenes (org-chronicle--all-scenes))
+         (ctx (org-chronicle--cached-context))
+         (sol (org-chronicle--solution scenes ctx))
+         (consistent (plist-get sol :consistent))
+         (windows (plist-get sol :windows))
+         (win (and windows m (gethash m windows)))
+         (own-date (plist-get scene :own-date))
+         (verdict (cond
+                   ((not consistent) 'inconsistent)
+                   ((null own-date) 'floating)
+                   ((and win
+                         (not (org-chronicle--date-in-span-p
+                               own-date (car win) (cdr win))))
+                    'out-of-window)
+                   (t 'consistent))))
+    (message "%s" (org-chronicle--peek-string verdict (or win (cons nil nil))))))
+
+(defun org-chronicle--annotate-windows-refresh ()
+  "Remove all window overlays in the current buffer and redraw them.
+Called by `org-chronicle-annotate-windows' on `after-save-hook' while
+the annotation is active."
+  (require 'org-chronicle-solve)
+  (let* ((scenes (org-chronicle--all-scenes))
+         (ctx (org-chronicle--cached-context))
+         (sol (org-chronicle--solution scenes ctx))
+         (windows (plist-get sol :windows)))
+    (mapc #'delete-overlay org-chronicle--window-overlays)
+    (setq org-chronicle--window-overlays nil)
+    (when windows
+      (dolist (scene scenes)
+        (let* ((m (plist-get scene :marker))
+               (own-date (plist-get scene :own-date))
+               (win (gethash m windows)))
+          (when (and (null own-date) win (marker-buffer m)
+                     (eq (marker-buffer m) (current-buffer)))
+            (let* ((ov (make-overlay (marker-position m)
+                                     (marker-position m)
+                                     (current-buffer) nil t))
+                   (label (format "  ⟦%s⟧" (org-chronicle--window-string win))))
+              (overlay-put ov 'after-string label)
+              (overlay-put ov 'org-chronicle-window-overlay t)
+              (push ov org-chronicle--window-overlays))))))))
+
+(defun org-chronicle-annotate-windows ()
+  "Toggle ephemeral window overlays on floating scene headings in this buffer.
+When enabling, draws an overlay after each floating scene heading whose
+after-string shows the feasible window as ⟦LO .. HI⟧.  Overlays are stored
+in `org-chronicle--window-overlays' and refreshed on `after-save-hook'.
+When disabling, removes all overlays and the save-hook refresh.  Overlays
+are never written to disk and do not set the buffer-modified flag."
+  (interactive)
+  (if org-chronicle--window-overlays
+      (progn
+        (mapc #'delete-overlay org-chronicle--window-overlays)
+        (setq org-chronicle--window-overlays nil)
+        (remove-hook 'after-save-hook
+                     #'org-chronicle--annotate-windows-refresh t)
+        (message "Window overlays removed."))
+    (org-chronicle--annotate-windows-refresh)
+    (add-hook 'after-save-hook
+              #'org-chronicle--annotate-windows-refresh nil t)
+    (message "Window overlays drawn (%d floating scene(s))."
+             (length org-chronicle--window-overlays))))
+
+
+
+
+
+
 ;;;; (sections added by later tasks)
 
 (provide 'org-chronicle)
