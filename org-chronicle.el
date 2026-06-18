@@ -425,12 +425,15 @@ group or parent place; `:collapse' yields a single lane (see
     (list (org-chronicle--build-lane name domain entities mode))))
 
 (defun org-chronicle--event-in-lane-p (event lane idx)
-  "Non-nil if EVENT belongs in LANE, resolving names via alias index IDX."
+  "Non-nil if EVENT belongs in LANE, resolving names via alias index IDX.
+A person lane matches when one of LANE's names is among the event's
+participants (:people) or, for a life event, its principal(s) (:subject),
+so a person's own birth/death/marriage appears in their lane."
   (let ((names (plist-get lane :names)))
     (pcase (plist-get lane :domain)
       ('people
        (cl-some (lambda (p) (member (org-chronicle--canonical p idx) names))
-                (plist-get event :people)))
+                (append (plist-get event :people) (plist-get event :subject))))
       ('location
        (and (plist-get event :location)
             (member (org-chronicle--canonical (plist-get event :location) idx)

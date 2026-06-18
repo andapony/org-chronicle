@@ -88,6 +88,19 @@
              (lambda (&rest _) (list "historical" "fictional"))))
     (should (equal (org-chronicle--read-truth) '("historical" "fictional")))))
 
+(ert-deftest org-chronicle-test-event-in-lane-subject ()
+  "A person lane matches a life event where the person is its SUBJECT.
+Imported life events carry the principal in :subject, not :people."
+  (let* ((idx (org-chronicle--alias-index nil))
+         (birth (list :subject '("James King of William") :life-event "birth"
+                      :date (org-chronicle--date-parse "1822-01-28")))
+         (other (list :people '("Someone Else")
+                      :date (org-chronicle--date-parse "1850")))
+         (lane (list :domain 'people :names '("James King of William") :label "JK")))
+    (should (org-chronicle--event-in-lane-p birth lane idx))
+    (should-not (org-chronicle--event-in-lane-p other lane idx))))
+
+
 
 
 
