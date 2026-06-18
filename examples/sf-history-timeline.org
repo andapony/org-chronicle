@@ -1,0 +1,1275 @@
+#+TITLE: San Francisco history timeline
+#+CATEGORY: sf-history
+
+# Events converted from the San Francisco History Timeline at
+# sfgenealogy.org: https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+#
+# Scope: San Francisco / Bay Area entries only.  National and world
+# context entries on the source page (Columbus, the Bill of Rights,
+# Pearl Harbor, the Space Shuttle, 9/11, etc.) were intentionally
+# dropped.  The page's earliest entry (a 2950 B.C. burial) is omitted
+# because the date model does not yet represent BCE dates.
+# A few borderline, strongly SF-connected entries were KEPT and are
+# worth a look: 1848 gold discovery (Coloma), 1860 Pony Express
+# (SF terminus), 1978 Jonestown (the SF People's Temple thread).
+# All entries are TRUTH: historical; SOURCES point at the page above.
+
+* Cabrillo sights the Farallones                                  :historical:
+:PROPERTIES:
+:ID:        sf-1542-cabrillo-sights-farallones
+:TRUTH:     historical
+:DATE:      <1542-11-16>
+:PEOPLE:    Juan Rodriguez Cabrillo
+:LOCATION:  Farallon Islands
+:TOPICS:    exploration
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Sailing along the coast near San Francisco, Cabrillo discovered the
+Farallones.
+
+* Cermeño names Puerto de San Francisco                           :historical:
+:PROPERTIES:
+:ID:        sf-1575-cermeno-names-puerto-de
+:TRUTH:     historical
+:DATE:      <1575-11-07>
+:PEOPLE:    Sebastian Rodriguez Cermeño
+:LOCATION:  Drake's Bay
+:TOPICS:    exploration
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Cermeño landed in Drake's Bay, claimed the land for Spain, and named it
+Puerto de San Francisco.
+
+* Drake claims Nova Albion                                        :historical:
+:PROPERTIES:
+:ID:        sf-1579-drake-claims-nova-albion
+:TRUTH:     historical
+:DATE:      <1579-06-17>
+:PEOPLE:    Sir Francis Drake
+:LOCATION:  Drake's Bay
+:TOPICS:    exploration
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Drake landed in Drake's Bay, claimed the land for England, and named it
+Nova Albion.
+
+* Vizcaíno anchors in Drake's Bay                                 :historical:
+:PROPERTIES:
+:ID:        sf-1603-vizcaino-anchors-drake-bay
+:TRUTH:     historical
+:DATE:      <1603-01-08>
+:PEOPLE:    Sebastian Vizcaíno
+:LOCATION:  Drake's Bay
+:TOPICS:    exploration
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Vizcaíno anchored in Drake's Bay.
+
+* Portolá expedition discovers the Golden Gate                    :historical:
+:PROPERTIES:
+:ID:        sf-1769-portola-expedition-discovers-golden
+:TRUTH:     historical
+:DATE:      <1769-11-02>
+:PEOPLE:    José Francisco Ortega; Gaspar de Portolá
+:LOCATION:  Golden Gate
+:TOPICS:    exploration
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Scouts, including José Francisco Ortega, from a Spanish expedition led by
+Don Gaspar de Portolá discovered the Golden Gate.
+
+* De Anza reaches the Presidio                                    :historical:
+:PROPERTIES:
+:ID:        sf-1776-de-anza-reaches-presidio
+:TRUTH:     historical
+:DATE:      <1776-03-27>
+:PEOPLE:    Juan Bautista de Anza
+:LOCATION:  Presidio, San Francisco
+:TOPICS:    exploration
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+A small Spanish expedition led by Juan Bautista de Anza reached the
+Presidio and surveyed the area.
+
+* Vancouver sails into San Francisco Bay                          :historical:
+:PROPERTIES:
+:ID:        sf-1792-vancouver-sails-into-bay
+:TRUTH:     historical
+:DATE:      <1792-11-14>
+:PEOPLE:    George Vancouver
+:LOCATION:  San Francisco Bay
+:TOPICS:    exploration
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Captain George Vancouver sailed into San Francisco Bay.
+
+* Russian hunting station at the Farallones                       :historical:
+:PROPERTIES:
+:ID:        sf-1810-russian-hunting-station-farallones
+:TRUTH:     historical
+:DATE:      <1810>
+:DATE-END:  <1811>
+:LOCATION:  Farallon Islands
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+A Russian hunting station existed at the Farallones.
+
+* Pueblo of San Francisco holds elections                         :historical:
+:PROPERTIES:
+:ID:        sf-1834-pueblo-holds-elections
+:TRUTH:     historical
+:DATE:      <1834-12-07>
+:LOCATION:  San Francisco
+:TOPICS:    politics
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The new Pueblo of San Francisco held elections.
+
+* Richardson granted land in Yerba Buena                          :historical:
+:PROPERTIES:
+:ID:        sf-1836-richardson-granted-land-yerba
+:TRUTH:     historical
+:DATE:      <1836-06-01>
+:PEOPLE:    William Richardson
+:LOCATION:  Yerba Buena
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+William Richardson received a grant of land in Yerba Buena.
+
+* First non-native child born in Yerba Buena                      :historical:
+:PROPERTIES:
+:ID:        sf-1838-non-native-child-born
+:TRUTH:     historical
+:DATE:      <1838-04-15>
+:PEOPLE:    Rosalia Leese
+:LOCATION:  Yerba Buena
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Rosalia Leese was the first non-native child born in Yerba Buena.
+
+* Vioget surveys Yerba Buena's first streets                      :historical:
+:PROPERTIES:
+:ID:        sf-1839-vioget-surveys-yerba-buena
+:TRUTH:     historical
+:DATE:      <1839>
+:PEOPLE:    Jean Jacques Vioget
+:LOCATION:  Yerba Buena
+:TOPICS:    city-planning
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Vioget completed a survey of Yerba Buena and laid out the first streets,
+twelve blocks bounded by California and Montgomery streets and Pacific
+and Grant avenues.
+
+* The California Star, first SF newspaper                         :historical:
+:PROPERTIES:
+:ID:        sf-1847-california-star-sf-newspaper
+:TRUTH:     historical
+:DATE:      <1847-01-07>
+:PEOPLE:    Samuel Brannan
+:LOCATION:  San Francisco
+:TOPICS:    press
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The California Star became the first newspaper published in San Francisco,
+by Samuel Brannan.
+
+* Gold discovered at Sutter's Mill                                :historical:
+:PROPERTIES:
+:ID:        sf-1848-gold-discovered-sutter-mill
+:TRUTH:     historical
+:DATE:      <1848-01-24>
+:PEOPLE:    James W. Marshall
+:LOCATION:  Sutter's Mill, Coloma
+:TOPICS:    gold-rush
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+James W. Marshall discovered gold at Sutter's Mill, triggering the Gold
+Rush that transformed San Francisco (named "John W. Marshall" on the
+source page).
+
+* San Francisco elects a Legislative Assembly                     :historical:
+:PROPERTIES:
+:ID:        sf-1849-elects-legislative-assembly
+:TRUTH:     historical
+:DATE:      <1849-02-21>
+:LOCATION:  San Francisco
+:TOPICS:    politics
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+San Francisco citizens elected a Legislative Assembly.
+
+* Governor Riley restores the Ayuntamiento                        :historical:
+:PROPERTIES:
+:ID:        sf-1849-governor-riley-restores-ayuntamiento
+:TRUTH:     historical
+:DATE:      <1849-06-05>
+:PEOPLE:    Bennet Riley
+:LOCATION:  San Francisco
+:TOPICS:    politics
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Legislative Assembly was replaced when Military Governor of California
+Riley restored the Ayuntamiento of the Pueblo of San Francisco.
+
+* Yerba Buena Cemetery opens                                      :historical:
+:PROPERTIES:
+:ID:        sf-1850-yerba-buena-cemetery-opens
+:TRUTH:     historical
+:DATE:      <1850-02>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Yerba Buena Cemetery opened.
+
+* Eddy's Second Official Map of San Francisco                     :historical:
+:PROPERTIES:
+:ID:        sf-1851-eddy-official-map
+:TRUTH:     historical
+:DATE:      <1851>
+:PEOPLE:    William M. Eddy
+:LOCATION:  San Francisco
+:TOPICS:    city-planning
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+William M. Eddy completed a survey of San Francisco (the Second Official
+Map) and extended its limits to Larkin, Eighth, and Townsend streets.
+
+* Ghirardelli opens his chocolate company                        :historical:
+:PROPERTIES:
+:ID:        sf-1852-ghirardelli-opens-his-chocolate
+:TRUTH:     historical
+:DATE:      <1852-06-15>
+:PEOPLE:    Domingo Ghirardelli
+:LOCATION:  San Francisco
+:TOPICS:    business
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Domingo Ghirardelli announced the opening of his chocolate company.
+
+* Russ Gardens opens                                              :historical:
+:PROPERTIES:
+:ID:        sf-1853-russ-gardens-opens
+:TRUTH:     historical
+:DATE:      <1853-05-01>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Russ Gardens, at Harrison and Sixth streets, opened.
+
+* First U.S. Mint branch opens                                    :historical:
+:PROPERTIES:
+:ID:        sf-1854-mint-branch-opens
+:TRUTH:     historical
+:DATE:      <1854>
+:LOCATION:  San Francisco
+:TOPICS:    mint
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first branch of the U.S. Mint opened on Commercial street, between
+Montgomery and Kearny.
+
+* Van Ness Ordinances                                             :historical:
+:PROPERTIES:
+:ID:        sf-1855-van-ness-ordinances
+:TRUTH:     historical
+:DATE:      <1855>
+:DATE-END:  <1856>
+:LOCATION:  San Francisco
+:TOPICS:    city-planning
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Van Ness Ordinances were approved to lay out streets west of Larkin
+Street and southwest of Johnson Street.
+
+* James King of William shot and killed                           :historical:
+:PROPERTIES:
+:ID:        sf-1856-james-king-william-shot
+:TRUTH:     historical
+:DATE:      <1856-05-14>
+:PEOPLE:    James King of William
+:LOCATION:  San Francisco
+:TOPICS:    crime
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+James King of William, editor of the Evening Bulletin, was shot and
+killed.
+
+* Pony Express service begins to San Francisco                    :historical:
+:PROPERTIES:
+:ID:        sf-1860-pony-express-service-begins
+:TRUTH:     historical
+:DATE:      <1860-04-03>
+:LOCATION:  San Francisco
+:TOPICS:    communication
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Pony Express began service from St. Joseph, Missouri to San Francisco.
+
+* New official city map                                           :historical:
+:PROPERTIES:
+:ID:        sf-1861-new-official-city-map
+:TRUTH:     historical
+:DATE:      <1861>
+:LOCATION:  San Francisco
+:TOPICS:    city-planning
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+A new official city map was created, including all of the additions of the
+1856 Consolidation Act.
+
+* Railroad completed to San Jose                                  :historical:
+:PROPERTIES:
+:ID:        sf-1864-railroad-completed-jose
+:TRUTH:     historical
+:DATE:      <1864-01-16>
+:LOCATION:  San Francisco
+:TOPICS:    transportation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The San Francisco railroad line was completed to San Jose.
+
+* The Dramatic Chronicle first published                          :historical:
+:PROPERTIES:
+:ID:        sf-1865-dramatic-chronicle-published
+:TRUTH:     historical
+:DATE:      <1865-01-01>
+:LOCATION:  San Francisco
+:TOPICS:    press
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Dramatic Chronicle, later renamed The Chronicle, was first published.
+
+* Woodward's Gardens opens                                        :historical:
+:PROPERTIES:
+:ID:        sf-1866-woodward-gardens-opens
+:TRUTH:     historical
+:DATE:      <1866>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Woodward's Gardens opened.
+
+* Hayward Fault earthquake                                        :historical:
+:PROPERTIES:
+:ID:        sf-1868-hayward-fault-earthquake
+:TRUTH:     historical
+:DATE:      <1868-10-21>
+:LOCATION:  San Francisco Bay Area
+:TOPICS:    earthquake; disaster
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Early Wednesday morning at 7:53 a.m., a magnitude 7.0 earthquake occurred
+along the Hayward fault.
+
+* Golden Gate Park created                                        :historical:
+:PROPERTIES:
+:ID:        sf-1870-golden-gate-park-created
+:TRUTH:     historical
+:DATE:      <1870-04-04>
+:LOCATION:  San Francisco
+:TOPICS:    parks
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Golden Gate Park was created by an act of the California Legislature.
+
+* Yerba Buena Cemetery removed                                    :historical:
+:PROPERTIES:
+:ID:        sf-1871-yerba-buena-cemetery-removed
+:TRUTH:     historical
+:DATE:      <1871>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Yerba Buena Cemetery was removed.
+
+* Hayes Park Pavilion destroyed by fire                           :historical:
+:PROPERTIES:
+:ID:        sf-1872-hayes-park-pavilion-destroyed
+:TRUTH:     historical
+:DATE:      <1872-11-29>
+:LOCATION:  San Francisco
+:TOPICS:    fire; disaster
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Hayes Park Pavilion was destroyed by fire.
+
+* First Levi jeans designed                                       :historical:
+:PROPERTIES:
+:ID:        sf-1873-levi-jeans-designed
+:TRUTH:     historical
+:DATE:      <1873>
+:PEOPLE:    Jacob Davis; Levi Strauss
+:LOCATION:  San Francisco
+:TOPICS:    business
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Jacob Davis designed the first Levi jeans, partnered with Levi Strauss,
+obtained a patent, and began selling them the same year.
+
+* Second U.S. Mint building opens                                 :historical:
+:PROPERTIES:
+:ID:        sf-1874-mint-building-opens
+:TRUTH:     historical
+:DATE:      <1874-11-05>
+:LOCATION:  San Francisco
+:TOPICS:    mint
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The second U.S. Mint building opened at Mission and Fifth streets.
+
+* Pacific Stock Exchange opens                                    :historical:
+:PROPERTIES:
+:ID:        sf-1875-pacific-stock-exchange-opens
+:TRUTH:     historical
+:DATE:      <1875-06-05>
+:LOCATION:  San Francisco
+:TOPICS:    finance
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Pacific Stock Exchange formally opened.
+
+* First public electric light exhibition                          :historical:
+:PROPERTIES:
+:ID:        sf-1876-public-electric-light-exhibition
+:TRUTH:     historical
+:DATE:      <1876-07-04>
+:PEOPLE:    Joseph M. Neri
+:LOCATION:  San Francisco
+:TOPICS:    utilities
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Father Joseph M. Neri gave the first exhibition of public light.
+
+* First Ferry Building built                                      :historical:
+:PROPERTIES:
+:ID:        sf-1877-ferry-building-built
+:TRUTH:     historical
+:DATE:      <1877>
+:LOCATION:  San Francisco
+:TOPICS:    transportation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first Ferry Building was built by the Central Pacific and South
+Pacific Coast railroads.
+
+* Municipal offices move to new City Hall                         :historical:
+:PROPERTIES:
+:ID:        sf-1878-municipal-offices-move-new
+:TRUTH:     historical
+:DATE:      <1878-07-01>
+:LOCATION:  San Francisco
+:TOPICS:    politics
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The principal municipal offices moved to the new City Hall at McAllister
+and Larkin streets.
+
+* California Electric Light Company incorporated                  :historical:
+:PROPERTIES:
+:ID:        sf-1879-california-electric-light-company
+:TRUTH:     historical
+:DATE:      <1879-06-30>
+:LOCATION:  San Francisco
+:TOPICS:    utilities
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The California Electric Light Company was incorporated, operating the
+world's first central generating station for distribution of electricity
+to customers (New York followed in 1881 and London in 1882).
+
+* The German Castle built on Telegraph Hill                       :historical:
+:PROPERTIES:
+:ID:        sf-1882-german-castle-built-telegraph
+:TRUTH:     historical
+:DATE:      <1882>
+:PEOPLE:    Frederick O. Layman
+:LOCATION:  Telegraph Hill, San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The German Castle was developed by Frederick O. Layman on Telegraph Hill.
+
+* First electric street light erected                             :historical:
+:PROPERTIES:
+:ID:        sf-1883-electric-street-light-erected
+:TRUTH:     historical
+:DATE:      <1883>
+:LOCATION:  San Francisco
+:TOPICS:    utilities
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first electric street light was erected in front of City Hall.
+
+* Ocean Beach Pavilion opens                                      :historical:
+:PROPERTIES:
+:ID:        sf-1884-ocean-beach-pavilion-opens
+:TRUTH:     historical
+:DATE:      <1884-06-12>
+:LOCATION:  Ocean Beach, San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Ocean Beach Pavilion opened at the Park and Ocean Railroad.
+
+* Workers' Parade                                                 :historical:
+:PROPERTIES:
+:ID:        sf-1886-workers-parade
+:TRUTH:     historical
+:DATE:      <1886-05-11>
+:LOCATION:  San Francisco
+:TOPICS:    labor
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+A workers' parade drew an estimated 10,000 marchers.
+
+* Seal Rocks granted to San Francisco                             :historical:
+:PROPERTIES:
+:ID:        sf-1887-seal-rocks-granted
+:TRUTH:     historical
+:DATE:      <1887-02-23>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Congress granted Seal Rocks to San Francisco.
+
+* James Lick Baths open                                           :historical:
+:PROPERTIES:
+:ID:        sf-1889-james-lick-baths-open
+:TRUTH:     historical
+:DATE:      <1889>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The James Lick Baths, at 10th and Howard streets, opened.
+
+* Quarantine Station opens on Angel Island                        :historical:
+:PROPERTIES:
+:ID:        sf-1892-quarantine-station-opens-angel
+:TRUTH:     historical
+:DATE:      <1892-05-01>
+:LOCATION:  Angel Island, San Francisco Bay
+:TOPICS:    health
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The United States Quarantine Station opened on Angel Island.
+
+* Fort Miley site awarded to the Army                             :historical:
+:PROPERTIES:
+:ID:        sf-1893-fort-miley-site-awarded
+:TRUTH:     historical
+:DATE:      <1893-01-23>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Fort Miley site was awarded to the United States Army.
+
+* First Cliff House destroyed by fire                             :historical:
+:PROPERTIES:
+:ID:        sf-1894-cliff-house-destroyed-by
+:TRUTH:     historical
+:DATE:      <1894-12-25>
+:LOCATION:  San Francisco
+:TOPICS:    fire; disaster
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first Cliff House was destroyed by fire.
+
+* Second Cliff House built                                        :historical:
+:PROPERTIES:
+:ID:        sf-1896-cliff-house-built
+:TRUTH:     historical
+:DATE:      <1896>
+:PEOPLE:    Adolph Sutro
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The second Cliff House was built by Adolph Sutro.
+
+* Fey invents the three-reel slot machine                         :historical:
+:PROPERTIES:
+:ID:        sf-1898-fey-invents-three-reel
+:TRUTH:     historical
+:DATE:      <1898>
+:PEOPLE:    Charles August Fey
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Charles August Fey invented the original three-reel bell slot machine in
+San Francisco.
+
+* Pacific Cable opens to the Philippines                          :historical:
+:PROPERTIES:
+:ID:        sf-1903-pacific-cable-opens-philippines
+:TRUTH:     historical
+:DATE:      <1903-07-04>
+:LOCATION:  San Francisco
+:TOPICS:    communication
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Pacific Cable from San Francisco to the Philippines opened, via Hawaii
+and Guam.
+
+* PG&E incorporated                                               :historical:
+:PROPERTIES:
+:ID:        sf-1905-pg-incorporated
+:TRUTH:     historical
+:DATE:      <1905-10-10>
+:LOCATION:  San Francisco
+:TOPICS:    utilities
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Pacific Gas and Electric Company (PG&E) was incorporated; bonds issued
+over the next year bought rivals California Gas and Electric Corporation
+and San Francisco Gas and Electric Company.
+
+* The 1906 earthquake                                             :historical:
+:PROPERTIES:
+:ID:        sf-1906-earthquake
+:TRUTH:     historical
+:DATE:      <1906-04-18>
+:LOCATION:  San Francisco
+:TOPICS:    earthquake; disaster
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+On Wednesday morning, April 18 at 5:12 a.m., a magnitude 7.8 earthquake
+struck Northern California.
+
+* Alcatraz citadel demolished                                     :historical:
+:PROPERTIES:
+:ID:        sf-1908-alcatraz-citadel-demolished
+:TRUTH:     historical
+:DATE:      <1908>
+:DATE-END:  <1911>
+:LOCATION:  Alcatraz Island, San Francisco Bay
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Alcatraz citadel was demolished and replaced with the present
+reinforced-concrete cellhouse.
+
+* First Portolá Festival                                          :historical:
+:PROPERTIES:
+:ID:        sf-1909-portola-festival
+:TRUTH:     historical
+:DATE:      <1909-10-19>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first Portolá Festival opened to celebrate recovery from the 1906
+earthquake and fire.
+
+* Letterman General Hospital named                                :historical:
+:PROPERTIES:
+:ID:        sf-1911-letterman-general-hospital-named
+:TRUTH:     historical
+:DATE:      <1911-11-23>
+:PEOPLE:    Jonathan Letterman
+:LOCATION:  Presidio, San Francisco
+:TOPICS:    health
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Post Hospital at the Presidio was renamed Letterman General Hospital
+in honor of Major Jonathan Letterman.
+
+* Southern Pacific terminal built                                 :historical:
+:PROPERTIES:
+:ID:        sf-1912-southern-pacific-terminal-built
+:TRUTH:     historical
+:DATE:      <1912>
+:LOCATION:  San Francisco
+:TOPICS:    transportation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Southern Pacific Railroad terminal was built at Third and Townsend
+streets in anticipation of the 1915 Exposition.
+
+* First transcontinental telephone call                           :historical:
+:PROPERTIES:
+:ID:        sf-1915-transcontinental-telephone-call
+:TRUTH:     historical
+:DATE:      <1915-01-25>
+:PEOPLE:    Alexander Graham Bell; Thomas Watson
+:LOCATION:  San Francisco
+:TOPICS:    communication
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first transcontinental telephone conversation ran from Alexander
+Graham Bell (New York) to Thomas Watson (San Francisco).
+
+* San Francisco Public Library dedicated                          :historical:
+:PROPERTIES:
+:ID:        sf-1917-public-library-dedicated
+:TRUTH:     historical
+:DATE:      <1917-02-15>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The San Francisco Public Library in the Civic Center was dedicated.
+
+* Great influenza epidemic                                        :historical:
+:PROPERTIES:
+:ID:        sf-1918-great-influenza-epidemic
+:TRUTH:     historical
+:DATE:      <1918-10-26>
+:LOCATION:  San Francisco
+:TOPICS:    health; disaster
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The great flu epidemic reached San Francisco.
+
+* First radio broadcasting station                                :historical:
+:PROPERTIES:
+:ID:        sf-1920-radio-broadcasting-station
+:TRUTH:     historical
+:DATE:      <1920-03>
+:LOCATION:  San Francisco
+:TOPICS:    media
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first radio broadcasting station, 6UV, operated by the Radio Telephone
+Shop at 175 Steuart Street, appeared.
+
+* Lombard Street made the crookedest street                       :historical:
+:PROPERTIES:
+:ID:        sf-1923-lombard-street-made-crookedest
+:TRUTH:     historical
+:DATE:      <1923>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+A portion of Lombard Street was made into the crookedest street in the
+world.
+
+* Palace of the Legion of Honor dedicated                         :historical:
+:PROPERTIES:
+:ID:        sf-1924-palace-legion-honor-dedicated
+:TRUTH:     historical
+:DATE:      <1924-11-11>
+:LOCATION:  San Francisco
+:TOPICS:    arts
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Palace of the Legion of Honor was dedicated.
+
+* Embarcadero subway opens                                        :historical:
+:PROPERTIES:
+:ID:        sf-1925-embarcadero-subway-opens
+:TRUTH:     historical
+:DATE:      <1925-05-02>
+:LOCATION:  San Francisco
+:TOPICS:    transportation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Embarcadero subway opened.
+
+* Mills Field municipal airport dedicated                         :historical:
+:PROPERTIES:
+:ID:        sf-1927-mills-field-municipal-airport
+:TRUTH:     historical
+:DATE:      <1927-05-07>
+:LOCATION:  San Francisco
+:TOPICS:    aviation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The San Francisco Municipal Airport (Mills Field) was dedicated.
+
+* Kezar Stadium dedicated                                         :historical:
+:PROPERTIES:
+:ID:        sf-1928-kezar-stadium-dedicated
+:TRUTH:     historical
+:DATE:      <1928-09-13>
+:LOCATION:  San Francisco
+:TOPICS:    sports
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Kezar Stadium was officially dedicated.
+
+* Bayshore Highway opens                                          :historical:
+:PROPERTIES:
+:ID:        sf-1929-bayshore-highway-opens
+:TRUTH:     historical
+:DATE:      <1929-10-20>
+:LOCATION:  San Francisco
+:TOPICS:    transportation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Bayshore Highway, the "Great Highway," opened.
+
+* Water Department takes over Spring Valley system                :historical:
+:PROPERTIES:
+:ID:        sf-1930-water-department-takes-over
+:TRUTH:     historical
+:DATE:      <1930-03-03>
+:LOCATION:  San Francisco
+:TOPICS:    utilities
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The San Francisco Water Department took over operation of the system
+bought from the Spring Valley Water Company.
+
+* Seals Stadium dedicated                                         :historical:
+:PROPERTIES:
+:ID:        sf-1931-seals-stadium-dedicated
+:TRUTH:     historical
+:DATE:      <1931-04-08>
+:LOCATION:  San Francisco
+:TOPICS:    sports
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Seals Stadium was officially dedicated.
+
+* Coit Tower dedicated                                            :historical:
+:PROPERTIES:
+:ID:        sf-1933-coit-tower-dedicated
+:TRUTH:     historical
+:DATE:      <1933-10-08>
+:PEOPLE:    Lillie Hitchcock Coit
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Lillie Hitchcock Coit Tower was officially dedicated.
+
+* Alcatraz turned over to the Bureau of Prisons                   :historical:
+:PROPERTIES:
+:ID:        sf-1934-alcatraz-turned-over-bureau
+:TRUTH:     historical
+:DATE:      <1934-01-01>
+:LOCATION:  Alcatraz Island, San Francisco Bay
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Alcatraz Island was turned over to the Federal Bureau of Prisons.
+
+* Lurline Baths close                                             :historical:
+:PROPERTIES:
+:ID:        sf-1936-lurline-baths-close
+:TRUTH:     historical
+:DATE:      <1936-03-31>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Lurline Baths, at Bush and Larkin streets, closed.
+
+* Third U.S. Mint building opens                                  :historical:
+:PROPERTIES:
+:ID:        sf-1937-mint-building-opens
+:TRUTH:     historical
+:DATE:      <1937>
+:LOCATION:  San Francisco
+:TOPICS:    mint
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The third and current U.S. Mint building opened on the block of Duboce,
+Buchanan, Hermann and Webster streets.
+
+* Aquatic Park dedicated                                          :historical:
+:PROPERTIES:
+:ID:        sf-1939-aquatic-park-dedicated
+:TRUTH:     historical
+:DATE:      <1939-01-22>
+:LOCATION:  San Francisco
+:TOPICS:    parks
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Aquatic Park was dedicated.
+
+* Golden Gate International Exposition                             :historical:
+:PROPERTIES:
+:ID:        sf-1940-golden-gate-international-exposition
+:TRUTH:     historical
+:DATE:      <1940-05-25>
+:DATE-END:  <1940-09-29>
+:LOCATION:  Treasure Island, San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The second and last season of the Golden Gate International Exposition ran
+on Treasure Island.
+
+* Free Farmer's Market opens                                      :historical:
+:PROPERTIES:
+:ID:        sf-1943-free-farmer-market-opens
+:TRUTH:     historical
+:DATE:      <1943-06-03>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Free Farmer's Market opened at Market and Duboce streets.
+
+* O'Connor Moffat & Co. sold to Macy's                            :historical:
+:PROPERTIES:
+:ID:        sf-1947-connor-moffat-co-sold
+:TRUTH:     historical
+:DATE:      <1947-10-16>
+:LOCATION:  San Francisco
+:TOPICS:    business
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+O'Connor Moffat & Co. was sold to Macy's.
+
+* First telecast in San Francisco                                 :historical:
+:PROPERTIES:
+:ID:        sf-1948-telecast
+:TRUTH:     historical
+:DATE:      <1948-05-25>
+:LOCATION:  San Francisco
+:TOPICS:    media
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first telecast in San Francisco took place.
+
+* Fluoridation of the city's water begins                         :historical:
+:PROPERTIES:
+:ID:        sf-1952-fluoridation-city-water-begins
+:TRUTH:     historical
+:DATE:      <1952-08-26>
+:LOCATION:  San Francisco
+:TOPICS:    utilities; health
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Fluoridation of the city's water began.
+
+* San Francisco International Airport opens                        :historical:
+:PROPERTIES:
+:ID:        sf-1954-international-airport-opens
+:TRUTH:     historical
+:DATE:      <1954-08-29>
+:LOCATION:  San Francisco
+:TOPICS:    aviation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+San Francisco International Airport opened.
+
+* BART organization created                                       :historical:
+:PROPERTIES:
+:ID:        sf-1957-bart-organization-created
+:TRUTH:     historical
+:DATE:      <1957-01-17>
+:LOCATION:  San Francisco Bay Area
+:TOPICS:    transportation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Bay Area Rapid Transit (BART) organization was created.
+
+* Seals Stadium demolished                                        :historical:
+:PROPERTIES:
+:ID:        sf-1959-seals-stadium-demolished
+:TRUTH:     historical
+:DATE:      <1959-11-11>
+:LOCATION:  San Francisco
+:TOPICS:    sports
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Seals Stadium was demolished.
+
+* Candlestick Park opens                                          :historical:
+:PROPERTIES:
+:ID:        sf-1960-candlestick-park-opens
+:TRUTH:     historical
+:DATE:      <1960-04-12>
+:LOCATION:  San Francisco
+:TOPICS:    sports; baseball
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Candlestick Park officially opened, named for the nearby Candlestick Cove.
+
+* Alcatraz evacuated as a federal prison                          :historical:
+:PROPERTIES:
+:ID:        sf-1963-alcatraz-evacuated-as-federal
+:TRUTH:     historical
+:DATE:      <1963-03-22>
+:LOCATION:  Alcatraz Island, San Francisco Bay
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Alcatraz was evacuated as a federal prison.
+
+* BART construction begins                                        :historical:
+:PROPERTIES:
+:ID:        sf-1964-bart-construction-begins
+:TRUTH:     historical
+:DATE:      <1964-06-19>
+:LOCATION:  San Francisco Bay Area
+:TOPICS:    transportation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Bay Area Rapid Transit (BART) began construction.
+
+* Sutro Baths destroyed by fire                                   :historical:
+:PROPERTIES:
+:ID:        sf-1966-sutro-baths-destroyed-by
+:TRUTH:     historical
+:DATE:      <1966-06-26>
+:LOCATION:  San Francisco
+:TOPICS:    fire; disaster
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Sutro Baths were destroyed by fire.
+
+* Summer of Love                                                  :historical:
+:PROPERTIES:
+:ID:        sf-1967-summer-love
+:TRUTH:     historical
+:DATE:      <1967>
+:LOCATION:  San Francisco
+:TOPICS:    counterculture
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Summer of Love centered on the Haight-Ashbury.
+
+* Zodiac Killer's first Bay Area strike                           :historical:
+:PROPERTIES:
+:ID:        sf-1968-zodiac-killer-bay-area
+:TRUTH:     historical
+:DATE:      <1968-12-28>
+:LOCATION:  San Francisco Bay Area
+:TOPICS:    crime
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Zodiac Killer struck for the first time in the Bay Area.
+
+* Anti-Vietnam War protest                                        :historical:
+:PROPERTIES:
+:ID:        sf-1969-anti-vietnam-war-protest
+:TRUTH:     historical
+:DATE:      <1969-11-15>
+:LOCATION:  San Francisco
+:TOPICS:    protest
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+An anti-Vietnam War protest drew thousands of marchers.
+
+* People's Temple opens on Geary Street                           :historical:
+:PROPERTIES:
+:ID:        sf-1970-people-temple-opens-geary
+:TRUTH:     historical
+:DATE:      <1970>
+:PEOPLE:    Jim Jones
+:LOCATION:  San Francisco
+:TOPICS:    religion
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Jim Jones opened the People's Temple on Geary Street.
+
+* Fort Point dedicated as a National Park                         :historical:
+:PROPERTIES:
+:ID:        sf-1971-fort-point-dedicated-as
+:TRUTH:     historical
+:DATE:      <1971-04-14>
+:LOCATION:  San Francisco
+:TOPICS:    parks
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Fort Point was dedicated as a National Park.
+
+* Transamerica Pyramid opens                                      :historical:
+:PROPERTIES:
+:ID:        sf-1972-transamerica-pyramid-opens
+:TRUTH:     historical
+:DATE:      <1972>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Transamerica Pyramid officially opened in the summer, with 48 stories
+and a 212-foot spire.
+
+* Jonestown Massacre                                              :historical:
+:PROPERTIES:
+:ID:        sf-1978-jonestown-massacre
+:TRUTH:     historical
+:DATE:      <1978-11-18>
+:PEOPLE:    Jim Jones
+:LOCATION:  Jonestown, Guyana
+:TOPICS:    religion
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Jonestown Massacre in Guyana ended the San Francisco–founded People's
+Temple.
+
+* White Night Riots                                               :historical:
+:PROPERTIES:
+:ID:        sf-1979-white-night-riots
+:TRUTH:     historical
+:DATE:      <1979-05-21>
+:PEOPLE:    Dan White
+:LOCATION:  San Francisco
+:TOPICS:    protest; crime
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The White Night Riots occurred in reaction to the sentencing of Dan White.
+
+* Loma Prieta earthquake                                          :historical:
+:PROPERTIES:
+:ID:        sf-1989-loma-prieta-earthquake
+:TRUTH:     historical
+:DATE:      <1989-10-17>
+:LOCATION:  San Francisco Bay Area
+:TOPICS:    earthquake; disaster
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Late Tuesday afternoon at 5:05 p.m., a magnitude 7.1 earthquake occurred
+along the San Andreas fault.
+
+* 101 California Street shooting                                  :historical:
+:PROPERTIES:
+:ID:        sf-1993-101-california-street-shooting
+:TRUTH:     historical
+:DATE:      <1993-07-01>
+:PEOPLE:    Gian Luigi Ferri
+:LOCATION:  101 California Street, San Francisco
+:TOPICS:    crime
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The 101 California Street slayings were committed by Gian Luigi Ferri
+(named "John Luigi Ferri" on the source page).
+
+* Presidio turned over to the National Park Service               :historical:
+:PROPERTIES:
+:ID:        sf-1994-presidio-turned-over-national
+:TRUTH:     historical
+:DATE:      <1994>
+:LOCATION:  Presidio, San Francisco
+:TOPICS:    parks
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The Presidio Army base was turned over to the National Park Service.
+
+* Citywide blackout                                               :historical:
+:PROPERTIES:
+:ID:        sf-1998-citywide-blackout
+:TRUTH:     historical
+:DATE:      <1998-12-08>
+:LOCATION:  San Francisco
+:TOPICS:    utilities; disaster
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+On Tuesday morning at 8:17 a.m., a massive power outage struck the city.
+
+* Pacific Bell Park opening game                                  :historical:
+:PROPERTIES:
+:ID:        sf-2000-pacific-bell-park-opening
+:TRUTH:     historical
+:DATE:      <2000-04-11>
+:LOCATION:  San Francisco
+:TOPICS:    sports; baseball
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Pacific Bell Park hosted its official opening baseball game.
+
+* San Francisco issues same-sex marriage licenses                 :historical:
+:PROPERTIES:
+:ID:        sf-2004-issues-same-sex-marriage
+:TRUTH:     historical
+:DATE:      <2004-02-12>
+:LOCATION:  San Francisco
+:TOPICS:    civil-rights; politics
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+San Francisco started issuing same-sex marriage licenses.
+
+* California Supreme Court voids the licenses                      :historical:
+:PROPERTIES:
+:ID:        sf-2004-california-supreme-court-voids
+:TRUTH:     historical
+:DATE:      <2004-03-11>
+:LOCATION:  San Francisco
+:TOPICS:    civil-rights; politics
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The California Supreme Court declared 3,955 same-sex marriages in San
+Francisco invalid.
+
+* Centennial of the 1906 earthquake and fire                      :historical:
+:PROPERTIES:
+:ID:        sf-2006-centennial-1906-earthquake-fire
+:TRUTH:     historical
+:DATE:      <2006-04-18>
+:LOCATION:  San Francisco
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The 100th anniversary of the great 1906 earthquake and fire was marked.
+
+* First legal same-sex marriage in California                     :historical:
+:PROPERTIES:
+:ID:        sf-2008-legal-same-sex-marriage
+:TRUTH:     historical
+:DATE:      <2008-06-16>
+:LOCATION:  San Francisco
+:TOPICS:    civil-rights
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The first legal same-sex marriage in California was performed in San
+Francisco.
+
+* Giants win the World Series (2010)                              :historical:
+:PROPERTIES:
+:ID:        sf-2010-giants-win-world-series
+:TRUTH:     historical
+:DATE:      <2010>
+:LOCATION:  San Francisco
+:TOPICS:    sports; baseball
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The San Francisco Giants won the World Series.
+
+* Giants win the World Series (2012)                              :historical:
+:PROPERTIES:
+:ID:        sf-2012-giants-win-world-series
+:TRUTH:     historical
+:DATE:      <2012>
+:LOCATION:  San Francisco
+:TOPICS:    sports; baseball
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The San Francisco Giants won the World Series.
+
+* San Francisco hosts the America's Cup                           :historical:
+:PROPERTIES:
+:ID:        sf-2013-hosts-america-cup
+:TRUTH:     historical
+:DATE:      <2013-07>
+:DATE-END:  <2013-09>
+:LOCATION:  San Francisco Bay
+:TOPICS:    sports
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+San Francisco hosted the America's Cup yacht races.
+
+* Bay Bridge eastern span replacement opens                       :historical:
+:PROPERTIES:
+:ID:        sf-2013-bay-bridge-eastern-span
+:TRUTH:     historical
+:DATE:      <2013-09-02>
+:LOCATION:  San Francisco Bay
+:TOPICS:    transportation
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The San Francisco–Oakland Bay Bridge eastern-span replacement opened.
+
+* Giants win the World Series (2014)                              :historical:
+:PROPERTIES:
+:ID:        sf-2014-giants-win-world-series
+:TRUTH:     historical
+:DATE:      <2014>
+:LOCATION:  San Francisco
+:TOPICS:    sports; baseball
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+The San Francisco Giants won the World Series.
+
+* Candlestick Park hosts its last event                           :historical:
+:PROPERTIES:
+:ID:        sf-2015-candlestick-park-hosts-last
+:TRUTH:     historical
+:DATE:      <2015-08-14>
+:LOCATION:  San Francisco
+:TOPICS:    sports
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Candlestick Park hosted its last event.
+
+* Candlestick Park demolition completed                           :historical:
+:PROPERTIES:
+:ID:        sf-2015-candlestick-park-demolition-completed
+:TRUTH:     historical
+:DATE:      <2015-09-24>
+:LOCATION:  San Francisco
+:TOPICS:    sports
+:SOURCES:   sfgenealogy.org SF History Timeline — https://legacy.sfgenealogy.org/sf/history/hgtim1.htm
+:END:
+Demolition of Candlestick Park was completed.
