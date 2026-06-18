@@ -2094,6 +2094,10 @@ shared scene context."
                 :reasons (org-chronicle--scene-violation-reasons
                           scene ctx bad))))))))
 
+(declare-function org-chronicle--solution "org-chronicle-solve" (scenes ctx))
+(declare-function org-chronicle--earliest-placement "org-chronicle-solve" (scenes ctx))
+
+
 ;;;; Scenes: the lint command
 
 (defun org-chronicle--all-scene-findings ()
@@ -2139,44 +2143,203 @@ shared scene context."
     (set-keymap-parent map org-chronicle-view-mode-map)
     (define-key map (kbd "g") #'org-chronicle-lint-scenes)
     (define-key map (kbd "s") #'org-chronicle-set-scene-date)
+    (define-key map (kbd "a") #'org-chronicle-accept-placement)
+    (define-key map (kbd "A") #'org-chronicle-accept-all-placements)
     map)
   "Keymap for `org-chronicle-scene-lint-mode'.")
+
+(defvar-local org-chronicle--lint-placements nil
+  "Hash table mapping each floating scene marker to its earliest placement.
+Set by `org-chronicle-lint-scenes' and read by the accept commands.")
+
 
 (define-derived-mode org-chronicle-scene-lint-mode org-chronicle-view-mode
   "Chronicle-Scenes"
   "Major mode for the scene continuity lint buffer.")
 
+(defun org-chronicle-accept-placement ()
+  "Accept the solver-suggested earliest date for the scene at point.
+Writes the date via `org-chronicle--commit-placement', invalidates the context
+cache, and refreshes the lint buffer.  Signals if there is no scene or no
+suggested date at point."
+  (interactive)
+  (require 'org-chronicle-solve)
+  (let ((marker (get-text-property (point) 'org-chronicle-marker)))
+    (unless (and marker (marker-buffer marker))
+      (user-error "No scene at point"))
+    (let ((date (and org-chronicle--lint-placements
+                     (gethash marker org-chronicle--lint-placements))))
+      (unless date
+        (user-error "No suggested date for this scene (unbounded or already placed)"))
+      (with-current-buffer (marker-buffer marker)
+        (org-chronicle--commit-placement marker date))
+      (org-chronicle--invalidate-context)
+      (org-chronicle-lint-scenes))))
+
+(defun org-chronicle-accept-all-placements ()
+  "Accept all solver-suggested earliest dates for floating scenes.
+Confirms with `yes-or-no-p' before writing.  Commits only scenes that have a
+bounded earliest date.  Invalidates the context cache and refreshes the lint
+buffer afterward."
+  (interactive)
+  (require 'org-chronicle-solve)
+  (unless (yes-or-no-p "Accept all suggested placements? ")
+    (user-error "Cancelled"))
+  (let ((placements org-chronicle--lint-placements)
+        (count 0))
+    (when placements
+      (maphash
+       (lambda (marker date)
+         (when (and date (marker-buffer marker))
+           (with-current-buffer (marker-buffer marker)
+             (org-chronicle--commit-placement marker date))
+           (cl-incf count)))
+       placements))
+    (org-chronicle--invalidate-context)
+    (org-chronicle-lint-scenes)
+    (message "Accepted %d placement(s)." count)))
+
+
+
 ;;;###autoload
 (defun org-chronicle-lint-scenes ()
-  "Report scenes whose references or constraints conflict with the timeline."
+  "Report scenes whose references or constraints conflict with the timeline.
+Uses the constraint solver to propagate bounds across all scenes.
+Shows a suggested-placement section for floating scenes, and the conflict
+cycle when the network is inconsistent.  Keys: \\[org-chronicle-set-scene-date]
+prompts for a date, \\[org-chronicle-accept-placement] accepts the suggested
+date for the scene at point, \\[org-chronicle-accept-all-placements] accepts all."
   (interactive)
-  (let ((root (expand-file-name org-chronicle-root))
-        (findings (org-chronicle--all-scene-findings)))
+  (require 'org-chronicle-solve)
+  (let* ((root (expand-file-name org-chronicle-root))
+         (scenes (org-chronicle--all-scenes))
+         (ctx (org-chronicle--cached-context))
+         (sol (org-chronicle--solution scenes ctx))
+         (consistent (plist-get sol :consistent))
+         (windows (plist-get sol :windows))
+         (conflict (plist-get sol :conflict))
+         (placements (org-chronicle--earliest-placement scenes ctx))
+         (issues 0))
     (with-current-buffer (get-buffer-create "*org-chronicle-lint-scenes*")
       (org-chronicle-scene-lint-mode)
+      (setq-local org-chronicle--lint-placements placements)
       (let ((inhibit-read-only t))
         (erase-buffer)
-        (if (null findings)
-            (insert "No scene issues found.\n")
-          (insert (format "%d scene issue(s):\n\n" (length findings)))
-          (dolist (cell findings)
-            (let* ((file (car cell)) (f (cdr cell))
-                   (scene (plist-get f :scene))
-                   (m (plist-get scene :marker)))
+        ;; Conflict banner when the network is inconsistent.
+        (when (not consistent)
+          (insert "⚠ Constraint network is inconsistent — conflict cycle:\n\n")
+          (dolist (lbl conflict)
+            (let ((desc (plist-get lbl :desc))
+                  (m (plist-get lbl :marker)))
+              (insert (propertize (format "    ✗ %s\n" desc)
+                                  'org-chronicle-marker m))))
+          (insert "\n"))
+        ;; Per-scene findings.
+        (dolist (scene scenes)
+          (let* ((m (plist-get scene :marker))
+                 (file (buffer-file-name (marker-buffer m)))
+                 (dangling (org-chronicle--scene-dangling scene ctx))
+                 (win (and windows (gethash m windows)))
+                 (own-date (plist-get scene :own-date))
+                 (violations (and own-date
+                                  (org-chronicle--scene-violation-reasons
+                                   scene ctx own-date)))
+                 (out-of-win (and own-date win
+                                  (not (org-chronicle--date-in-span-p
+                                        own-date (car win) (cdr win))))))
+            (cond
+             ;; Dangling reference(s): unresolved id links.
+             (dangling
+              (cl-incf issues)
               (insert (propertize
-                       (format "%s %S  (%s)\n"
-                               (org-chronicle--scene-verdict-glyph
-                                (plist-get f :verdict))
+                       (format "✗ %S  (%s)\n"
                                (plist-get scene :title)
                                (file-relative-name file root))
                        'org-chronicle-marker m))
-              (insert (propertize (format "    %s\n"
-                                          (org-chronicle--scene-verdict-line f))
+              (insert (propertize "    unresolved reference(s)\n"
                                   'org-chronicle-marker m))
-              (dolist (r (plist-get f :reasons))
+              (dolist (r dangling)
                 (insert (propertize (format "    · %s\n" (car r))
                                     'org-chronicle-marker (cdr r))))
+              (insert "\n"))
+             ;; Inconsistent global network: report each anchored scene.
+             ((not consistent)
+              (when own-date
+                (cl-incf issues)
+                (insert (propertize
+                         (format "✗ %S  (%s)\n"
+                                 (plist-get scene :title)
+                                 (file-relative-name file root))
+                         'org-chronicle-marker m))
+                (insert (propertize "    part of over-constrained network\n"
+                                    'org-chronicle-marker m))
+                (insert "\n")))
+             ;; Out-of-window: solver's propagated window excludes the own date.
+             (out-of-win
+              (cl-incf issues)
+              (insert (propertize
+                       (format "✗ %S  (%s)\n"
+                               (plist-get scene :title)
+                               (file-relative-name file root))
+                       'org-chronicle-marker m))
+              (insert (propertize
+                       (format "    date %s outside feasible window %s\n"
+                               (org-chronicle--date-format own-date)
+                               (org-chronicle--window-string win))
+                       'org-chronicle-marker m))
+              (dolist (r violations)
+                (insert (propertize (format "    · %s\n" (car r))
+                                    'org-chronicle-marker (cdr r))))
+              (insert "\n"))
+             ;; Semantic violations without STN conflict (e.g. name not adopted).
+             (violations
+              (cl-incf issues)
+              (insert (propertize
+                       (format "✗ %S  (%s)\n"
+                               (plist-get scene :title)
+                               (file-relative-name file root))
+                       'org-chronicle-marker m))
+              (dolist (r violations)
+                (insert (propertize (format "    · %s\n" (car r))
+                                    'org-chronicle-marker (cdr r))))
+              (insert "\n"))
+             ;; Floating: no own date — show the solver window.
+             ((null own-date)
+              (cl-incf issues)
+              (insert (propertize
+                       (format "○ %S  (%s)\n"
+                               (plist-get scene :title)
+                               (file-relative-name file root))
+                       'org-chronicle-marker m))
+              (insert (propertize
+                       (format "    floating — needs placing; valid in %s\n"
+                               (if win (org-chronicle--window-string win)
+                                 "unbounded"))
+                       'org-chronicle-marker m))
               (insert "\n")))))
+        ;; Summary header: inserted at the top once we know the count.
+        (goto-char (point-min))
+        (unless (not consistent)
+          (insert (if (= issues 0)
+                      "No scene issues found.\n"
+                    (format "%d scene issue(s):\n\n" issues))))
+        ;; Suggested placements section.
+        (goto-char (point-max))
+        (let ((floats (cl-remove-if
+                       (lambda (s) (plist-get s :own-date))
+                       scenes)))
+          (when floats
+            (insert "\nSuggested placements (solver earliest feasible):\n\n")
+            (dolist (s floats)
+              (let* ((m (plist-get s :marker))
+                     (date (gethash m placements)))
+                (insert (propertize
+                         (format "  %s  →  %s\n"
+                                 (plist-get s :title)
+                                 (if date
+                                     (org-chronicle--date-format date)
+                                   "unbounded (no lower limit)"))
+                         'org-chronicle-marker m)))))))
       (goto-char (point-min))
       (pop-to-buffer (current-buffer)))))
 
@@ -2249,6 +2412,20 @@ KIND is the symbol `after' or `before'."
       (org-set-property "DATE" (org-chronicle--ts value))
       (unless (or (plist-get scene :event-ids) (org-entry-get nil "TRUTH"))
         (org-set-property "TRUTH" "fictional")))))
+
+(defun org-chronicle--commit-placement (marker date)
+  "Write DATE (a date plist) as the :DATE: of the scene heading at MARKER.
+Marks a purely-invented scene `fictional', mirroring the prompted commit.
+Signals if DATE is nil (an unbounded suggestion cannot be committed)."
+  (unless date (user-error "No suggested date to accept"))
+  (save-excursion
+    (goto-char marker)
+    (org-back-to-heading t)
+    (org-set-property "DATE" (org-chronicle--ts (org-chronicle--date-format date)))
+    (unless (or (org-chronicle--extract-ids (org-entry-get nil "EVENT"))
+                (org-entry-get nil "TRUTH"))
+      (org-set-property "TRUTH" "fictional"))))
+
 
 ;;;###autoload
 (defun org-chronicle-set-scene-date ()

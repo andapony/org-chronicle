@@ -12,6 +12,11 @@
 (require 'org-chronicle)
 (require 'cl-lib)
 
+(defvar org-chronicle-tests--dir
+  (file-name-directory (or load-file-name buffer-file-name))
+  "Directory of the test file, captured at load time.")
+
+
 (ert-deftest org-chronicle-test-loads ()
   "The package loads and defines its group."
   (should (featurep 'org-chronicle)))
@@ -1476,6 +1481,24 @@ Eliza, called [[chronicle:eliza][Mrs. Grant]], watched.
       (should (= (plist-get (org-chronicle--cached-context) :stamp) 1))
       (org-chronicle--invalidate-context)
       (should (= (plist-get (org-chronicle--cached-context) :stamp) 2)))))
+
+(ert-deftest org-chronicle-test-accept-writes-date ()
+  "Accepting a placement writes the scene's DATE and marks it fictional."
+  (let ((file (expand-file-name "fixtures/solver-scenes.org"
+                                org-chronicle-tests--dir)))
+    (with-current-buffer (find-file-noselect file)
+      (unwind-protect
+          (save-excursion
+            (goto-char (point-min))
+            (re-search-forward "^\\* Floating with earliest")
+            (org-chronicle--commit-placement
+             (point-marker) (org-chronicle--date-parse "1850"))
+            (should (equal (org-entry-get nil "DATE")
+                           (org-chronicle--ts "1850")))
+            (should (equal (org-entry-get nil "TRUTH") "fictional")))
+        (set-buffer-modified-p nil)
+        (kill-buffer)))))
+
 
 
 

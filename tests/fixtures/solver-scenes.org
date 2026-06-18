@@ -1,0 +1,13 @@
+#+TITLE: Solver scenes fixture
+#+FILETAGS: :chronicle:scenes:
+
+* Floating no bounds
+
+A floating scene with no date constraints.
+
+* Floating with earliest
+:PROPERTIES:
+:EARLIEST: 1850
+:END:
+
+A floating scene with an EARLIEST bound but no own date.
