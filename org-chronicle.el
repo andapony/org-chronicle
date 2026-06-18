@@ -2319,7 +2319,7 @@ date for the scene at point, \\[org-chronicle-accept-all-placements] accepts all
               (insert "\n")))))
         ;; Summary header: inserted at the top once we know the count.
         (goto-char (point-min))
-        (unless (not consistent)
+        (when consistent
           (insert (if (= issues 0)
                       "No scene issues found.\n"
                     (format "%d scene issue(s):\n\n" issues))))
@@ -2328,7 +2328,7 @@ date for the scene at point, \\[org-chronicle-accept-all-placements] accepts all
         (let ((floats (cl-remove-if
                        (lambda (s) (plist-get s :own-date))
                        scenes)))
-          (when floats
+          (when (and floats consistent)
             (insert "\nSuggested placements (solver earliest feasible):\n\n")
             (dolist (s floats)
               (let* ((m (plist-get s :marker))
