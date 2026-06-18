@@ -76,6 +76,19 @@
     (should (string-match-p "Heist" out))
     (should-not (string-match-p "^1851" out))))
 
+(ert-deftest org-chronicle-test-read-truth ()
+  "Truth read returns nil (all) for blank or \"all\", else the chosen subset."
+  (cl-letf (((symbol-function 'completing-read-multiple)
+             (lambda (&rest _) (list org-chronicle--all-lanes-token))))
+    (should (null (org-chronicle--read-truth))))
+  (cl-letf (((symbol-function 'completing-read-multiple)
+             (lambda (&rest _) (list ""))))
+    (should (null (org-chronicle--read-truth))))
+  (cl-letf (((symbol-function 'completing-read-multiple)
+             (lambda (&rest _) (list "historical" "fictional"))))
+    (should (equal (org-chronicle--read-truth) '("historical" "fictional")))))
+
+
 
 
 

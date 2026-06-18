@@ -689,11 +689,11 @@ EXCLUDE, when supplied, override `org-chronicle-root' and
 `org-chronicle-exclude' (used to preserve dir-local values on refresh).
 Lane width is computed from the window width and the lane count, so
 refreshing with \\[org-chronicle-view-refresh] re-fits the view after a
-resize.  Interactively, prompts for people, locations, topics, and a
-truth subset, completing against the names used in events and promoted
-entities; entering \"all\" (`org-chronicle--all-lanes-token') at any of
-those lane prompts selects every known name for that lane, while a blank
-entry selects none."
+resize.  Interactively, prompts for people, locations, and topics (where
+entering \"all\", `org-chronicle--all-lanes-token', selects every known
+name for that lane and a blank entry selects none), then for a FROM and
+UNTIL date bounding the range (each blank for no bound), a truth subset
+(\"all\" or blank for every truth), and whether to expand groups."
   (interactive
    (list :people (org-chronicle--read-names
                   "People/groups (lanes): "
@@ -704,10 +704,15 @@ entry selects none."
          :topics (org-chronicle--read-names
                   "Topics (lanes): "
                   (org-chronicle--known-topics) 'org-chronicle-topic t)
-         :truth (let ((v (completing-read-multiple
-                          "Truth (blank=all): "
-                          '("historical" "fictionalized" "fictional"))))
-                  (and v (delete "" v)))
+         :from (let ((s (string-trim
+                         (read-string
+                          "From date (YYYY[-MM[-DD]], blank = no start bound): "))))
+                 (unless (string-empty-p s) s))
+         :until (let ((s (string-trim
+                          (read-string
+                           "Until date (YYYY[-MM[-DD]], blank = no end bound): "))))
+                  (unless (string-empty-p s) s))
+         :truth (org-chronicle--read-truth)
          :mode (if (y-or-n-p "Expand groups into member lanes? ") :expand :collapse)))
   (let* ((root (if root-p root org-chronicle-root))
          (exclude (if exclude-p exclude org-chronicle-exclude))
@@ -817,10 +822,10 @@ all behaviour inside the standard `completing-read' machinery."
       (complete-with-action action candidates string predicate))))
 
 (defconst org-chronicle--all-lanes-token "all"
-  "Pseudo-name selecting every known name at a timeline lane prompt.
-Offered as a completion candidate only when `org-chronicle--read-names' is
-called with ALLOW-ALL; entering it expands to all candidates for that lane
-category.  Blank input still selects no lanes.")
+  "Pseudo-name selecting everything at a timeline lane or truth prompt.
+Offered as a completion candidate by `org-chronicle--read-names' (with
+ALLOW-ALL) and by `org-chronicle--read-truth'; entering it expands to all
+candidates for that prompt.  Blank input also selects all.")
 
 
 (defun org-chronicle--expand-all (selected candidates)
@@ -855,6 +860,18 @@ it expands the result to all of CANDIDATES."
     (if allow-all
         (org-chronicle--expand-all selected candidates)
       selected)))
+
+(defun org-chronicle--read-truth ()
+  "Read a truth filter for the timeline interactively.
+Offers the three truth values plus an \"all\" option (the value of
+`org-chronicle--all-lanes-token').  Returns the chosen subset, or nil to
+mean no filter (every truth) when the entry is blank or \"all\"."
+  (let* ((choices '("historical" "fictionalized" "fictional"))
+         (v (delete "" (completing-read-multiple
+                        "Truth (\"all\" or subset; blank = all): "
+                        (cons org-chronicle--all-lanes-token choices)))))
+    (unless (or (null v) (member org-chronicle--all-lanes-token v)) v)))
+
 
 (defun org-chronicle--read-location ()
   "Read a single location with completion; return nil when blank."
