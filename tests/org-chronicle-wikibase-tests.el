@@ -169,14 +169,14 @@ the span (the entry carrying an end date)."
                    '("WIKIPEDIA" . "https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/Q5")))))
 
 (ert-deftest org-chronicle-wikibase-test-people-query ()
-  "The people query filters on occupation, residence/work within the place
-transitively, and lifespan overlap, with a limit."
+  "A transitive relation matches the anchor within a place, with occupation and lifespan."
   (let ((q (org-chronicle-wikibase--people-query
-            (org-chronicle-sources--get 'wikidata) "Q1930187" "Q99" 1845 1859 100)))
-    (should (string-match-p "wd:Q99" q))
+            (org-chronicle-sources--get 'wikidata)
+            '("P551" "P937") t "Q99" "Q1930187" 1845 1859 100)))
     (should (string-match-p "wdt:P551" q))
     (should (string-match-p "wdt:P937" q))
     (should (string-match-p "wdt:P131\\*" q))
+    (should (string-match-p "wd:Q99" q))
     (should (string-match-p "wd:Q1930187" q))
     (should (string-match-p "wdt:P106" q))
     (should (string-match-p "<= 1859" q))
@@ -184,11 +184,21 @@ transitively, and lifespan overlap, with a limit."
     (should (string-match-p "LIMIT 100" q))))
 
 (ert-deftest org-chronicle-wikibase-test-people-query-blank-occupation ()
-  "A blank occupation omits the occupation clause but keeps the place filter."
+  "A nil occupation omits the occupation clause but keeps the anchor."
   (let ((q (org-chronicle-wikibase--people-query
-            (org-chronicle-sources--get 'wikidata) nil "Q99" 1845 1859)))
+            (org-chronicle-sources--get 'wikidata) '("P551" "P937") t "Q99" nil 1845 1859)))
     (should (string-match-p "wd:Q99" q))
     (should-not (string-match-p "wdt:P106" q))))
+
+(ert-deftest org-chronicle-wikibase-test-people-query-direct ()
+  "A non-transitive relation matches the anchor directly, without a P131* hop."
+  (let ((q (org-chronicle-wikibase--people-query
+            (org-chronicle-sources--get 'wikidata) '("P463" "P39") nil "Q123" nil 1845 1859)))
+    (should (string-match-p "wdt:P463" q))
+    (should (string-match-p "wdt:P39" q))
+    (should (string-match-p "wd:Q123" q))
+    (should-not (string-match-p "P131" q))))
+
 
 (ert-deftest org-chronicle-wikibase-test-people-changes ()
   "Each person row becomes one 'person seed change keyed on QID; duplicate rows

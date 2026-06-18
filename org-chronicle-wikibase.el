@@ -274,24 +274,27 @@ the entry that carries an end date."
           (puthash k c best))))
     (mapcar (lambda (k) (gethash k best)) (nreverse order))))
 
-(defun org-chronicle-wikibase--people-query (source occupation-qid place-qid from until &optional limit)
-  "Return SOURCE's SPARQL query for people in PLACE-QID alive during FROM..UNTIL.
-People match when their residence or work location is within PLACE-QID; when
-OCCUPATION-QID is non-nil they must also hold that occupation.  Each row carries
-the person, label, birth date and precision, and -- when known -- death date and
-precision.  LIMIT, when a positive integer, caps the row count."
-  (let* ((res (org-chronicle-sources--pid source :residence))
-         (work (org-chronicle-sources--pid source :work-location))
-         (within (org-chronicle-sources--pid source :located-in))
+(defun org-chronicle-wikibase--people-query (source rel-pids transitive anchor-qid occupation-qid from until &optional limit)
+  "Return SOURCE's query for people linked to ANCHOR-QID in FROM..UNTIL.
+REL-PIDS is the list of property ids joining a person to the anchor; when
+TRANSITIVE is non-nil the anchor is matched within (located-in*) the linked
+entity, otherwise directly.  When OCCUPATION-QID is non-nil the people must also
+hold that occupation.  Each row carries the person, label, birth date and
+precision, and -- when known -- death date and precision.  LIMIT, when a
+positive integer, caps the row count."
+  (let* ((within (org-chronicle-sources--pid source :located-in))
          (occ (org-chronicle-sources--pid source :occupation))
          (span (org-chronicle-sources--span-pids source 'person))
          (born-pid (car span))
-         (died-pid (cdr span)))
+         (died-pid (cdr span))
+         (rel-values (mapconcat (lambda (p) (format "wdt:%s" p)) rel-pids " "))
+         (anchor-clause (if transitive
+                            (format "?person ?rel ?loc . ?loc wdt:%s* wd:%s . " within anchor-qid)
+                          (format "?person ?rel wd:%s . " anchor-qid))))
     (concat
      (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
      (format "SELECT DISTINCT ?person ?personLabel ?born ?bornprec ?died ?diedprec WHERE { \
-VALUES ?locProp { wdt:%s wdt:%s } \
-?person ?locProp ?loc . ?loc wdt:%s* wd:%s . \
+VALUES ?rel { %s } %s\
 %s?person p:%s ?bstmt. ?bstmt psv:%s ?bnode. \
 ?bnode wikibase:timeValue ?born; wikibase:timePrecision ?bornprec. \
 FILTER(YEAR(?born) <= %d) \
@@ -299,7 +302,7 @@ OPTIONAL { ?person p:%s ?dstmt. ?dstmt psv:%s ?dnode. \
 ?dnode wikibase:timeValue ?died; wikibase:timePrecision ?diedprec. } \
 FILTER(!BOUND(?died) || YEAR(?died) >= %d) \
 ?person rdfs:label ?personLabel. %s} ORDER BY ?born"
-             res work within place-qid
+             rel-values anchor-clause
              (if occupation-qid (format "?person wdt:%s wd:%s . " occ occupation-qid) "")
              born-pid born-pid until
              died-pid died-pid from

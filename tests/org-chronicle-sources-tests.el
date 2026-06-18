@@ -410,8 +410,7 @@ idempotent (matched by id on re-run)."
       (delete-directory root t))))
 
 (ert-deftest org-chronicle-sources-test-import-people ()
-  "import-people writes lean people to the bulk people file, blank occupation
-allowed, idempotent on re-run."
+  "import-people seeds lean people for a chosen relation, idempotently."
   (let* ((root (make-temp-file "ocip" t))
          (org-chronicle-root (file-name-as-directory root))
          (org-chronicle-people-file nil) (org-chronicle-places-file nil)
@@ -419,12 +418,15 @@ allowed, idempotent on re-run."
          (org-chronicle-sources-people-file (expand-file-name "imported/people.org" root)))
     (unwind-protect
         (cl-letf (((symbol-function 'completing-read)
-                   (lambda (prompt &rest _) (if (string-prefix-p "Source" prompt) "wikidata" "")))
+                   (lambda (prompt &rest _)
+                     (cond ((string-prefix-p "Source" prompt) "wikidata")
+                           ((string-prefix-p "Relation" prompt) "member of a group")
+                           (t ""))))
                   ((symbol-function 'org-chronicle-sources--region-or-read) (lambda (&rest _) ""))
-                  ((symbol-function 'read-string) (lambda (&rest _) "California"))
+                  ((symbol-function 'read-string) (lambda (&rest _) "Some Group"))
                   ((symbol-function 'read-number)
                    (let ((n 0)) (lambda (&rest _) (setq n (1+ n)) (if (cl-oddp n) 1845 1859))))
-                  ((symbol-function 'org-chronicle-wikibase--resolve) (lambda (&rest _) "Q99"))
+                  ((symbol-function 'org-chronicle-wikibase--resolve) (lambda (&rest _) "Q123"))
                   ((symbol-function 'org-chronicle-wikibase--sparql-request)
                    (lambda (_s _q)
                      (list '((person (value . "http://www.wikidata.org/entity/Q10"))

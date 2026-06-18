@@ -56,6 +56,26 @@ Defaults to \"imported/people.org\" under `org-chronicle-root'."
   (or org-chronicle-sources-people-file
       (expand-file-name "imported/people.org" org-chronicle-root)))
 
+(defconst org-chronicle-sources--seed-relations
+  '((lived-worked :label "lived or worked in a place"
+                  :props (:residence :work-location) :transitive t
+                  :anchor-prompt "Place (lived or worked in): ")
+    (born :label "born in a place"
+          :props (:birthplace) :transitive t
+          :anchor-prompt "Place (born in): ")
+    (member :label "member of a group"
+            :props (:member-of :position) :transitive nil
+            :anchor-prompt "Group or organization: ")
+    (participant :label "participant in an event"
+                 :props (:participant) :transitive nil
+                 :anchor-prompt "Event: "))
+  "Ways `org-chronicle-import-people' connects people to an anchor entity.
+Each entry maps a relation id to a plist: :label for the prompt, :props the
+property-map keys to match (joined in a VALUES clause), :transitive whether the
+anchor is matched within (located-in*) the linked entity, and :anchor-prompt the
+prompt string for the anchor.")
+
+
 
 (defun org-chronicle-sources--dates-equal-p (a b)
   "Non-nil when date strings A and B denote the same Y/M/D after parsing."
@@ -543,9 +563,10 @@ and write the approved set idempotently to the imported events file."
 
 ;;;###autoload
 (defun org-chronicle-import-people (&optional source-id)
-  "Bulk-import people who lived or worked in a place during a year range.
-Prompt for a source (SOURCE-ID non-interactively), an optional occupation
-\(blank means any), a place, and a from/until year range; fetch the matching
+  "Bulk-import people connected to an anchor entity during a year range.
+Prompt for a source (SOURCE-ID non-interactively), a relation (see
+`org-chronicle-sources--seed-relations'), the anchor entity, an optional
+occupation (blank means any), and a from/until year range; fetch the matching
 people; review the proposed lean person headings; and write the approved set
 idempotently to the bulk people file."
   (interactive)
@@ -556,20 +577,31 @@ idempotently to the bulk people file."
                                  nil t nil nil
                                  (symbol-name org-chronicle-default-source)))))
          (source (org-chronicle-sources--get source-id))
+         (relation (let ((label (completing-read
+                                 "Relation: "
+                                 (mapcar (lambda (r) (plist-get (cdr r) :label))
+                                         org-chronicle-sources--seed-relations)
+                                 nil t)))
+                     (cdr (cl-find label org-chronicle-sources--seed-relations
+                                   :key (lambda (r) (plist-get (cdr r) :label))
+                                   :test #'equal))))
+         (rel-pids (mapcar (lambda (k) (org-chronicle-sources--pid source k))
+                           (plist-get relation :props)))
+         (anchor (read-string (plist-get relation :anchor-prompt)))
+         (anchor-qid (org-chronicle-wikibase--resolve source anchor))
          (occ-term (org-chronicle-sources--region-or-read "Occupation (blank = any): "))
          (occ-qid (and (not (string-blank-p occ-term))
                        (org-chronicle-wikibase--resolve source occ-term)))
-         (place (read-string "Place (lived or worked in): "))
-         (place-qid (org-chronicle-wikibase--resolve source place))
          (from (read-number "From year: "))
          (until (read-number "Until year: "))
          (rows (org-chronicle-wikibase--sparql-request
                 source (org-chronicle-wikibase--people-query
-                        source occ-qid place-qid from until
+                        source rel-pids (plist-get relation :transitive)
+                        anchor-qid occ-qid from until
                         org-chronicle-sources-bulk-limit)))
          (changes (org-chronicle-wikibase--people->changes source rows)))
     (when (seq-empty-p changes)
-      (user-error "No people found for that occupation/place/range"))
+      (user-error "No people found for that relation, anchor, and range"))
     (org-chronicle-sources--review
      changes
      (lambda (selected)
@@ -642,6 +674,7 @@ When several source keys are present, prompt for which to reconcile."
                      :occupation "P106" :residence "P551" :work-location "P937"
                      :father "P22" :mother "P25"
                      :spouse "P26" :position "P39"
+                     :member-of "P463" :participant "P1344"
                      :qual-start "P580" :qual-end "P582" ))
     (factgrid
      :label "FactGrid"
