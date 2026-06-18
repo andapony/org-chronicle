@@ -1747,13 +1747,17 @@ Each element is a plist (:id ID :name DESC-or-nil :pos POS :marker MARKER)."
         :own-date-end (org-chronicle--date-parse (org-entry-get nil "DATE-END"))
         :event-ids (org-chronicle--extract-ids (org-entry-get nil "EVENT"))
         :after-ids (org-chronicle--extract-ids (org-entry-get nil "AFTER"))
-        :before-ids (org-chronicle--extract-ids (org-entry-get nil "BEFORE"))))
+        :before-ids (org-chronicle--extract-ids (org-entry-get nil "BEFORE"))
+        :earliest (org-chronicle--date-parse (org-entry-get nil "EARLIEST"))
+        :latest (org-chronicle--date-parse (org-entry-get nil "LATEST"))))
 
 (defun org-chronicle--structural-scene-p (h)
   "Non-nil if heading plist H is a scene by its own properties."
   (or (plist-get h :event-ids)
       (plist-get h :after-ids)
       (plist-get h :before-ids)
+      (plist-get h :earliest)
+      (plist-get h :latest)
       (and (plist-get h :own-date)
            (equal (plist-get h :truth) "fictional"))))
 

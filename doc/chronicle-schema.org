@@ -26,14 +26,24 @@
 * Scenes (prose continuity)
   A scene is any heading in a prose file that ties narrative to the
   timeline.  A heading becomes a scene when it carries any of: =EVENT=,
-  =AFTER=, =BEFORE=, a fictional own =DATE= (with =TRUTH: fictional=), or an
-  inline =chronicle:= link in its subtree.  org-chronicle never creates
-  scene headings; tag whatever heading already bounds the scene.
+  =AFTER=, =BEFORE=, =EARLIEST=, =LATEST=, a fictional own =DATE= (with
+  =TRUTH: fictional=), or an inline =chronicle:= link in its subtree.
+  org-chronicle never creates scene headings; tag whatever heading already
+  bounds the scene.
   | Property | Meaning                                                |
   |----------+--------------------------------------------------------|
   | EVENT    | id link(s) to the event(s) the scene depicts (anchor)  |
   | AFTER    | id link(s); scene date must fall on/after the referent |
   | BEFORE   | id link(s); scene date must fall on/before the referent|
+  | EARLIEST | inclusive absolute lower bound the author sets directly |
+  | LATEST   | inclusive absolute upper bound the author sets directly |
+
+  =EARLIEST= and =LATEST= are partial dates (year, year-month, or
+  year-month-day) set directly by the author — not derived from events.
+  Either or both may be present; the heading remains floating (no =DATE=
+  required) until the solver assigns one.  Precision is expanded to the
+  widest matching day: =EARLIEST: 1850= means on/after 1850-01-01, and
+  =LATEST: 1855= means on/before 1855-12-31.
 
   Inline references use a dedicated link type,
   =[[chronicle:ID][name as written]]=, where the description is the name used

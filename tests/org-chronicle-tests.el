@@ -1443,5 +1443,18 @@ Eliza, called [[chronicle:eliza][Mrs. Grant]], watched.
                 "ref [[chronicle:marek][Marek]]\n")
       (should-error (org-chronicle-set-scene-date) :type 'user-error))))
 
+;;;; Scene EARLIEST/LATEST bounds
+
+(ert-deftest org-chronicle-test-scene-props-bounds ()
+  "EARLIEST/LATEST parse into the scene plist and mark a heading a scene."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* A scene\n:PROPERTIES:\n:EARLIEST: 1850\n:LATEST: 1855-06\n:END:\n")
+    (goto-char (point-min))
+    (let ((h (org-chronicle--heading-scene-props)))
+      (should (equal (plist-get (plist-get h :earliest) :year) 1850))
+      (should (equal (plist-get (plist-get h :latest) :month) 6))
+      (should (org-chronicle--structural-scene-p h)))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
