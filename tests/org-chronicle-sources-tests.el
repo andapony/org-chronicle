@@ -446,6 +446,84 @@ idempotent (matched by id on re-run)."
                                       (split-string text "\n"))))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-sources-test-apply-entity-seed-place ()
+  "A place seed creates a BUILT place and a founding event, idempotently."
+  (let* ((root (make-temp-file "ocfs" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file nil) (org-chronicle-places-file nil) (org-chronicle-exclude nil)
+         (org-chronicle-sources-places-file (expand-file-name "imported/places.org" root))
+         (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root)))
+    (unwind-protect
+        (let ((change (list :target 'entity-seed :source (org-chronicle-sources--get 'wikidata)
+                            :kind 'place :qid "Q101" :name "Fort Point"
+                            :built "1848" :razed nil :location "San Francisco"
+                            :provenance "https://www.wikidata.org/wiki/Q101"
+                            :references '(("WIKIPEDIA" . "https://example.org/wiki/Fort")))))
+          (org-chronicle-sources--apply-entity-seed-change change (org-chronicle-sources--events-index))
+          (org-chronicle-sources--apply-entity-seed-change change (org-chronicle-sources--events-index))
+          (let ((places (with-temp-buffer (insert-file-contents (expand-file-name "imported/places.org" root)) (buffer-string)))
+                (events (with-temp-buffer (insert-file-contents (expand-file-name "imported/events.org" root)) (buffer-string))))
+            (should (string-match-p "^\\* Fort Point" places))
+            (should (string-match-p ":BUILT:.*1848" places))
+            (should (string-match-p ":WIKIDATA:.*Q101" places))
+            (should (= 1 (cl-count-if (lambda (l) (string-match-p "^\\* Fort Point" l)) (split-string places "\n"))))
+            (should (string-match-p "Fort Point built" events))
+            (should (= 1 (cl-count-if (lambda (l) (string-match-p "Fort Point built" l)) (split-string events "\n"))))))
+      (delete-directory root t))))
+
+(ert-deftest org-chronicle-sources-test-apply-entity-seed-group ()
+  "A group seed creates a FOUNDED group and a founding event."
+  (let* ((root (make-temp-file "ocfg" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file nil) (org-chronicle-places-file nil) (org-chronicle-exclude nil)
+         (org-chronicle-sources-groups-file (expand-file-name "imported/groups.org" root))
+         (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root)))
+    (unwind-protect
+        (let ((change (list :target 'entity-seed :source (org-chronicle-sources--get 'wikidata)
+                            :kind 'group :qid "Q200" :name "Society of California Pioneers"
+                            :built "1850" :razed nil :location "San Francisco"
+                            :provenance "https://www.wikidata.org/wiki/Q200" :references nil)))
+          (org-chronicle-sources--apply-entity-seed-change change (org-chronicle-sources--events-index))
+          (let ((groups (with-temp-buffer (insert-file-contents (expand-file-name "imported/groups.org" root)) (buffer-string)))
+                (events (with-temp-buffer (insert-file-contents (expand-file-name "imported/events.org" root)) (buffer-string))))
+            (should (string-match-p "Society of California Pioneers" groups))
+            (should (string-match-p ":FOUNDED:.*1850" groups))
+            (should (string-match-p "Founding of Society of California Pioneers" events))))
+      (delete-directory root t))))
+
+(ert-deftest org-chronicle-sources-test-import-foundings ()
+  "import-foundings seeds entities and founding events, idempotently."
+  (let* ((root (make-temp-file "ocif" t))
+         (org-chronicle-root (file-name-as-directory root))
+         (org-chronicle-people-file nil) (org-chronicle-places-file nil) (org-chronicle-exclude nil)
+         (org-chronicle-sources-places-file (expand-file-name "imported/places.org" root))
+         (org-chronicle-sources-events-file (expand-file-name "imported/events.org" root)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt &rest _) (if (string-prefix-p "Source" prompt) "wikidata" "")))
+                  ((symbol-function 'org-chronicle-sources--region-or-read) (lambda (&rest _) "San Francisco"))
+                  ((symbol-function 'read-number)
+                   (let ((n 0)) (lambda (&rest _) (setq n (1+ n)) (if (cl-oddp n) 1845 1860))))
+                  ((symbol-function 'org-chronicle-wikibase--resolve) (lambda (&rest _) "Q62"))
+                  ((symbol-function 'org-chronicle-wikibase--sparql-request)
+                   (lambda (_s _q)
+                     (list '((e (value . "http://www.wikidata.org/entity/Q101"))
+                             (eLabel (value . "Fort Point")) (kind (value . "place"))
+                             (built (value . "1848-01-01T00:00:00Z")) (builtprec (value . "9"))))))
+                  ((symbol-function 'org-chronicle-sources--review)
+                   (lambda (changes on-confirm) (funcall on-confirm changes))))
+          (org-chronicle-import-foundings)
+          (org-chronicle-import-foundings)
+          (let ((places (with-temp-buffer (insert-file-contents (expand-file-name "imported/places.org" root)) (buffer-string)))
+                (events (with-temp-buffer (insert-file-contents (expand-file-name "imported/events.org" root)) (buffer-string))))
+            (should (string-match-p "Fort Point" places))
+            (should (string-match-p "Fort Point built" events))
+            (should (= 1 (cl-count-if (lambda (l) (string-match-p "^\\* Fort Point" l)) (split-string places "\n"))))))
+      (delete-directory root t))))
+
+
+
+
 (ert-deftest org-chronicle-sources-test-review-clear ()
   "Clearing deselects every row."
   (with-temp-buffer

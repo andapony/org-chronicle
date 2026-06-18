@@ -94,8 +94,10 @@ VAR is a string variable name."
    (org-chronicle-wikibase--cell row val-var)
    (org-chronicle-wikibase--cell-int row prec-var)))
 
-(defcustom org-chronicle-wikibase-timeout 20
-  "Seconds to wait for a Wikidata HTTP response before failing."
+(defcustom org-chronicle-wikibase-timeout 60
+  "Seconds to wait for a Wikidata HTTP response before failing.
+Matches the public endpoint's own query limit; bulk queries (foundings,
+people) can take tens of seconds, so a short value spuriously fails them."
   :type 'integer
   :group 'org-chronicle-wikibase)
 
@@ -308,6 +310,64 @@ FILTER(!BOUND(?died) || YEAR(?died) >= %d) \
              died-pid died-pid from
              (org-chronicle-wikibase--label-filter source "?personLabel"))
      (if (and limit (> limit 0)) (format " LIMIT %d" limit) ""))))
+
+(defun org-chronicle-wikibase--foundings-query (source place-qid from until &optional limit)
+  "Return SOURCE's query for entities built in PLACE-QID during FROM..UNTIL.
+Match entities located within PLACE-QID (located-in*) whose inception falls in
+the window; classify each as group when it is a kind of organization, else
+place.  Each row carries the entity, label, inception (and precision),
+dissolution (and precision), and the inferred kind.  LIMIT caps the rows."
+  (let* ((within (org-chronicle-sources--pid source :located-in))
+         (orgcls (org-chronicle-sources--pid source :org-class))
+         (span (org-chronicle-sources--span-pids source 'place))
+         (inc (car span))
+         (dis (cdr span)))
+    (concat
+     (org-chronicle-wikibase--prefixes (plist-get source :base-uri))
+     (format "SELECT DISTINCT ?e ?eLabel ?built ?builtprec ?razed ?razedprec ?kind WHERE { \
+?e wdt:%s ?loc . ?loc wdt:%s* wd:%s . \
+?e p:%s ?istmt. ?istmt psv:%s ?inode. \
+?inode wikibase:timeValue ?built; wikibase:timePrecision ?builtprec. \
+FILTER(YEAR(?built) >= %d && YEAR(?built) <= %d) \
+OPTIONAL { ?e p:%s ?dstmt. ?dstmt psv:%s ?dnode. \
+?dnode wikibase:timeValue ?razed; wikibase:timePrecision ?razedprec. } \
+BIND(IF(EXISTS { ?e wdt:P31/wdt:P279* wd:%s }, \"group\", \"place\") AS ?kind) \
+?e rdfs:label ?eLabel. %s} ORDER BY ?built"
+             within within place-qid
+             inc inc from until
+             dis dis
+             orgcls
+             (org-chronicle-wikibase--label-filter source "?eLabel"))
+     (if (and limit (> limit 0)) (format " LIMIT %d" limit) ""))))
+
+(defun org-chronicle-wikibase--foundings->changes (source rows place-label)
+  "Map founding ROWS to one `entity-seed' change per entity located at PLACE-LABEL.
+SOURCE supplies the curie, provenance URL, and reference links.  Rows collapse
+by QID; a non-representable inception drops the row, a non-representable
+dissolution is omitted."
+  (let ((best (make-hash-table :test 'equal))
+        (order '()))
+    (dolist (row rows)
+      (let ((qid (org-chronicle-wikibase--parse-qid (org-chronicle-wikibase--cell row "e")))
+            (built (org-chronicle-wikibase--row-date row "built" "builtprec")))
+        (when (and qid built (not (gethash qid best)))
+          (push qid order)
+          (let ((razed (org-chronicle-wikibase--row-date row "razed" "razedprec")))
+            (puthash qid
+                     (list :target 'entity-seed :group 'foundings :status 'new :default t
+                           :source source
+                           :kind (intern (or (org-chronicle-wikibase--cell row "kind") "place"))
+                           :qid qid
+                           :name (org-chronicle-wikibase--cell row "eLabel")
+                           :built (org-chronicle--date-format built)
+                           :razed (and razed (org-chronicle--date-format razed))
+                           :location place-label
+                           :provenance (org-chronicle-wikibase--url source qid)
+                           :references (org-chronicle-wikibase--references source qid))
+                     best)))))
+    (mapcar (lambda (q) (gethash q best)) (nreverse order))))
+
+
 
 (defun org-chronicle-wikibase--people->changes (source rows)
   "Map people result ROWS to one `person' seed change per individual.

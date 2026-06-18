@@ -199,6 +199,50 @@ the span (the entry carrying an end date)."
     (should (string-match-p "wd:Q123" q))
     (should-not (string-match-p "P131" q))))
 
+(ert-deftest org-chronicle-wikibase-test-foundings-query ()
+  "The foundings query is located-within + inception-in-window + an org-class classify."
+  (let ((q (org-chronicle-wikibase--foundings-query
+            (org-chronicle-sources--get 'wikidata) "Q62" 1845 1860 50)))
+    (should (string-match-p "wd:Q62" q))
+    (should (string-match-p "wdt:P131\\*" q))
+    (should (string-match-p "P571" q))
+    (should (string-match-p "P576" q))
+    (should (string-match-p "Q43229" q))
+    (should (string-match-p "EXISTS" q))
+    (should (string-match-p ">= 1845" q))
+    (should (string-match-p "<= 1860" q))
+    (should (string-match-p "LIMIT 50" q))))
+
+(ert-deftest org-chronicle-wikibase-test-foundings-changes ()
+  "Each founding row becomes an entity-seed change with kind and span; dup rows
+collapse and a coarse inception is dropped."
+  (let* ((org-chronicle-wikipedia-language "en")
+         (wd (org-chronicle-sources--get 'wikidata))
+         (rows (list
+                '((e (value . "http://www.wikidata.org/entity/Q100"))
+                  (eLabel (value . "San Francisco Mint")) (kind (value . "group"))
+                  (built (value . "1854-01-01T00:00:00Z")) (builtprec (value . "9")))
+                '((e (value . "http://www.wikidata.org/entity/Q101"))
+                  (eLabel (value . "Fort Point")) (kind (value . "place"))
+                  (built (value . "1848-01-01T00:00:00Z")) (builtprec (value . "9"))
+                  (razed (value . "1900-01-01T00:00:00Z")) (razedprec (value . "9")))
+                '((e (value . "http://www.wikidata.org/entity/Q102"))
+                  (eLabel (value . "Coarse")) (kind (value . "place"))
+                  (built (value . "1850-01-01T00:00:00Z")) (builtprec (value . "7")))))
+         (changes (org-chronicle-wikibase--foundings->changes wd rows "San Francisco")))
+    (should (= (length changes) 2))
+    (let ((mint (car changes)))
+      (should (eq (plist-get mint :target) 'entity-seed))
+      (should (eq (plist-get mint :kind) 'group))
+      (should (equal (plist-get mint :qid) "Q100"))
+      (should (string-match-p "1854" (plist-get mint :built)))
+      (should-not (plist-get mint :razed)))
+    (let ((fort (nth 1 changes)))
+      (should (eq (plist-get fort :kind) 'place))
+      (should (string-match-p "1900" (plist-get fort :razed))))))
+
+
+
 
 (ert-deftest org-chronicle-wikibase-test-people-changes ()
   "Each person row becomes one 'person seed change keyed on QID; duplicate rows

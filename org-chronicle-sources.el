@@ -32,6 +32,20 @@ When nil, defaults to \"imported/people.org\" under `org-chronicle-root'."
   :type '(choice (const :tag "Default under root" nil) file)
   :group 'org-chronicle)
 
+(defcustom org-chronicle-sources-places-file nil
+  "File where bulk-imported places are filed.
+When nil, defaults to \"imported/places.org\" under `org-chronicle-root'."
+  :type '(choice (const :tag "Default under root" nil) file)
+  :group 'org-chronicle)
+
+(defcustom org-chronicle-sources-groups-file nil
+  "File where bulk-imported groups are filed.
+When nil, defaults to \"imported/groups.org\" under `org-chronicle-root'."
+  :type '(choice (const :tag "Default under root" nil) file)
+  :group 'org-chronicle)
+
+
+
 
 (defcustom org-chronicle-default-source 'wikidata
   "Default import source id, used as the prompt default in `org-chronicle-import'."
@@ -55,6 +69,16 @@ Defaults to \"imported/events.org\" under `org-chronicle-root'."
 Defaults to \"imported/people.org\" under `org-chronicle-root'."
   (or org-chronicle-sources-people-file
       (expand-file-name "imported/people.org" org-chronicle-root)))
+
+(defun org-chronicle-sources--entity-file (kind)
+  "Return the file bulk-imported KIND entities are written to.
+Defaults to imported/<kind>s.org under `org-chronicle-root'."
+  (or (pcase kind
+        ('person org-chronicle-sources-people-file)
+        ('place org-chronicle-sources-places-file)
+        ('group org-chronicle-sources-groups-file))
+      (expand-file-name (format "imported/%ss.org" kind) org-chronicle-root)))
+
 
 (defconst org-chronicle-sources--seed-relations
   '((lived-worked :label "lived or worked in a place"
@@ -281,6 +305,62 @@ Each link is a (PROPERTY . URL) cons; links with no URL are skipped."
     (when (cdr ref)
       (org-set-property (car ref) (cdr ref)))))
 
+(defun org-chronicle-sources--founding-title (kind name phase)
+  "Return the timeline event title for NAME of KIND at PHASE.
+PHASE is `founding' or `razing'."
+  (pcase (cons kind phase)
+    (`(place . founding) (format "%s built" name))
+    (`(place . razing) (format "%s razed" name))
+    (`(group . founding) (format "Founding of %s" name))
+    (`(group . razing) (format "Dissolution of %s" name))
+    (_ (format "%s %s" name phase))))
+
+(defun org-chronicle-sources--apply-entity-seed-change (change events-index)
+  "Create or update the place/group entity in CHANGE and emit its founding events.
+The entity carries its existence span and source key; a founding event (and a
+razing event when the entity has an end date) is written to the events file via
+EVENTS-INDEX, keyed on the entity id."
+  (let* ((source (plist-get change :source))
+         (kind (plist-get change :kind))
+         (qid (plist-get change :qid))
+         (name (plist-get change :name))
+         (key-prop (plist-get source :key-property))
+         (curie (plist-get source :curie))
+         (props (org-chronicle-sources--kind-span-props kind))
+         (built (plist-get change :built))
+         (razed (plist-get change :razed))
+         (location (plist-get change :location))
+         (provenance (plist-get change :provenance))
+         (references (plist-get change :references))
+         (marker (org-chronicle-wikibase--resolve-or-create-entity
+                  name kind qid key-prop (org-chronicle-sources--entity-file kind))))
+    (org-with-point-at marker
+      (when (and key-prop qid) (org-set-property key-prop qid))
+      (when built (org-set-property (car props) (org-chronicle--ts built)))
+      (if razed
+          (org-set-property (cdr props) (org-chronicle--ts razed))
+        (org-delete-property (cdr props)))
+      (unless (org-entry-get nil "TRUTH") (org-set-property "TRUTH" "historical"))
+      (org-chronicle-sources--add-source provenance)
+      (org-chronicle-sources--apply-references change)
+      (save-buffer))
+    (when built
+      (org-chronicle-sources--apply-event-change
+       (list :target 'event :key (format "founding:%s%s" curie qid)
+             :provenance provenance :references references
+             :event (list :title (org-chronicle-sources--founding-title kind name 'founding)
+                          :date built :location location))
+       events-index))
+    (when razed
+      (org-chronicle-sources--apply-event-change
+       (list :target 'event :key (format "razing:%s%s" curie qid)
+             :provenance provenance :references references
+             :event (list :title (org-chronicle-sources--founding-title kind name 'razing)
+                          :date razed :location location))
+       events-index))))
+
+
+
 
 (defun org-chronicle-sources--apply-changes (changes index)
   "Write approved change plists to the chronicle at the heading at point.
@@ -311,7 +391,13 @@ written idempotently to the events file."
                      (plist-get change :name)
                      (or (plist-get change :born) "?")
                      (let ((d (plist-get change :died)))
-                       (if d (concat "–" d) ""))))))
+                       (if d (concat "–" d) ""))))
+    ('entity-seed (format "%-6s %s [%s%s]"
+                          (plist-get change :kind)
+                          (plist-get change :name)
+                          (or (plist-get change :built) "?")
+                          (let ((r (plist-get change :razed)))
+                            (if r (concat "–" r) ""))))))
 
 (defun org-chronicle-sources--review-rows (changes)
   "Build review rows from proposed change plists.
@@ -609,6 +695,40 @@ idempotently to the bulk people file."
          (org-chronicle-sources--apply-person-change c))
        (message "Imported %d person(s)" (length selected))))))
 
+;;;###autoload
+(defun org-chronicle-import-foundings (&optional source-id)
+  "Bulk-import entities founded or built in a place during a year range.
+Prompt for a source (SOURCE-ID non-interactively), a place, and a from/until
+year range; fetch entities whose inception falls in the window and that are
+located within the place; review the proposed place/group entities and their
+founding events; and write the approved set idempotently."
+  (interactive)
+  (let* ((source-id (or source-id
+                        (intern (completing-read
+                                 "Source: " (mapcar #'symbol-name
+                                                    (org-chronicle-sources--ids))
+                                 nil t nil nil
+                                 (symbol-name org-chronicle-default-source)))))
+         (source (org-chronicle-sources--get source-id))
+         (place (org-chronicle-sources--region-or-read "Place (founded or built in): "))
+         (place-qid (org-chronicle-wikibase--resolve source place))
+         (from (read-number "From year: "))
+         (until (read-number "Until year: "))
+         (rows (org-chronicle-wikibase--sparql-request
+                source (org-chronicle-wikibase--foundings-query
+                        source place-qid from until org-chronicle-sources-bulk-limit)))
+         (changes (org-chronicle-wikibase--foundings->changes source rows place))
+         (events-index (org-chronicle-sources--events-index)))
+    (when (seq-empty-p changes)
+      (user-error "No foundings found for %s in %d-%d" place from until))
+    (org-chronicle-sources--review
+     changes
+     (lambda (selected)
+       (dolist (c selected)
+         (org-chronicle-sources--apply-entity-seed-change c events-index))
+       (message "Imported %d founding(s) for %s" (length selected) place)))))
+
+
 
 
 ;;;###autoload
@@ -675,6 +795,7 @@ When several source keys are present, prompt for which to reconcile."
                      :father "P22" :mother "P25"
                      :spouse "P26" :position "P39"
                      :member-of "P463" :participant "P1344"
+                     :org-class "Q43229"
                      :qual-start "P580" :qual-end "P582" ))
     (factgrid
      :label "FactGrid"
