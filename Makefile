@@ -1,7 +1,7 @@
 EMACS ?= emacs
 BATCH  = $(EMACS) -Q --batch -L .
 
-EL = org-chronicle.el org-chronicle-wikibase.el org-chronicle-sources.el $(wildcard tests/*.el)
+EL = org-chronicle.el org-chronicle-wikibase.el org-chronicle-sources.el org-chronicle-solve.el $(wildcard tests/*.el)
 
 .PHONY: all compile checkdoc test test-live package-lint clean
 
@@ -14,9 +14,10 @@ checkdoc:
 	$(BATCH) --eval "(checkdoc-file \"org-chronicle.el\")"
 	$(BATCH) --eval "(checkdoc-file \"org-chronicle-wikibase.el\")"
 	$(BATCH) --eval "(checkdoc-file \"org-chronicle-sources.el\")"
+	$(BATCH) --eval "(checkdoc-file \"org-chronicle-solve.el\")"
 
 test:
-	$(BATCH) -l tests/org-chronicle-tests.el -l tests/org-chronicle-wikibase-tests.el -l tests/org-chronicle-sources-tests.el --eval "(ert-run-tests-batch-and-exit '(not (tag :wikidata-live)))"
+	$(BATCH) -l tests/org-chronicle-tests.el -l tests/org-chronicle-wikibase-tests.el -l tests/org-chronicle-sources-tests.el -l tests/org-chronicle-solve-tests.el --eval "(ert-run-tests-batch-and-exit '(not (tag :wikidata-live)))"
 
 test-live:
 	$(BATCH) -l tests/org-chronicle-wikibase-live-tests.el -f ert-run-tests-batch-and-exit

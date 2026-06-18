@@ -59,6 +59,9 @@
 (require 'cl-lib)
 (require 'subr-x)
 
+(require 'calendar)
+
+
 (require 'crm)
 
 (defgroup org-chronicle nil
@@ -106,6 +109,38 @@ All arguments are date plists (or nil for FROM/UNTIL)."
   (and date
        (or (null from) (not (org-chronicle--date-lessp date from)))
        (or (null until) (not (org-chronicle--date-lessp until date)))))
+
+(defun org-chronicle--date-lower-bound (d)
+  "Return date plist D expanded to the earliest instant of its precision.
+A year-only date becomes its January 1, a month date its first day; a day
+date is returned unchanged.  The result has day precision."
+  (when d
+    (let ((y (plist-get d :year))
+          (mo (or (plist-get d :month) 1))
+          (day (or (plist-get d :day) 1)))
+      (org-chronicle--date-parse (format "%04d-%02d-%02d" y mo day)))))
+
+(defun org-chronicle--date-upper-bound (d)
+  "Return date plist D expanded to the latest instant of its precision.
+A year-only date becomes its December 31, a month date its last day; a day
+date is returned unchanged.  The result has day precision."
+  (when d
+    (let* ((y (plist-get d :year))
+           (mo (or (plist-get d :month) 12))
+           (day (or (plist-get d :day)
+                    (calendar-last-day-of-month mo y))))
+      (org-chronicle--date-parse (format "%04d-%02d-%02d" y mo day)))))
+
+(defun org-chronicle--date-ordinal (d)
+  "Return the absolute Gregorian day number for date plist D.
+Missing month/day default to 1, so callers expand coarse dates with
+`org-chronicle--date-lower-bound' / `org-chronicle--date-upper-bound' first."
+  (calendar-absolute-from-gregorian
+   (list (or (plist-get d :month) 1) (or (plist-get d :day) 1)
+         (plist-get d :year))))
+
+
+
 
 ;;;; Customization
 

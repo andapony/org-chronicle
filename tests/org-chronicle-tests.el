@@ -53,6 +53,39 @@
     (should-not (org-chronicle--date-in-span-p (org-chronicle--date-parse "1870-01-01") from to))
     (should-not (org-chronicle--date-in-span-p (org-chronicle--date-parse "1860-01-01") from to))))
 
+(ert-deftest org-chronicle-test-date-lower-bound ()
+  "Lower bound expands a coarse date to its earliest instant."
+  (let ((y (org-chronicle--date-lower-bound (org-chronicle--date-parse "1880"))))
+    (should (equal (plist-get y :year) 1880))
+    (should (equal (plist-get y :month) 1))
+    (should (equal (plist-get y :day) 1)))
+  (let ((m (org-chronicle--date-lower-bound (org-chronicle--date-parse "1880-06"))))
+    (should (equal (plist-get m :day) 1)))
+  (let ((d (org-chronicle--date-lower-bound (org-chronicle--date-parse "1880-06-15"))))
+    (should (equal (plist-get d :day) 15))))
+
+(ert-deftest org-chronicle-test-date-upper-bound ()
+  "Upper bound expands a coarse date to its latest instant."
+  (let ((y (org-chronicle--date-upper-bound (org-chronicle--date-parse "1880"))))
+    (should (equal (plist-get y :month) 12))
+    (should (equal (plist-get y :day) 31)))
+  (let ((m (org-chronicle--date-upper-bound (org-chronicle--date-parse "1881-02"))))
+    (should (equal (plist-get m :day) 28)))
+  (let ((d (org-chronicle--date-upper-bound (org-chronicle--date-parse "1880-06-15"))))
+    (should (equal (plist-get d :day) 15))))
+
+(ert-deftest org-chronicle-test-date-ordinal-monotonic ()
+  "Ordinals respect chronological order and bound expansion."
+  (let ((lo (org-chronicle--date-ordinal
+             (org-chronicle--date-lower-bound (org-chronicle--date-parse "1880"))))
+        (hi (org-chronicle--date-ordinal
+             (org-chronicle--date-upper-bound (org-chronicle--date-parse "1880")))))
+    (should (< lo hi))
+    (should (= (- hi lo) 365))))
+
+
+
+
 ;;;; Store
 
 (defmacro org-chronicle-test--with-org (text &rest body)
