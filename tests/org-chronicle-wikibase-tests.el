@@ -562,6 +562,30 @@ new entity for a different person."
                         :description "English mathematician"))
                  "Ada Lovelace — English mathematician (Q7259)")))
 
+(ert-deftest org-chronicle-wikibase-test-life-event-people ()
+  "Imported birth/death life events carry the subject (and parents) in :people,
+matching the manual `org-chronicle-add-life-event' convention."
+  (let* ((rec (list :source (org-chronicle-sources--get 'wikidata)
+                    :qid "Q7259"
+                    :born (org-chronicle--date-parse "1815-12-10")
+                    :died (org-chronicle--date-parse "1852-11-27")
+                    :father "Lord Byron" :mother "Anne Isabella Byron"))
+         (changes (org-chronicle-wikibase--record->changes rec "Ada Lovelace"))
+         (people-of (lambda (kind)
+                      (plist-get
+                       (plist-get
+                        (cl-find-if
+                         (lambda (c)
+                           (and (eq (plist-get c :target) 'event)
+                                (equal (plist-get (plist-get c :event) :kind) kind)))
+                         changes)
+                        :event)
+                       :people))))
+    (should (equal (funcall people-of "birth")
+                   '("Ada Lovelace" "Lord Byron" "Anne Isabella Byron")))
+    (should (equal (funcall people-of "death") '("Ada Lovelace")))))
+
+
 (ert-deftest org-chronicle-wikibase-test-resolve-paste ()
   "Test that pasting a QID short-circuits search."
   (let ((wd (org-chronicle-sources--get 'wikidata)))

@@ -847,6 +847,7 @@ See the data contract in the package commentary for field names."
                                  :title (format "Birth of %s" name)
                                  :date (org-chronicle--date-format born)
                                  :subject (list name)
+                                 :people (delete-dups (cons name parents))
                                  :location (plist-get rec :birthplace)))
               changes))
       (when died
@@ -855,6 +856,7 @@ See the data contract in the package commentary for field names."
                                  :title (format "Death of %s" name)
                                  :date (org-chronicle--date-format died)
                                  :subject (list name)
+                                 :people (list name)
                                  :location (plist-get rec :deathplace)))
               changes))
       (dolist (s spouses)
