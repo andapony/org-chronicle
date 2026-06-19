@@ -24,15 +24,17 @@ Emacs 27.1+ and Org 9.4+ are required.
 
 Since the package is not yet on a package archive, install it straight
 from the repository URL with =package-vc-install= (built in since Emacs
-29), then let =use-package= configure it.  The public commands are
-autoloaded, so =:commands= keeps startup cheap, and =:custom= sets the
-data-file locations:
+29.1), then let =use-package= configure it.  This is the recommended
+form: it behaves identically on Emacs 29 and 30.  The public commands
+are autoloaded, so =:commands= keeps startup cheap, and =:custom= sets
+the data-file locations:
 
 #+begin_src emacs-lisp
 (unless (package-installed-p 'org-chronicle)
   (package-vc-install "https://github.com/andapony/org-chronicle"))
 
 (use-package org-chronicle
+  :ensure nil
   :commands (org-chronicle-add-event
              org-chronicle-add-topic
              org-chronicle-timeline
@@ -42,11 +44,20 @@ data-file locations:
   (org-chronicle-lane-column-width 24))
 #+end_src
 
+=:ensure nil= keeps =use-package= from trying to fetch the package from
+a package archive when =use-package-always-ensure= is set;
+=package-vc-install= has already put it on the =load-path=.  Given a
+bare URL, =package-vc-install= tracks the default branch, so
+=package-vc-upgrade= fast-forwards.
+
 On *Emacs 30 or newer*, =use-package= understands the =:vc= keyword, so
 you can drop the =package-vc-install= line and fold the install into the
-declaration instead.  (Note: =:vc= is *not* recognized by the
-=use-package= bundled with Emacs 29 — it raises "Unrecognized keyword:
-:vc" — so use the =package-vc-install= form above there.)
+declaration instead.  Keep =:rev :newest=: without it =:vc= checks out
+the latest release as a detached HEAD, and =package-vc-upgrade= then
+silently does nothing — its =git pull= has no branch to merge into.
+(Note: =:vc= is *not* recognized by the =use-package= bundled with Emacs
+29 — it raises "Unrecognized keyword: :vc" — so use the
+=package-vc-install= form above there.)
 
 #+begin_src emacs-lisp
 (use-package org-chronicle
@@ -55,7 +66,8 @@ declaration instead.  (Note: =:vc= is *not* recognized by the
 #+end_src
 
 Or, if you prefer a manual clone, add =:load-path "/path/to/org-chronicle"=
-to the =use-package= form instead of installing from the URL.
+to the =use-package= form (keeping =:ensure nil=) instead of installing
+from the URL.
 
 To explore the package before wiring up your own files, copy the
 bundled =examples/= directory somewhere and set =org-chronicle-root= to
