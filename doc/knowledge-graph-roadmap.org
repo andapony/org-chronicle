@@ -411,6 +411,33 @@
    *Exit:* "seed everything known about people born in <place>" produces a
    reviewed, de-duplicated, refreshable import file.
 
+*** Shipped 2026-06-17/18
+
+    The core bulk slices shipped (through v0.9.0):
+
+    - *Bulk events* (=org-chronicle-import-events=): events located at a place
+      (=P276= ∪ =P131=) with a point-in-time or overlapping start/end span in
+      a year range; written to =imported/events.org= with =WIKIPEDIA= refs.
+    - *Bulk people* (=org-chronicle-import-people=): people related to an
+      anchor by a data-driven *relation* (lived/worked-in-place, born-in-place,
+      member-of-group, participant-in-event) whose lifespan overlaps a window,
+      optionally filtered by occupation; lean entity headings to
+      =imported/people.org=.
+    - *Bulk foundings* (=org-chronicle-import-foundings=): entities located in
+      a place with an inception in a window, auto-classified place/group, each
+      written as an entity with its existence span *plus* a founding (and
+      razing/dissolution) event.
+
+    All reuse the review buffer + =IMPORT-KEY= idempotency and were
+    live-validated against Wikidata.  Deferred Phase-4 leftovers: sub-place
+    transitivity for *events*, raw-output caching, multi-relation unions for
+    people, vanished-upstream cleanup, and FactGrid bulk events.
+
+    *Data-coverage finding:* SF Gold-Rush-era (1845–60) has ~0 structured
+    point-in-time *events* in any source — the era's machine-readable content
+    is entity *foundings* (Wikidata inception) plus unstructured Wikipedia
+    prose.  Foundings import is the way to surface it.
+
 ** Phase 5 — Multi-source cross-check and conflict resolution  [L]
    :PROPERTIES:
    :CUSTOM_ID: phase-5
@@ -478,10 +505,41 @@
   | PeriodO | era / =TOPICS= vocabulary (JSON-LD) | later (topic work) |
   | Pleiades | ancient places | gated on fuzzy-dates track |
 
-* Recommended immediate next step
+* Status and what to work on next (updated 2026-06-19)
 
-  Do *Phase 0* next, as a single brainstorm → spec → plan → implement cycle.
-  It is small, it is pure correctness, and it converts the shipped feature
-  from "import once" into the refreshable cache the whole design implies —
-  which is the foundation every later phase stands on.  Everything else can
-  then be scheduled against appetite and the demands of a real corpus.
+  *Knowledge-graph track.*  Phases 0–3 shipped in full; Phase 4 (bulk
+  import) shipped its core slices (events / people / foundings, through
+  v0.9.0 — see [[#phase-4]]).  What remains on this track:
+
+  - *Phase 5 — multi-source cross-check* ([[#phase-5]]): DBpedia/YAGO
+    cross-check and conflict-as-signal.  The =org-chronicle-dbpedia.el= slot
+    and the source registry are in place; this also wants the deferred
+    foundation-layer extraction (Phase 3 deferral #1) and the curie-qualified
+    cross-source event merge (deferral #3).
+  - *Phase 4 leftovers* (minor): sub-place transitivity for events, raw-output
+    caching, multi-relation unions, vanished-upstream cleanup, FactGrid bulk
+    events.
+  - *Fuzzy / coarse dates* ([[#fuzzy-dates]]) — the independent core-model
+    track; still the gating prerequisite for ancient/medieval subjects and
+    deeper interval reasoning.  Deserves its own brainstorm → spec → plan.
+
+  *Authoring / continuity track (now the active area).*  With the data
+  substrate mature, work pivoted to the tool's original purpose — keeping the
+  fiction continuous.  The brainstorm map and the six themes live in
+  =docs/superpowers/specs/2026-06-18-authoring-continuity-seed.md=.  *Theme 1,
+  the continuity solver (a simple temporal network over scenes), shipped
+  2026-06-18* (design + plan under =docs/superpowers/=): scene constraint
+  propagation, =EARLIEST=/=LATEST= bounds, report-only accept with a placement
+  preview, echo-area peek + overlays, and capture-then-attach ordering.  Two
+  tracked follow-ups remain on it: model name-adoption onset as an STN
+  constraint (design §4.2 — currently bridged by the legacy violation path),
+  and add an automated test for the report rendering.
+
+  *Recommended next.*  On the authoring track, the cheap independent wins are
+  the read-only analyses — *coverage / gap* ("what is not yet dramatized")
+  and *narrative order / flashback* (theme 3 and 4) — or *name-validity
+  windows* (theme 2: the missing upper bound, maiden-name-after-marriage),
+  which is self-contained and extends the solver's interval reasoning.  The
+  *fuzzy-dates* track is the other high-leverage choice and unblocks both the
+  KG ancient-subject gap and richer continuity reasoning.  Pick per appetite
+  and what the corpus demands next.
