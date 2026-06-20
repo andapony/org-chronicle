@@ -1626,17 +1626,19 @@ KIND and SUBJECTS may be supplied non-interactively (used by
 
 (declare-function org-reading-list-entries "org-reading-list" ())
 
-(defun org-chronicle--source-link (id description &optional locator)
-  "Return an Org id link to a source: [[id:ID][DESCRIPTION]] optional LOCATOR."
-  (concat (format "[[id:%s][%s]]" id description)
+(defun org-chronicle--source-link (citekey description &optional locator)
+  "Return an Org orl: link to a reading-list book.
+CITEKEY is the book's :CUSTOM_ID:, DESCRIPTION the display text, and
+LOCATOR an optional trailing reference such as a page number."
+  (concat (format "[[orl:%s][%s]]" citekey description)
           (when (and locator (not (string-blank-p locator)))
             (concat " " locator))))
 
 (defun org-chronicle--read-source (&optional free-text)
   "Return a source string.
-If `org-reading-list' is loaded, offer to pick an entry and build an id
-link with an optional locator; otherwise (or on blank pick) return
-FREE-TEXT or a prompted free-text citation."
+If `org-reading-list' is loaded, offer to pick an entry and build an
+orl: citekey link with an optional locator; otherwise (or on a blank
+pick) return FREE-TEXT or a prompted free-text citation."
   (if (and (featurep 'org-reading-list)
            (fboundp 'org-reading-list-entries))
       (let* ((entries (org-reading-list-entries))

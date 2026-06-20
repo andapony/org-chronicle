@@ -1058,9 +1058,9 @@ global root differs."
 
 (ert-deftest org-chronicle-test-source-link-format ()
   (should (equal (org-chronicle--source-link "abc123" "Foote, Civil War" "p.412")
-                 "[[id:abc123][Foote, Civil War]] p.412"))
+                 "[[orl:abc123][Foote, Civil War]] p.412"))
   (should (equal (org-chronicle--source-link "abc123" "Foote" nil)
-                 "[[id:abc123][Foote]]")))
+                 "[[orl:abc123][Foote]]")))
 
 (ert-deftest org-chronicle-test-known-people ()
   "Known people present only preferred names; aliases fold to the entity name."
@@ -1199,6 +1199,28 @@ global root differs."
             ((symbol-function 'org-reading-list-entries) (lambda () '(("Foote" . "id1"))))
             ((symbol-function 'completing-read) (lambda (&rest _) "Unlisted clipping")))
     (should (equal (org-chronicle--read-source) "Unlisted clipping"))))
+
+(ert-deftest org-chronicle-test-source-link-orl ()
+  "A source link is an orl: citekey link with an optional locator."
+  (should (equal (org-chronicle--source-link "foote1963" "Foote" "p.10")
+                 "[[orl:foote1963][Foote]] p.10"))
+  (should (equal (org-chronicle--source-link "foote1963" "Foote" nil)
+                 "[[orl:foote1963][Foote]]")))
+
+(ert-deftest org-chronicle-test-read-source-builds-orl-link ()
+  "A matched reading-list pick builds an orl: link with locator."
+  (cl-letf (((symbol-function 'featurep)
+             (lambda (f &rest _) (eq f 'org-reading-list)))
+            ((symbol-function 'org-reading-list-entries)
+             (lambda () '(("Foote, The Civil War (1963)" . "foote1963"))))
+            ((symbol-function 'completing-read)
+             (lambda (&rest _) "Foote, The Civil War (1963)"))
+            ((symbol-function 'read-string)
+             (lambda (&rest _) "p.412")))
+    (should (equal (org-chronicle--read-source)
+                   "[[orl:foote1963][Foote, The Civil War (1963)]] p.412"))))
+
+
 
 (ert-deftest org-chronicle-test-link-export-uses-description ()
   "A chronicle: link exports as its description text."
