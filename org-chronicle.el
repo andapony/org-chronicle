@@ -1744,7 +1744,8 @@ HITS is the value of `org-chronicle--scan-citations'."
               (put-text-property start (point) 'org-chronicle-marker
                                  (plist-get h :marker)))))
         (goto-char (point-min))
-        (org-chronicle-citations-mode))
+        (org-chronicle-citations-mode)
+        (set-buffer-modified-p nil))
       (pop-to-buffer buf))))
 
 ;;;###autoload
@@ -1757,9 +1758,6 @@ a read-only buffer where RET jumps to a citing event and q quits."
   (let* ((citekey (or citekey (org-chronicle--read-citation-key)))
          (hits (org-chronicle--scan-citations citekey)))
     (org-chronicle--show-citations citekey hits)))
-
-
-
 
 
 

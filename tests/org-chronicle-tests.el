@@ -1220,8 +1220,6 @@ global root differs."
     (should (equal (org-chronicle--read-source)
                    "[[orl:foote1963][Foote, The Civil War (1963)]] p.412"))))
 
-
-
 (ert-deftest org-chronicle-test-link-export-uses-description ()
   "A chronicle: link exports as its description text."
   (should (equal (org-chronicle--link-export "any-id" "Mrs. Grant" 'html)
@@ -1665,8 +1663,6 @@ Buffer-modified-p must stay nil throughout."
             (insert "* No sources here\n"))
           (should (null (org-chronicle--scan-citations "foote1963"))))
       (delete-directory root t))))
-
-
 
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
