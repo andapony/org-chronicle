@@ -208,10 +208,24 @@ strings), =:mode= (=:collapse= or =:expand= for groups/parent places).
 * Sources
 
 =M-x org-chronicle-add-source= appends a source to the =SOURCES=
-property of the event at point.  When =org-reading-list= is loaded,
-it offers completion over that reading list and builds an =id:= link
-with an optional locator (e.g. page number); otherwise it falls back
-to free-text input.  There is no hard dependency on =org-reading-list=.
+property of the event at point.  When =org-reading-list= is loaded, it
+completes over your reading list and files the citation as an =orl:=
+link with an optional locator, e.g.
+
+#+begin_example
+:SOURCES: [[orl:foote1963][Foote, The Civil War (1963)]] p.412
+#+end_example
+
+Following the link jumps to the book's entry.  Without =org-reading-list=
+loaded — or on a blank pick — it falls back to a free-text citation, so
+there is no hard dependency.  Only reading-list entries that carry a
+=:CUSTOM_ID:= are offered; run =M-x org-reading-list-ensure-citekeys=
+there once to make any legacy entries citable.
+
+=M-x org-chronicle-book-citations= is the reverse lookup: it lists every
+chronicle event whose =SOURCES= cite a given book.  Run on a reading-list
+entry it uses that entry's citekey; elsewhere it prompts.  The results
+open in a read-only buffer — =RET= jumps to a citing event, =q= quits.
 
 * Wikidata integration
 
