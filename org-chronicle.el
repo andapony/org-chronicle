@@ -1665,6 +1665,106 @@ pick) return FREE-TEXT or a prompted free-text citation."
                      new)))
     (org-set-property "SOURCES" combined)))
 
+(defun org-chronicle--scan-citations (citekey)
+  "Return one plist per chronicle heading whose SOURCES cite CITEKEY.
+Each plist has keys :file, :title, :date, and :marker.  Multiple cites of
+CITEKEY within one heading collapse to a single entry.  CITEKEY is a
+reading-list :CUSTOM_ID:."
+  (let ((needle (format "[[orl:%s]" citekey))
+        (seen (make-hash-table :test #'equal))
+        hits)
+    (dolist (file (org-chronicle--source-files))
+      (with-current-buffer (find-file-noselect file)
+        (save-excursion
+          (goto-char (point-min))
+          (while (search-forward needle nil t)
+            (save-excursion
+              (org-back-to-heading t)
+              (let ((key (cons file (point))))
+                (unless (gethash key seen)
+                  (puthash key t seen)
+                  (push (list :file file
+                              :title (org-get-heading t t t t)
+                              :date (org-entry-get nil "DATE")
+                              :marker (point-marker))
+                        hits))))))))
+    (nreverse hits)))
+
+(defun org-chronicle--read-citation-key ()
+  "Return a reading-list citekey to look up citations for.
+Default to the :CUSTOM_ID: of the entry at point (e.g. when invoked in
+the reading-list buffer); otherwise complete over `org-reading-list-entries'
+when available, else read a key as free text."
+  (or (and (derived-mode-p 'org-mode) (org-entry-get nil "CUSTOM_ID"))
+      (if (and (featurep 'org-reading-list)
+               (fboundp 'org-reading-list-entries))
+          (let* ((entries (org-reading-list-entries))
+                 (pick (completing-read "Book: " (mapcar #'car entries)
+                                        nil t)))
+            (cdr (assoc pick entries)))
+        (read-string "Citekey: "))))
+
+(defvar org-chronicle-citations-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'org-chronicle-citations-goto)
+    (define-key map "q" #'quit-window)
+    map)
+  "Keymap for `org-chronicle-citations-mode'.")
+
+(define-derived-mode org-chronicle-citations-mode special-mode
+  "Chronicle-Citations"
+  "Major mode for the chronicle book-citations list.")
+
+(defun org-chronicle-citations-goto ()
+  "Jump to the chronicle event named on the current line."
+  (interactive)
+  (let ((m (get-text-property (line-beginning-position)
+                              'org-chronicle-marker)))
+    (if (and m (marker-buffer m))
+        (progn (pop-to-buffer (marker-buffer m))
+               (goto-char m)
+               (org-reveal))
+      (user-error "No event on this line"))))
+
+(defun org-chronicle--show-citations (citekey hits)
+  "Display HITS citing CITEKEY in a read-only *Chronicle citations* buffer.
+HITS is the value of `org-chronicle--scan-citations'."
+  (if (null hits)
+      (message "No chronicle events cite %s" citekey)
+    (let ((buf (get-buffer-create "*Chronicle citations*")))
+      (with-current-buffer buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "Events citing %s:\n\n" citekey))
+          (dolist (h hits)
+            (let ((start (point)))
+              (insert (format "%s  %s\n"
+                              (or (plist-get h :date) "(undated)")
+                              (plist-get h :title)))
+              (put-text-property start (point) 'org-chronicle-marker
+                                 (plist-get h :marker)))))
+        (goto-char (point-min))
+        (org-chronicle-citations-mode))
+      (pop-to-buffer buf))))
+
+;;;###autoload
+(defun org-chronicle-book-citations (&optional citekey)
+  "List chronicle events whose SOURCES cite the reading-list book CITEKEY.
+Interactively, CITEKEY defaults to the :CUSTOM_ID: of the entry at point
+\(handy from the reading-list buffer); otherwise you are prompted.  Opens
+a read-only buffer where RET jumps to a citing event and q quits."
+  (interactive)
+  (let* ((citekey (or citekey (org-chronicle--read-citation-key)))
+         (hits (org-chronicle--scan-citations citekey)))
+    (org-chronicle--show-citations citekey hits)))
+
+
+
+
+
+
+
+
 ;;;; Lint
 
 (defun org-chronicle--span-for-name (name entities idx index)

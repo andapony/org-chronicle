@@ -1635,5 +1635,38 @@ Buffer-modified-p must stay nil throughout."
         (should-error (org-chronicle-add-constraint 'after)
                       :type 'user-error)))))
 
+(ert-deftest org-chronicle-test-scan-citations-finds-and-dedups ()
+  "Scan returns one hit per heading even with multiple cites; others skipped."
+  (let* ((root (make-temp-file "chron" t))
+         (org-chronicle-root root)
+         (org-chronicle-exclude nil)
+         (file (expand-file-name "timeline.org" root)))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "* Siege begins\n:PROPERTIES:\n:DATE: <1863-05-18>\n"
+                    ":SOURCES: [[orl:foote1963][Foote]] p.1;"
+                    " [[orl:foote1963][Foote]] p.2\n:END:\n"
+                    "* Unrelated\n:PROPERTIES:\n:SOURCES: free text\n:END:\n"))
+          (let ((hits (org-chronicle--scan-citations "foote1963")))
+            (should (= (length hits) 1))
+            (should (equal (plist-get (car hits) :title) "Siege begins"))
+            (should (equal (plist-get (car hits) :date) "<1863-05-18>"))))
+      (delete-directory root t))))
+
+(ert-deftest org-chronicle-test-scan-citations-zero ()
+  "A citekey nothing cites yields an empty list."
+  (let* ((root (make-temp-file "chron" t))
+         (org-chronicle-root root)
+         (org-chronicle-exclude nil))
+    (unwind-protect
+        (progn
+          (with-temp-file (expand-file-name "t.org" root)
+            (insert "* No sources here\n"))
+          (should (null (org-chronicle--scan-citations "foote1963"))))
+      (delete-directory root t))))
+
+
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
