@@ -1207,6 +1207,15 @@ global root differs."
   (should (equal (org-chronicle--source-link "foote1963" "Foote" nil)
                  "[[orl:foote1963][Foote]]")))
 
+(ert-deftest org-chronicle-test-source-link-escapes-brackets ()
+  "Square brackets in the description cannot break the orl: link."
+  (let ((link (org-chronicle--source-link
+               "smith1990" "Smith, History (1990) [smith1990]" "p.5")))
+    (should (equal link
+                   "[[orl:smith1990][Smith, History (1990) (smith1990)]] p.5"))
+    (should-not (string-match-p "\\]\\]\\]" link))))
+
+
 (ert-deftest org-chronicle-test-read-source-builds-orl-link ()
   "A matched reading-list pick builds an orl: link with locator."
   (cl-letf (((symbol-function 'featurep)

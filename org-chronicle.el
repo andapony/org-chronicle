@@ -1629,10 +1629,15 @@ KIND and SUBJECTS may be supplied non-interactively (used by
 (defun org-chronicle--source-link (citekey description &optional locator)
   "Return an Org orl: link to a reading-list book.
 CITEKEY is the book's :CUSTOM_ID:, DESCRIPTION the display text, and
-LOCATOR an optional trailing reference such as a page number."
-  (concat (format "[[orl:%s][%s]]" citekey description)
-          (when (and locator (not (string-blank-p locator)))
-            (concat " " locator))))
+LOCATOR an optional trailing reference such as a page number.
+Square brackets in DESCRIPTION are rewritten to parentheses so they
+cannot terminate the bracket link."
+  (let ((safe (replace-regexp-in-string
+               "\\[" "("
+               (replace-regexp-in-string "\\]" ")" description))))
+    (concat (format "[[orl:%s][%s]]" citekey safe)
+            (when (and locator (not (string-blank-p locator)))
+              (concat " " locator)))))
 
 (defun org-chronicle--read-source (&optional free-text)
   "Return a source string.
