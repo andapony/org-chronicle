@@ -63,6 +63,8 @@
 
 (require 'crm)
 
+(require 'bookmark)
+
 (defgroup org-chronicle nil
   "Event timeline for historical fiction."
   :group 'org
@@ -711,7 +713,8 @@ override `org-chronicle-root' and `org-chronicle-exclude' for this gather
   "Keymap for `org-chronicle-view-mode'.")
 
 (define-derived-mode org-chronicle-view-mode special-mode "Chronicle"
-  "Major mode for the read-only swimlane timeline view.")
+  "Major mode for the read-only swimlane timeline view."
+  (setq-local bookmark-make-record-function #'org-chronicle--bookmark-record))
 
 (defvar-local org-chronicle--view-args nil
   "The plist of arguments that produced the current view, for refresh.")
@@ -3014,6 +3017,38 @@ are never written to disk and do not set the buffer-modified flag."
     (setq org-chronicle--window-overlays-active t)
     (message "Window overlays drawn (%d floating scene(s))."
              (length org-chronicle--window-overlays))))
+
+(defun org-chronicle--bookmark-clean (args)
+  "Return ARGS reduced to the persistable query keys.
+Keeps :people :locations :topics :truth :from :until :mode (only those
+present) and drops the transient :root and :exclude, which resolve from
+the environment when the bookmark is followed."
+  (let (out)
+    (dolist (k '(:people :locations :topics :truth :from :until :mode) out)
+      (when (plist-member args k)
+        (setq out (plist-put out k (plist-get args k)))))))
+
+(defun org-chronicle--bookmark-name (args)
+  "Return a default bookmark name describing the lanes in ARGS."
+  (let ((names (append (plist-get args :people)
+                       (plist-get args :locations)
+                       (plist-get args :topics))))
+    (if names
+        (format "chronicle: %s" (mapconcat #'identity names ", "))
+      "chronicle timeline")))
+
+(defun org-chronicle--bookmark-record ()
+  "Return a bookmark record for the current chronicle view.
+Stores the cleaned query under `chronicle-args' and registers
+`org-chronicle--bookmark-jump' as the handler."
+  (let ((args (org-chronicle--bookmark-clean org-chronicle--view-args)))
+    `(,(org-chronicle--bookmark-name org-chronicle--view-args)
+      (handler . org-chronicle--bookmark-jump)
+      (chronicle-args . ,args))))
+
+(defun org-chronicle--bookmark-jump (bookmark)
+  "Restore the chronicle view stored in BOOKMARK by re-running the timeline."
+  (apply #'org-chronicle-timeline (bookmark-prop-get bookmark 'chronicle-args)))
 
 ;;;; (sections added by later tasks)
 

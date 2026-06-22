@@ -1885,5 +1885,29 @@ Buffer-modified-p must stay nil throughout."
   (let ((s (org-chronicle--dblock-string (list :people '("Ada") :mode :expand))))
     (should (string-match-p ":mode :expand" s))))
 
+(ert-deftest org-chronicle-test-bookmark-clean ()
+  "Cleaning keeps query keys and drops transient root/exclude."
+  (let ((out (org-chronicle--bookmark-clean
+              (list :people '("Ada") :mode :collapse
+                    :root "/tmp" :exclude '("x")))))
+    (should (equal (plist-get out :people) '("Ada")))
+    (should (eq (plist-get out :mode) :collapse))
+    (should-not (plist-member out :root))
+    (should-not (plist-member out :exclude))))
+
+(ert-deftest org-chronicle-test-bookmark-record-and-jump ()
+  "A record carries the cleaned args and the handler re-runs the timeline."
+  (let* ((org-chronicle--view-args (list :people '("Ada") :mode :collapse
+                                         :root "/tmp"))
+         (rec (org-chronicle--bookmark-record))
+         (got nil))
+    (should (eq (bookmark-prop-get rec 'handler) #'org-chronicle--bookmark-jump))
+    (should (equal (bookmark-prop-get rec 'chronicle-args)
+                   (list :people '("Ada") :mode :collapse)))
+    (cl-letf (((symbol-function 'org-chronicle-timeline)
+               (lambda (&rest args) (setq got args))))
+      (org-chronicle--bookmark-jump rec)
+      (should (equal got (list :people '("Ada") :mode :collapse))))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
