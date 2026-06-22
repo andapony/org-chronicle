@@ -703,6 +703,9 @@ override `org-chronicle-root' and `org-chronicle-exclude' for this gather
     (define-key map (kbd "C-c <right>") #'org-chronicle-history-forward)
     (define-key map "l" #'org-chronicle-history-back)
     (define-key map "r" #'org-chronicle-history-forward)
+    (define-key map (kbd "+") #'org-chronicle-view-expand)
+    (define-key map (kbd "a") #'org-chronicle-view-add-lane)
+    (define-key map (kbd "-") #'org-chronicle-view-remove-lane)
     map)
   "Keymap for `org-chronicle-view-mode'.")
 
@@ -848,6 +851,82 @@ PAIR is a (NAME . DOMAIN) cons; the result is \"NAME [DOMAIN-LABEL]\"."
   "Return an alist mapping each PAIR's display string to the PAIR.
 Order follows PAIRS.  See `org-chronicle--format-candidate'."
   (mapcar (lambda (pr) (cons (org-chronicle--format-candidate pr) pr)) pairs))
+
+(defun org-chronicle--marker-event (m)
+  "Return the event plist at marker M."
+  (with-current-buffer (marker-buffer m)
+    (save-excursion (goto-char m) (org-chronicle--event-at-point))))
+
+(defun org-chronicle--events-at-point ()
+  "Return the event(s) anchoring an expand at point.
+The single event under point when point is on its cell; otherwise every
+event whose marker appears on the current line (row fallback); nil when
+the line carries no event (header, rule, or blank line)."
+  (let ((m (get-text-property (point) 'org-chronicle-marker)))
+    (cond
+     (m (list (org-chronicle--marker-event m)))
+     ((org-chronicle--line-markers)
+      (mapcar #'org-chronicle--marker-event (org-chronicle--line-markers)))
+     (t nil))))
+
+(defun org-chronicle--add-lanes-interactively (pairs prompt)
+  "Prompt with PROMPT to add lanes from PAIRS, then refresh the view.
+PAIRS is a list of (NAME . DOMAIN) candidates; the user picks any subset
+\(none pre-selected) which is appended to `org-chronicle--view-args'."
+  (if (null pairs)
+      (message "No new entities to add")
+    (let* ((alist (org-chronicle--candidate-alist pairs))
+           (chosen (completing-read-multiple prompt (mapcar #'car alist) nil t))
+           (sel (delq nil (mapcar (lambda (c) (cdr (assoc c alist))) chosen))))
+      (when sel
+        (setq org-chronicle--view-args
+              (org-chronicle--view-args-add org-chronicle--view-args sel))
+        (org-chronicle-view-refresh)))))
+
+(defun org-chronicle--remove-lanes (identities)
+  "Remove IDENTITIES from `org-chronicle--view-args' and refresh the view."
+  (when identities
+    (setq org-chronicle--view-args
+          (org-chronicle--view-args-remove org-chronicle--view-args identities))
+    (org-chronicle-view-refresh)))
+
+(defun org-chronicle-view-expand ()
+  "Expand the event(s) at point, offering their entities as new lanes."
+  (interactive)
+  (let ((events (org-chronicle--events-at-point)))
+    (if (null events)
+        (message "No event at point")
+      (let* ((entities (org-chronicle--all-entities))
+             (idx (org-chronicle--alias-index entities))
+             (pairs (org-chronicle--filter-present-pairs
+                     (org-chronicle--canonicalize-pairs
+                      (org-chronicle--event-entities events) idx)
+                     org-chronicle--view-args idx)))
+        (org-chronicle--add-lanes-interactively pairs "Expand into lanes: ")))))
+
+(defun org-chronicle-view-add-lane ()
+  "Add one or more lanes chosen from all known people, places, and topics."
+  (interactive)
+  (let* ((entities (org-chronicle--all-entities))
+         (idx (org-chronicle--alias-index entities))
+         (pairs (org-chronicle--filter-present-pairs
+                 (org-chronicle--canonicalize-pairs
+                  (org-chronicle--known-pairs) idx)
+                 org-chronicle--view-args idx)))
+    (org-chronicle--add-lanes-interactively pairs "Add lane: ")))
+
+(defun org-chronicle-view-remove-lane ()
+  "Remove the lane at point, or prompt for lanes to remove when none is there."
+  (interactive)
+  (let ((id (org-chronicle--lane-at-point)))
+    (if id
+        (org-chronicle--remove-lanes (list id))
+      (let* ((ids (org-chronicle--current-lane-identities org-chronicle--view-args))
+             (alist (mapcar (lambda (i) (cons (cdr i) i)) ids))
+             (chosen (completing-read-multiple
+                      "Remove lanes: " (mapcar #'car alist) nil t)))
+        (org-chronicle--remove-lanes
+         (delq nil (mapcar (lambda (c) (cdr (assoc c alist))) chosen)))))))
 
 ;;;###autoload
 (cl-defun org-chronicle-timeline (&key people locations topics truth from until

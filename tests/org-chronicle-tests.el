@@ -1804,5 +1804,54 @@ Buffer-modified-p must stay nil throughout."
       (goto-char (point-min))
       (should (equal (org-chronicle--line-markers) (list m))))))
 
+(ert-deftest org-chronicle-test-expand-updates-view-args ()
+  "Expand adds the chosen event entities as lanes and refreshes."
+  (let ((org-chronicle--view-args (list :people '("Ada") :mode :collapse))
+        (refreshed nil))
+    (cl-letf (((symbol-function 'org-chronicle--events-at-point)
+               (lambda () (list (list :people '("Bob") :subject nil
+                                      :location "London" :topics nil))))
+              ((symbol-function 'org-chronicle--all-entities) (lambda () nil))
+              ((symbol-function 'org-chronicle--alias-index)
+               (lambda (_e) (make-hash-table :test #'equal)))
+              ((symbol-function 'completing-read-multiple)
+               (lambda (&rest _) '("Bob [person]")))
+              ((symbol-function 'org-chronicle-view-refresh)
+               (lambda () (setq refreshed t))))
+      (org-chronicle-view-expand)
+      (should (equal (plist-get org-chronicle--view-args :people) '("Ada" "Bob")))
+      (should refreshed))))
+
+(ert-deftest org-chronicle-test-expand-no-event ()
+  "Expand with no event context messages and leaves args untouched."
+  (let ((org-chronicle--view-args (list :people '("Ada"))))
+    (cl-letf (((symbol-function 'org-chronicle--events-at-point) (lambda () nil)))
+      (org-chronicle-view-expand)
+      (should (equal (plist-get org-chronicle--view-args :people) '("Ada"))))))
+
+(ert-deftest org-chronicle-test-remove-lane-at-point ()
+  "Remove drops the lane under point when one is present."
+  (let ((org-chronicle--view-args (list :people '("Ada" "Bob")))
+        (refreshed nil))
+    (cl-letf (((symbol-function 'org-chronicle--lane-at-point)
+               (lambda (&optional _p) '(people . "Bob")))
+              ((symbol-function 'org-chronicle-view-refresh)
+               (lambda () (setq refreshed t))))
+      (org-chronicle-view-remove-lane)
+      (should (equal (plist-get org-chronicle--view-args :people) '("Ada")))
+      (should refreshed))))
+
+(ert-deftest org-chronicle-test-remove-lane-prompt ()
+  "With no lane at point, remove prompts and drops the chosen lanes."
+  (let ((org-chronicle--view-args (list :people '("Ada" "Bob")))
+        (refreshed nil))
+    (cl-letf (((symbol-function 'org-chronicle--lane-at-point) (lambda (&optional _p) nil))
+              ((symbol-function 'completing-read-multiple) (lambda (&rest _) '("Ada")))
+              ((symbol-function 'org-chronicle-view-refresh)
+               (lambda () (setq refreshed t))))
+      (org-chronicle-view-remove-lane)
+      (should (equal (plist-get org-chronicle--view-args :people) '("Bob")))
+      (should refreshed))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
