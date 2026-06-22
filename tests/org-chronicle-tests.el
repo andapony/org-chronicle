@@ -1853,5 +1853,37 @@ Buffer-modified-p must stay nil throughout."
       (should (equal (plist-get org-chronicle--view-args :people) '("Bob")))
       (should refreshed))))
 
+(ert-deftest org-chronicle-test-dblock-string ()
+  "The dblock string emits set filters and omits blanks."
+  (let ((s (org-chronicle--dblock-string
+            (list :people '("Ada" "Bob") :locations nil :topics '("war")
+                  :truth '("historical") :from "1850" :until "" :mode :collapse))))
+    (should (string-prefix-p "#+BEGIN: chronicle " s))
+    (should (string-suffix-p "\n#+END:" s))
+    (should (string-match-p ":people (\"Ada\" \"Bob\")" s))
+    (should (string-match-p ":topics (\"war\")" s))
+    (should (string-match-p ":truth (\"historical\")" s))
+    (should (string-match-p ":from \"1850\"" s))
+    (should (string-match-p ":mode :collapse" s))
+    (should-not (string-match-p ":locations" s))
+    (should-not (string-match-p ":until" s))))
+
+(ert-deftest org-chronicle-test-dblock-string-defaults-mode ()
+  "Mode defaults to :collapse when absent."
+  (should (string-match-p
+           ":mode :collapse"
+           (org-chronicle--dblock-string (list :people '("Ada"))))))
+
+(ert-deftest org-chronicle-test-dblock-string-coerces-mode-symbol ()
+  "A bare-symbol mode is coerced to a keyword so it round-trips."
+  (should (string-match-p
+           ":mode :expand"
+           (org-chronicle--dblock-string (list :people '("Ada") :mode 'expand)))))
+
+(ert-deftest org-chronicle-test-dblock-mode-expand ()
+  "An expand-mode view serializes to a block keyword the writer honors."
+  (let ((s (org-chronicle--dblock-string (list :people '("Ada") :mode :expand))))
+    (should (string-match-p ":mode :expand" s))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

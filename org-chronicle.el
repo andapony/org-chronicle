@@ -706,6 +706,7 @@ override `org-chronicle-root' and `org-chronicle-exclude' for this gather
     (define-key map (kbd "+") #'org-chronicle-view-expand)
     (define-key map (kbd "a") #'org-chronicle-view-add-lane)
     (define-key map (kbd "-") #'org-chronicle-view-remove-lane)
+    (define-key map (kbd "D") #'org-chronicle-view-copy-dblock)
     map)
   "Keymap for `org-chronicle-view-mode'.")
 
@@ -992,6 +993,34 @@ UNTIL date bounding the range (each blank for no bound), a truth subset
 PARAMS keys mirror `org-chronicle-timeline' (:people :topics :locations :truth
 :from :until :mode)."
   (insert (apply #'org-chronicle--compose params)))
+
+(defun org-chronicle--dblock-string (args)
+  "Return a `chronicle' dynamic-block string for the view query ARGS.
+Emits the lane lists (:people :locations :topics) and :truth when set,
+the :from/:until bounds when non-empty, and :mode (defaulting to
+`:collapse').  The block is rendered by `org-dblock-write:chronicle'."
+  (let ((parts '()))
+    (dolist (k '(:people :locations :topics))
+      (let ((v (plist-get args k)))
+        (when v (push (format "%s %S" k v) parts))))
+    (let ((tr (plist-get args :truth)))
+      (when tr (push (format ":truth %S" tr) parts)))
+    (dolist (k '(:from :until))
+      (let ((v (plist-get args k)))
+        (when (and v (not (string-empty-p v))) (push (format "%s %S" k v) parts))))
+    (let ((mode (or (plist-get args :mode) :collapse)))
+      (push (format ":mode %S"
+                    (if (keywordp mode) mode (intern (format ":%s" mode))))
+            parts))
+    (format "#+BEGIN: chronicle %s\n#+END:"
+            (mapconcat #'identity (nreverse parts) " "))))
+
+(defun org-chronicle-view-copy-dblock ()
+  "Copy the current view's query as a `chronicle' dblock to the `kill-ring'."
+  (interactive)
+  (let ((s (org-chronicle--dblock-string org-chronicle--view-args)))
+    (kill-new s)
+    (message "Chronicle dblock copied to kill-ring")))
 
 ;; Test-facing alias for the dynamic-block writer.
 (defalias 'org-chronicle-dblock-write 'org-dblock-write:chronicle)
