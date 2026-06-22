@@ -639,6 +639,33 @@ never returning less than `org-chronicle-lane-column-width'."
     (max org-chronicle-lane-column-width
          (/ (- total org-chronicle--date-col-width) nlanes))))
 
+(defun org-chronicle--order-lanes (lanes order)
+  "Return LANES reordered to match ORDER.
+ORDER is a list of (DOMAIN . LABEL) lane identities.  Lanes whose
+\(:domain . :label) appears in ORDER are emitted in ORDER's sequence;
+lanes absent from ORDER follow in their original relative order.  A nil
+ORDER returns LANES unchanged; ORDER entries matching no lane are skipped."
+  (if (null order)
+      lanes
+    (let* ((id (lambda (l) (cons (plist-get l :domain) (plist-get l :label))))
+           (ordered (cl-loop for o in order
+                             for l = (cl-find o lanes :key id :test #'equal)
+                             when l collect l))
+           (rest (cl-remove-if (lambda (l) (member (funcall id l) order)) lanes)))
+      (append ordered rest))))
+
+(defun org-chronicle--swap-in-order (order identity direction)
+  "Return ORDER with IDENTITY swapped one step in DIRECTION, or nil.
+DIRECTION is `left' or `right'.  Returns nil when IDENTITY is not in
+ORDER or is already at the corresponding end (no change)."
+  (let ((pos (cl-position identity order :test #'equal)))
+    (when pos
+      (let ((swap (if (eq direction 'left) (1- pos) (1+ pos))))
+        (when (and (>= swap 0) (< swap (length order)))
+          (let ((new (copy-sequence order)))
+            (cl-rotatef (nth pos new) (nth swap new))
+            new))))))
+
 (defun org-chronicle--lanes-from-params (people locations topics entities mode)
   "Build the list of lane plists from PEOPLE, LOCATIONS, and TOPICS name lists.
 MODE is `:collapse' or `:expand'; ENTITIES is the entity list."

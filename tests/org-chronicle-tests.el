@@ -1924,5 +1924,32 @@ Buffer-modified-p must stay nil throughout."
       (org-chronicle--bookmark-jump rec)
       (should (equal got (list :people '("Ada") :mode :collapse))))))
 
+(ert-deftest org-chronicle-test-order-lanes ()
+  "Lanes reorder by ORDER; unlisted lanes follow; stale entries skipped."
+  (let* ((p (list :domain 'people :label "Ada"))
+         (l (list :domain 'location :label "London"))
+         (tp (list :domain 'topic :label "war"))
+         (lanes (list p l tp)))
+    (should (equal (org-chronicle--order-lanes
+                    lanes '((topic . "war") (people . "Ada") (location . "London")))
+                   (list tp p l)))
+    (should (equal (org-chronicle--order-lanes lanes '((topic . "war")))
+                   (list tp p l)))
+    (should (equal (org-chronicle--order-lanes
+                    lanes '((people . "Ghost") (location . "London")))
+                   (list l p tp)))
+    (should (equal (org-chronicle--order-lanes lanes nil) lanes))))
+
+(ert-deftest org-chronicle-test-swap-in-order ()
+  "Swap moves an identity one step; nil at ends or when absent."
+  (let ((order '((people . "Ada") (topic . "war") (location . "London"))))
+    (should (equal (org-chronicle--swap-in-order order '(topic . "war") 'left)
+                   '((topic . "war") (people . "Ada") (location . "London"))))
+    (should (equal (org-chronicle--swap-in-order order '(topic . "war") 'right)
+                   '((people . "Ada") (location . "London") (topic . "war"))))
+    (should (null (org-chronicle--swap-in-order order '(people . "Ada") 'left)))
+    (should (null (org-chronicle--swap-in-order order '(location . "London") 'right)))
+    (should (null (org-chronicle--swap-in-order order '(people . "Ghost") 'left)))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
