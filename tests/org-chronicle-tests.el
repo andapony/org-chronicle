@@ -1951,5 +1951,16 @@ Buffer-modified-p must stay nil throughout."
     (should (null (org-chronicle--swap-in-order order '(location . "London") 'right)))
     (should (null (org-chronicle--swap-in-order order '(people . "Ghost") 'left)))))
 
+(ert-deftest org-chronicle-test-compose-orders-lanes ()
+  "An :order reorders the rendered lane columns; default keeps input order."
+  (cl-letf (((symbol-function 'org-chronicle--all-events) (lambda () '()))
+            ((symbol-function 'org-chronicle--all-entities) (lambda () '())))
+    (let ((default (org-chronicle--compose :people '("Ada" "Bob")))
+          (reordered (org-chronicle--compose
+                      :people '("Ada" "Bob")
+                      :order '((people . "Bob") (people . "Ada")))))
+      (should (< (string-match "ADA" default) (string-match "BOB" default)))
+      (should (< (string-match "BOB" reordered) (string-match "ADA" reordered))))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

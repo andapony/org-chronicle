@@ -689,7 +689,7 @@ ENTITIES, IDX, and the life-event INDEX resolve the lane's person via
           lanes))
 
 
-(cl-defun org-chronicle--compose (&key people locations topics truth from until
+(cl-defun org-chronicle--compose (&key people locations topics truth from until order
                                        (mode :collapse)
                                        width
                                        (root nil root-p)
@@ -699,7 +699,9 @@ PEOPLE/LOCATIONS/TOPICS are name lists naming lanes; TRUTH a list of
 allowed truth strings; FROM/UNTIL date strings; MODE `:collapse' or
 `:expand'.  WIDTH, when non-nil, is the total display width to divide
 among the lanes (see `org-chronicle--lane-width'); otherwise each lane
-uses `org-chronicle-lane-column-width'.  ROOT and EXCLUDE, when supplied,
+uses `org-chronicle-lane-column-width'.  ORDER, when non-nil, is a list
+of (DOMAIN . LABEL) lane identities giving the column order (see
+`org-chronicle--order-lanes').  ROOT and EXCLUDE, when supplied,
 override `org-chronicle-root' and `org-chronicle-exclude' for this gather
 \(used to keep view refresh consistent with dir-local values)."
   (let ((org-chronicle-root (if root-p root org-chronicle-root))
@@ -708,9 +710,11 @@ override `org-chronicle-root' and `org-chronicle-exclude' for this gather
            (idx (org-chronicle--alias-index entities))
            (all-events (org-chronicle--all-events))
            (index (org-chronicle--life-index all-events idx))
-           (lanes (org-chronicle--lanes-with-birth
-                   (org-chronicle--lanes-from-params people locations topics entities mode)
-                   entities idx index))
+           (lanes (org-chronicle--order-lanes
+                   (org-chronicle--lanes-with-birth
+                    (org-chronicle--lanes-from-params people locations topics entities mode)
+                    entities idx index)
+                   order))
            (col-width (if width
                           (org-chronicle--lane-width width (length lanes))
                         org-chronicle-lane-column-width))
@@ -964,15 +968,16 @@ PAIRS is a list of (NAME . DOMAIN) candidates; the user picks any subset
          (delq nil (mapcar (lambda (c) (cdr (assoc c alist))) chosen)))))))
 
 ;;;###autoload
-(cl-defun org-chronicle-timeline (&key people locations topics truth from until
+(cl-defun org-chronicle-timeline (&key people locations topics truth from until order
                                        (mode :collapse)
                                        (root nil root-p)
                                        (exclude nil exclude-p))
   "Display a swimlane timeline of events arranged into lanes.
 PEOPLE, LOCATIONS, and TOPICS are lists of names that become lanes;
 results are filtered by TRUTH and the FROM/UNTIL date range.  MODE is
-`:collapse' (default) or `:expand' for groups/parent places.  ROOT and
-EXCLUDE, when supplied, override `org-chronicle-root' and
+`:collapse' (default) or `:expand' for groups/parent places.  ORDER is
+a list of (DOMAIN . LABEL) lane identities giving the column order.
+ROOT and EXCLUDE, when supplied, override `org-chronicle-root' and
 `org-chronicle-exclude' (used to preserve dir-local values on refresh).
 Lane width is computed from the window width and the lane count, so
 refreshing with \\[org-chronicle-view-refresh] re-fits the view after a
@@ -1005,6 +1010,7 @@ UNTIL date bounding the range (each blank for no bound), a truth subset
          (exclude (if exclude-p exclude org-chronicle-exclude))
          (args (list :people people :locations locations :topics topics
                      :truth truth :from from :until until :mode mode
+                     :order order
                      :root root :exclude exclude))
          (buf (get-buffer-create "*org-chronicle*")))
     (with-current-buffer buf
@@ -1014,6 +1020,7 @@ UNTIL date bounding the range (each blank for no bound), a truth subset
     (let* ((width (window-body-width (get-buffer-window buf)))
            (text (org-chronicle--compose :people people :locations locations :topics topics
                                          :truth truth :from from :until until :mode mode
+                                         :order order
                                          :width width :root root :exclude exclude)))
       (with-current-buffer buf
         (let ((inhibit-read-only t))
