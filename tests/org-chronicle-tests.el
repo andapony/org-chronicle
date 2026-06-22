@@ -1673,5 +1673,38 @@ Buffer-modified-p must stay nil throughout."
           (should (null (org-chronicle--scan-citations "foote1963"))))
       (delete-directory root t))))
 
+(ert-deftest org-chronicle-test-lane-arg-key ()
+  "Lane domains map to the plural view-args keys."
+  (should (eq (org-chronicle--lane-arg-key 'people) :people))
+  (should (eq (org-chronicle--lane-arg-key 'location) :locations))
+  (should (eq (org-chronicle--lane-arg-key 'topic) :topics)))
+
+(ert-deftest org-chronicle-test-view-args-add ()
+  "Adding pairs appends to the right key, dedupes, and preserves others."
+  (let* ((args (list :people '("Ada") :truth '("historical") :mode :collapse))
+         (out (org-chronicle--view-args-add
+               args '(("Bob" . people) ("Ada" . people) ("London" . location)))))
+    (should (equal (plist-get out :people) '("Ada" "Bob")))
+    (should (equal (plist-get out :locations) '("London")))
+    (should (equal (plist-get out :truth) '("historical")))
+    (should (eq (plist-get out :mode) :collapse))
+    ;; original is untouched
+    (should (equal (plist-get args :people) '("Ada")))))
+
+(ert-deftest org-chronicle-test-view-args-remove ()
+  "Removing identities drops only the named entries from their key."
+  (let* ((args (list :people '("Ada" "Bob") :topics '("war") :mode :collapse))
+         (out (org-chronicle--view-args-remove
+               args '((people . "Bob") (topic . "war")))))
+    (should (equal (plist-get out :people) '("Ada")))
+    (should (null (plist-get out :topics)))
+    (should (equal (plist-get args :people) '("Ada" "Bob")))))
+
+(ert-deftest org-chronicle-test-current-lane-identities ()
+  "Identities cover every name across the three lane keys."
+  (let ((args (list :people '("Ada") :locations '("London") :topics '("war"))))
+    (should (equal (org-chronicle--current-lane-identities args)
+                   '((people . "Ada") (location . "London") (topic . "war"))))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

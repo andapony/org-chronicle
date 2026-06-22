@@ -720,6 +720,43 @@ Records the jump in the chronicle link history."
   (when org-chronicle--view-args
     (apply #'org-chronicle-timeline org-chronicle--view-args)))
 
+(defun org-chronicle--lane-arg-key (domain)
+  "Return the `org-chronicle--view-args' key for lane DOMAIN.
+DOMAIN is one of the lane domain symbols `people', `location', or
+`topic'; the corresponding key is `:people', `:locations', or `:topics'."
+  (pcase domain
+    ('people :people)
+    ('location :locations)
+    ('topic :topics)))
+
+(defun org-chronicle--view-args-add (args pairs)
+  "Return ARGS with each lane in PAIRS appended to its domain key.
+PAIRS is a list of (NAME . DOMAIN) conses.  Names already present under a
+key are not duplicated.  ARGS is copied; the original is left unchanged."
+  (let ((out (copy-sequence args)))
+    (dolist (pair pairs out)
+      (let* ((key (org-chronicle--lane-arg-key (cdr pair)))
+             (cur (plist-get out key)))
+        (unless (member (car pair) cur)
+          (setq out (plist-put out key (append cur (list (car pair))))))))))
+
+(defun org-chronicle--view-args-remove (args identities)
+  "Return ARGS with each lane in IDENTITIES removed from its domain key.
+IDENTITIES is a list of (DOMAIN . NAME) conses; NAME is removed by
+`equal'.  ARGS is copied; the original is left unchanged."
+  (let ((out (copy-sequence args)))
+    (dolist (id identities out)
+      (let* ((key (org-chronicle--lane-arg-key (car id)))
+             (cur (plist-get out key)))
+        (setq out (plist-put out key (remove (cdr id) cur)))))))
+
+(defun org-chronicle--current-lane-identities (args)
+  "Return (DOMAIN . NAME) identities for every lane named in ARGS.
+Covers the `:people', `:locations', and `:topics' keys in that order."
+  (append (mapcar (lambda (n) (cons 'people n)) (plist-get args :people))
+          (mapcar (lambda (n) (cons 'location n)) (plist-get args :locations))
+          (mapcar (lambda (n) (cons 'topic n)) (plist-get args :topics))))
+
 ;;;###autoload
 (cl-defun org-chronicle-timeline (&key people locations topics truth from until
                                        (mode :collapse)
