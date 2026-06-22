@@ -1019,6 +1019,9 @@ lane is already at the end."
             (message "Lane is already %smost"
                      (if (eq direction 'left) "left" "right"))
           (let ((line (line-number-at-pos)))
+            ;; `new' is derived from the on-screen header sequence, so any
+            ;; stale :order entry for a since-removed lane is intentionally
+            ;; pruned to the current on-screen set.
             (setq org-chronicle--view-args
                   (plist-put (copy-sequence org-chronicle--view-args) :order new))
             (org-chronicle-view-refresh)

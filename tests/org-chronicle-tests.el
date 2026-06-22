@@ -2024,6 +2024,40 @@ Buffer-modified-p must stay nil throughout."
       (org-chronicle-view-move-lane-left)
       (should-not (plist-get org-chronicle--view-args :order)))))
 
+(ert-deftest org-chronicle-test-move-lane-point-follows ()
+  "Moving a lane right re-renders and leaves point on the moved lane.
+Exercises the full record-line -> refresh -> reposition chain using a real
+render: stubs only the I/O boundary (events/entities return empty lists)
+and stubs `org-chronicle-view-refresh' to re-render into the current
+buffer from `org-chronicle--view-args', so `org-chronicle--goto-lane-on-line'
+runs against a genuine propertized buffer."
+  (cl-letf (((symbol-function 'org-chronicle--all-events) (lambda () '()))
+            ((symbol-function 'org-chronicle--all-entities) (lambda () '())))
+    (with-temp-buffer
+      (setq-local org-chronicle--view-args (list :people '("Ada" "Bob")))
+      (cl-letf (((symbol-function 'org-chronicle-view-refresh)
+                 (lambda ()
+                   (let ((inhibit-read-only t))
+                     (erase-buffer)
+                     (insert (apply #'org-chronicle--compose org-chronicle--view-args))
+                     (goto-char (point-min))))))
+        ;; Initial render: header line carries org-chronicle-lane properties.
+        (org-chronicle-view-refresh)
+        ;; Find Ada's column via the first org-chronicle-lane property in
+        ;; the buffer (the header is the first line carrying lane props).
+        (let ((ada-pos (text-property-not-all
+                        (point-min) (point-max) 'org-chronicle-lane nil)))
+          (should ada-pos)
+          (goto-char ada-pos)
+          (should (equal (org-chronicle--lane-at-point) '(people . "Ada")))
+          ;; Move Ada one column to the right.
+          (org-chronicle-view-move-lane-right)
+          ;; :order in view-args must reflect the swapped sequence.
+          (should (equal (plist-get org-chronicle--view-args :order)
+                         '((people . "Bob") (people . "Ada"))))
+          ;; Point must have followed Ada into her new (second) column.
+          (should (equal (org-chronicle--lane-at-point) '(people . "Ada"))))))))
+
 (ert-deftest org-chronicle-test-dblock-string-emits-order ()
   "The dblock string emits :order when set and omits it when nil."
   (let ((s (org-chronicle--dblock-string
