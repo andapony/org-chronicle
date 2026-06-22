@@ -210,6 +210,9 @@ place.
 - =-= — *remove a lane*: drops the lane under point (on its header or a
   cell), or, when point is not on a lane, prompts for the lanes to
   remove by name.
+- =<= / =>= — *move the lane at point* one column left or right.  Point
+  follows the lane, so repeated presses slide it across the row.  The
+  order is saved by =D= and by bookmarking.
 
 Both add commands offer one combined, domain-tagged completion list
 (e.g. =Ada Lovelace [person]=, =London [place]=) and exclude lanes
