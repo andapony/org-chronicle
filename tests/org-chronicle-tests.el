@@ -1759,5 +1759,50 @@ Buffer-modified-p must stay nil throughout."
                  '(("Ada [person]" . ("Ada" . people))
                    ("London [place]" . ("London" . location))))))
 
+(ert-deftest org-chronicle-test-render-tags-lane ()
+  "Header and cells carry an org-chronicle-lane identity."
+  (let* ((idx (org-chronicle--alias-index nil))
+         (e (list :title "Heist" :truth "historical"
+                  :date (org-chronicle--date-parse "1850") :people '("Ada")))
+         (lane (list :domain 'people :names '("Ada") :label "Ada"))
+         (out (org-chronicle--render (list e) (list lane) idx 22))
+         (hpos (string-match "ADA" out))
+         (cpos (string-match "Heist" out)))
+    (should (equal (get-text-property hpos 'org-chronicle-lane out) '(people . "Ada")))
+    (should (equal (get-text-property cpos 'org-chronicle-lane out) '(people . "Ada")))))
+
+(ert-deftest org-chronicle-test-lane-at-point ()
+  "Lane-at-point reads the org-chronicle-lane property."
+  (with-temp-buffer
+    (insert (propertize "X" 'org-chronicle-lane '(topic . "war")))
+    (insert "Y")
+    (goto-char (point-min))
+    (should (equal (org-chronicle--lane-at-point) '(topic . "war")))
+    (goto-char (point-max))
+    (should (null (org-chronicle--lane-at-point)))))
+
+(ert-deftest org-chronicle-test-line-markers ()
+  "Line markers are the distinct event markers on the current line."
+  (with-temp-buffer
+    (let ((m1 (copy-marker 1)) (m2 (copy-marker 2)))
+      (insert (propertize "aa" 'org-chronicle-marker m1))
+      (insert "  ")
+      (insert (propertize "bb" 'org-chronicle-marker m2))
+      (insert "\nnext")
+      (goto-char (point-min))
+      (should (equal (org-chronicle--line-markers) (list m1 m2)))
+      (goto-char (point-max))
+      (should (null (org-chronicle--line-markers))))))
+
+(ert-deftest org-chronicle-test-line-markers-dedup ()
+  "A marker on two spans of one line is returned once (identity dedup)."
+  (with-temp-buffer
+    (let ((m (copy-marker 1)))
+      (insert (propertize "aa" 'org-chronicle-marker m))
+      (insert "  ")
+      (insert (propertize "bb" 'org-chronicle-marker m))
+      (goto-char (point-min))
+      (should (equal (org-chronicle--line-markers) (list m))))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

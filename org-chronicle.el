@@ -547,6 +547,15 @@ the default `org-chronicle--cell-text'."
       (org-chronicle--topic-cell-text event (plist-get lane :label))
     (org-chronicle--cell-text event)))
 
+(defun org-chronicle--tag-lane (s lane)
+  "Return a copy of S with the `org-chronicle-lane' property set from LANE.
+The identity is (DOMAIN . LABEL) taken from LANE's :domain and :label."
+  (let ((s (copy-sequence s)))
+    (put-text-property 0 (length s) 'org-chronicle-lane
+                       (cons (plist-get lane :domain) (plist-get lane :label))
+                       s)
+    s))
+
 (defun org-chronicle--cell-text (event)
   "Return propertized cell text (truth marker, kind glyph, title) for EVENT.
 The truth marker leads so it survives column truncation."
@@ -568,8 +577,10 @@ view never shows an empty row.  A cell in a person lane (one carrying a
 EVENTS are assumed already filtered and sorted ascending."
   (let* ((dcw org-chronicle--date-col-width)
          (header (concat (org-chronicle--pad "DATE" dcw)
-                         (mapconcat (lambda (l) (org-chronicle--pad
-                                                 (upcase (plist-get l :label)) col-width))
+                         (mapconcat (lambda (l)
+                                      (org-chronicle--tag-lane
+                                       (org-chronicle--pad (upcase (plist-get l :label)) col-width)
+                                       l))
                                     lanes "")))
          (rule (make-string (string-width header) ?-))
          (lines (list rule header)))
@@ -599,7 +610,7 @@ EVENTS are assumed already filtered and sorted ascending."
                     (put-text-property 0 (length txt) 'help-echo
                                        (format "%s: age %d" (plist-get lane :label) age)
                                        txt))))
-              (push (org-chronicle--pad txt col-width) cells)))
+              (push (org-chronicle--tag-lane (org-chronicle--pad txt col-width) lane) cells)))
           (when any
             (push (concat (org-chronicle--pad date dcw)
                           (apply #'concat (nreverse cells)))
@@ -713,6 +724,28 @@ Records the jump in the chronicle link history."
           (org-reveal)
           (org-chronicle--history-record origin (org-chronicle--history-location)))
       (message "No event at point"))))
+
+(defun org-chronicle--lane-at-point (&optional pos)
+  "Return the lane identity (DOMAIN . LABEL) at POS, or nil.
+POS defaults to point.  Reads the `org-chronicle-lane' text property set
+by `org-chronicle--render'."
+  (get-text-property (or pos (point)) 'org-chronicle-lane))
+
+(defun org-chronicle--line-markers ()
+  "Return the distinct event markers on the current display line, in order.
+Reads the `org-chronicle-marker' text property left by the renderer."
+  (let ((end (line-end-position)) (ms '()))
+    (save-excursion
+      (goto-char (line-beginning-position))
+      (while (< (point) end)
+        (let ((m (get-text-property (point) 'org-chronicle-marker)))
+          ;; Dedupe by object identity: the renderer stores each event's own
+          ;; :marker, so one event spanning multiple columns shares one marker.
+          (when (and m (not (memq m ms))) (push m ms)))
+        (goto-char (or (next-single-property-change
+                        (point) 'org-chronicle-marker nil end)
+                       end))))
+    (nreverse ms)))
 
 (defun org-chronicle-view-refresh ()
   "Recompute the current timeline view."
