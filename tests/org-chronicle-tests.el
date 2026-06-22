@@ -2024,5 +2024,23 @@ Buffer-modified-p must stay nil throughout."
       (org-chronicle-view-move-lane-left)
       (should-not (plist-get org-chronicle--view-args :order)))))
 
+(ert-deftest org-chronicle-test-dblock-string-emits-order ()
+  "The dblock string emits :order when set and omits it when nil."
+  (let ((s (org-chronicle--dblock-string
+            (list :people '("Ada" "Bob")
+                  :order '((people . "Bob") (people . "Ada")) :mode :collapse))))
+    (should (string-match-p
+             (regexp-quote "((people . \"Bob\") (people . \"Ada\"))") s))
+    (should (string-match-p ":order " s)))
+  (should-not (string-match-p ":order"
+                              (org-chronicle--dblock-string (list :people '("Ada"))))))
+
+(ert-deftest org-chronicle-test-bookmark-clean-keeps-order ()
+  "Bookmark cleaning preserves :order and still drops :root."
+  (let ((out (org-chronicle--bookmark-clean
+              (list :people '("Ada") :order '((people . "Ada")) :root "/tmp"))))
+    (should (equal (plist-get out :order) '((people . "Ada"))))
+    (should-not (plist-member out :root))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

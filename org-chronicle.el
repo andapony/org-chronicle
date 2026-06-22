@@ -1113,6 +1113,8 @@ the :from/:until bounds when non-empty, and :mode (defaulting to
         (when v (push (format "%s %S" k v) parts))))
     (let ((tr (plist-get args :truth)))
       (when tr (push (format ":truth %S" tr) parts)))
+    (let ((ord (plist-get args :order)))
+      (when ord (push (format ":order %S" ord) parts)))
     (dolist (k '(:from :until))
       (let ((v (plist-get args k)))
         (when (and v (not (string-empty-p v))) (push (format "%s %S" k v) parts))))
@@ -3125,11 +3127,11 @@ are never written to disk and do not set the buffer-modified flag."
 
 (defun org-chronicle--bookmark-clean (args)
   "Return ARGS reduced to the persistable query keys.
-Keeps :people :locations :topics :truth :from :until :mode (only those
-present) and drops the transient :root and :exclude, which resolve from
-the environment when the bookmark is followed."
+Keeps :people :locations :topics :truth :from :until :mode :order (only
+those present) and drops the transient :root and :exclude, which resolve
+from the environment when the bookmark is followed."
   (let (out)
-    (dolist (k '(:people :locations :topics :truth :from :until :mode) out)
+    (dolist (k '(:people :locations :topics :truth :from :until :mode :order) out)
       (when (plist-member args k)
         (setq out (plist-put out k (plist-get args k)))))))
 
