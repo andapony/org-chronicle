@@ -1983,5 +1983,46 @@ Buffer-modified-p must stay nil throughout."
       (should (< (string-match "ADA" default) (string-match "BOB" default)))
       (should (< (string-match "BOB" reordered) (string-match "ADA" reordered))))))
 
+(ert-deftest org-chronicle-test-move-lane-updates-order ()
+  "Moving a lane right swaps it with its neighbour in :order and refreshes."
+  (let ((org-chronicle--view-args (list :people '("Ada" "Bob")))
+        (refreshed nil))
+    (cl-letf (((symbol-function 'org-chronicle--lane-at-point)
+               (lambda (&optional _p) '(people . "Ada")))
+              ((symbol-function 'org-chronicle--header-lane-order)
+               (lambda () '((people . "Ada") (people . "Bob"))))
+              ((symbol-function 'org-chronicle--goto-lane-on-line)
+               (lambda (&rest _) t))
+              ((symbol-function 'org-chronicle-view-refresh)
+               (lambda () (setq refreshed t))))
+      (org-chronicle-view-move-lane-right)
+      (should (equal (plist-get org-chronicle--view-args :order)
+                     '((people . "Bob") (people . "Ada"))))
+      (should refreshed))))
+
+(ert-deftest org-chronicle-test-move-lane-at-end-noop ()
+  "Moving the rightmost lane right does nothing and does not refresh."
+  (let ((org-chronicle--view-args (list :people '("Ada" "Bob")))
+        (refreshed nil))
+    (cl-letf (((symbol-function 'org-chronicle--lane-at-point)
+               (lambda (&optional _p) '(people . "Bob")))
+              ((symbol-function 'org-chronicle--header-lane-order)
+               (lambda () '((people . "Ada") (people . "Bob"))))
+              ((symbol-function 'org-chronicle-view-refresh)
+               (lambda () (setq refreshed t))))
+      (org-chronicle-view-move-lane-right)
+      (should-not (plist-get org-chronicle--view-args :order))
+      (should-not refreshed))))
+
+(ert-deftest org-chronicle-test-move-lane-no-lane ()
+  "With no lane at point, move does nothing and never refreshes."
+  (let ((org-chronicle--view-args (list :people '("Ada"))))
+    (cl-letf (((symbol-function 'org-chronicle--lane-at-point)
+               (lambda (&optional _p) nil))
+              ((symbol-function 'org-chronicle-view-refresh)
+               (lambda () (error "should not refresh"))))
+      (org-chronicle-view-move-lane-left)
+      (should-not (plist-get org-chronicle--view-args :order)))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

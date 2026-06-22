@@ -740,6 +740,8 @@ override `org-chronicle-root' and `org-chronicle-exclude' for this gather
     (define-key map (kbd "a") #'org-chronicle-view-add-lane)
     (define-key map (kbd "-") #'org-chronicle-view-remove-lane)
     (define-key map (kbd "D") #'org-chronicle-view-copy-dblock)
+    (define-key map (kbd "<") #'org-chronicle-view-move-lane-left)
+    (define-key map (kbd ">") #'org-chronicle-view-move-lane-right)
     map)
   "Keymap for `org-chronicle-view-mode'.")
 
@@ -1002,6 +1004,35 @@ PAIRS is a list of (NAME . DOMAIN) candidates; the user picks any subset
                       "Remove lanes: " (mapcar #'car alist) nil t)))
         (org-chronicle--remove-lanes
          (delq nil (mapcar (lambda (c) (cdr (assoc c alist))) chosen)))))))
+
+(defun org-chronicle--move-lane (direction)
+  "Move the lane at point one step in DIRECTION (`left' or `right').
+Reorders `org-chronicle--view-args' :order, refreshes the view, and keeps
+point on the moved lane.  Messages when point is not on a lane or the
+lane is already at the end."
+  (let ((id (org-chronicle--lane-at-point)))
+    (if (not id)
+        (message "No lane at point")
+      (let ((new (org-chronicle--swap-in-order
+                  (org-chronicle--header-lane-order) id direction)))
+        (if (not new)
+            (message "Lane is already %smost"
+                     (if (eq direction 'left) "left" "right"))
+          (let ((line (line-number-at-pos)))
+            (setq org-chronicle--view-args
+                  (plist-put (copy-sequence org-chronicle--view-args) :order new))
+            (org-chronicle-view-refresh)
+            (org-chronicle--goto-lane-on-line line id)))))))
+
+(defun org-chronicle-view-move-lane-left ()
+  "Move the lane at point one column to the left."
+  (interactive)
+  (org-chronicle--move-lane 'left))
+
+(defun org-chronicle-view-move-lane-right ()
+  "Move the lane at point one column to the right."
+  (interactive)
+  (org-chronicle--move-lane 'right))
 
 ;;;###autoload
 (cl-defun org-chronicle-timeline (&key people locations topics truth from until order
