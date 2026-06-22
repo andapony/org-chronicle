@@ -1706,5 +1706,40 @@ Buffer-modified-p must stay nil throughout."
     (should (equal (org-chronicle--current-lane-identities args)
                    '((people . "Ada") (location . "London") (topic . "war"))))))
 
+(ert-deftest org-chronicle-test-event-entities ()
+  "Event entities gather people+subject, location, and topics, deduped."
+  (let ((e1 (list :people '("Ada" "Bob") :subject '("Cara")
+                  :location "London" :topics '("war" "trade")))
+        (e2 (list :people '("Ada") :subject nil :location nil :topics '("war"))))
+    (should (equal (org-chronicle--event-entities (list e1 e2))
+                   '(("Ada" . people) ("Bob" . people) ("Cara" . people)
+                     ("London" . location) ("war" . topic) ("trade" . topic))))))
+
+(ert-deftest org-chronicle-test-canonicalize-pairs ()
+  "Names canonicalize through the alias index and dedupe."
+  (let ((idx (make-hash-table :test #'equal)))
+    (puthash "ada" "Ada Lovelace" idx)
+    (should (equal (org-chronicle--canonicalize-pairs
+                    '(("Ada" . people) ("Ada Lovelace" . people)) idx)
+                   '(("Ada Lovelace" . people))))))
+
+(ert-deftest org-chronicle-test-filter-present-pairs ()
+  "Pairs already shown as lanes (canonically) are dropped."
+  (let* ((idx (make-hash-table :test #'equal))
+         (args (list :people '("Ada Lovelace") :topics '("war"))))
+    (should (equal (org-chronicle--filter-present-pairs
+                    '(("Ada Lovelace" . people) ("Bob" . people)
+                      ("war" . topic) ("trade" . topic))
+                    args idx)
+                   '(("Bob" . people) ("trade" . topic))))))
+
+(ert-deftest org-chronicle-test-known-pairs ()
+  "Known pairs tag each known name with its domain."
+  (cl-letf (((symbol-function 'org-chronicle--known-people) (lambda () '("Ada")))
+            ((symbol-function 'org-chronicle--known-locations) (lambda () '("London")))
+            ((symbol-function 'org-chronicle--known-topics) (lambda () '("war"))))
+    (should (equal (org-chronicle--known-pairs)
+                   '(("Ada" . people) ("London" . location) ("war" . topic))))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here

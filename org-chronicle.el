@@ -757,6 +757,46 @@ Covers the `:people', `:locations', and `:topics' keys in that order."
           (mapcar (lambda (n) (cons 'location n)) (plist-get args :locations))
           (mapcar (lambda (n) (cons 'topic n)) (plist-get args :topics))))
 
+(defun org-chronicle--event-entities (events)
+  "Return deduped (NAME . DOMAIN) pairs referenced by EVENTS.
+People come from each event's :people and :subject, the place from
+:location, and topics from :topics.  Order is people, location, topic
+per event; the first occurrence of each pair is kept."
+  (let ((out '()))
+    (dolist (e events)
+      (dolist (p (append (plist-get e :people) (plist-get e :subject)))
+        (when (and p (not (string-empty-p p))) (push (cons p 'people) out)))
+      (let ((loc (plist-get e :location)))
+        (when (and loc (not (string-empty-p loc))) (push (cons loc 'location) out)))
+      (dolist (tp (plist-get e :topics))
+        (when (and tp (not (string-empty-p tp))) (push (cons tp 'topic) out))))
+    (cl-remove-duplicates (nreverse out) :test #'equal :from-end t)))
+
+(defun org-chronicle--canonicalize-pairs (pairs idx)
+  "Return PAIRS with each NAME canonicalized through alias index IDX, deduped."
+  (cl-remove-duplicates
+   (mapcar (lambda (pr) (cons (org-chronicle--canonical (car pr) idx) (cdr pr)))
+           pairs)
+   :test #'equal :from-end t))
+
+(defun org-chronicle--filter-present-pairs (pairs args idx)
+  "Return PAIRS minus any lane already present in ARGS.
+A pair is present when its NAME equals the canonical form (via IDX) of a
+name already under the pair's domain key in ARGS.  PAIRS' names are
+assumed already canonical."
+  (cl-remove-if
+   (lambda (pr)
+     (let ((present (mapcar (lambda (n) (org-chronicle--canonical n idx))
+                            (plist-get args (org-chronicle--lane-arg-key (cdr pr))))))
+       (member (car pr) present)))
+   pairs))
+
+(defun org-chronicle--known-pairs ()
+  "Return (NAME . DOMAIN) pairs for all known people, locations, and topics."
+  (append (mapcar (lambda (n) (cons n 'people)) (org-chronicle--known-people))
+          (mapcar (lambda (n) (cons n 'location)) (org-chronicle--known-locations))
+          (mapcar (lambda (n) (cons n 'topic)) (org-chronicle--known-topics))))
+
 ;;;###autoload
 (cl-defun org-chronicle-timeline (&key people locations topics truth from until
                                        (mode :collapse)
