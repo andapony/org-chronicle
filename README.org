@@ -194,6 +194,37 @@ a truth subset, and expand/collapse mode, then opens a read-only
 swimlane buffer.  Press =RET= on a cell to jump to the source heading,
 =g= to refresh, and =q= to quit.
 
+** Building the view interactively
+
+You do not have to name every lane up front.  The view is an editable
+query: start from a small set of lanes and grow or trim the columns in
+place.
+
+- =+= — *expand the event(s) at point*: offers the people, places, and
+  topics that the event references and adds the ones you pick as new
+  lanes.  With point on a specific event cell it uses that event; placed
+  elsewhere on a date row it falls back to every event on that date; on
+  the header or a blank line it reports that there is no event at point.
+- =a= — *add an arbitrary lane*: choose from all known people, places,
+  and topics, regardless of what is on screen.
+- =-= — *remove a lane*: drops the lane under point (on its header or a
+  cell), or, when point is not on a lane, prompts for the lanes to
+  remove by name.
+
+Both add commands offer one combined, domain-tagged completion list
+(e.g. =Ada Lovelace [person]=, =London [place]=) and exclude lanes
+already shown; nothing is pre-selected.
+
+** Saving a view
+
+A view you have built can be saved two ways, both serializing the same
+query:
+
+- =C-x r m= bookmarks the current view (standard Emacs bookmarks);
+  jumping to the bookmark re-runs the timeline and restores it.
+- =D= copies the current view as a =chronicle= dynamic block to the
+  kill-ring, ready to yank into an Org document.
+
 The same view is available as an Org dynamic block:
 
 #+begin_example
