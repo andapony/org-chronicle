@@ -1804,6 +1804,27 @@ Buffer-modified-p must stay nil throughout."
       (goto-char (point-min))
       (should (equal (org-chronicle--line-markers) (list m))))))
 
+(ert-deftest org-chronicle-test-header-lane-order ()
+  "Header lane order is the distinct identities in column order."
+  (with-temp-buffer
+    (insert "----------\n")
+    (insert (concat (propertize "ADA" 'org-chronicle-lane '(people . "Ada"))
+                    (propertize "WAR" 'org-chronicle-lane '(topic . "war"))
+                    "\n"))
+    (should (equal (org-chronicle--header-lane-order)
+                   '((people . "Ada") (topic . "war"))))))
+
+(ert-deftest org-chronicle-test-goto-lane-on-line ()
+  "Goto moves point onto the identity's column on the given line."
+  (with-temp-buffer
+    (insert "header\n")
+    (insert (concat "aa"
+                    (propertize "bb" 'org-chronicle-lane '(topic . "war"))
+                    "\n"))
+    (should (org-chronicle--goto-lane-on-line 2 '(topic . "war")))
+    (should (equal (get-text-property (point) 'org-chronicle-lane) '(topic . "war")))
+    (should-not (org-chronicle--goto-lane-on-line 2 '(people . "Ghost")))))
+
 (ert-deftest org-chronicle-test-expand-updates-view-args ()
   "Expand adds the chosen event entities as lanes and refreshes."
   (let ((org-chronicle--view-args (list :people '("Ada") :mode :collapse))

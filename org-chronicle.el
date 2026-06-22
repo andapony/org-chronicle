@@ -785,6 +785,42 @@ Reads the `org-chronicle-marker' text property left by the renderer."
                        end))))
     (nreverse ms)))
 
+(defun org-chronicle--header-lane-order ()
+  "Return the timeline's lane identities in column order.
+Scans the first line carrying `org-chronicle-lane' text properties (the
+header) left to right, collecting each distinct (DOMAIN . LABEL)."
+  (save-excursion
+    (let ((pos (text-property-not-all (point-min) (point-max)
+                                      'org-chronicle-lane nil)))
+      (when pos
+        (goto-char pos)
+        (let ((end (line-end-position)) (ids '()))
+          (goto-char (line-beginning-position))
+          (while (< (point) end)
+            (let ((id (get-text-property (point) 'org-chronicle-lane)))
+              (when (and id (not (member id ids))) (push id ids)))
+            (goto-char (or (next-single-property-change
+                            (point) 'org-chronicle-lane nil end)
+                           end)))
+          (nreverse ids))))))
+
+(defun org-chronicle--goto-lane-on-line (line identity)
+  "Move point to IDENTITY's column on LINE (1-based); return non-nil on success.
+Scans LINE for the first character whose `org-chronicle-lane' equals
+IDENTITY.  Leaves point unmoved and returns nil when not found."
+  (let ((target nil))
+    (save-excursion
+      (goto-char (point-min))
+      (forward-line (1- line))
+      (let ((end (line-end-position)))
+        (while (and (not target) (< (point) end))
+          (if (equal (get-text-property (point) 'org-chronicle-lane) identity)
+              (setq target (point))
+            (goto-char (or (next-single-property-change
+                            (point) 'org-chronicle-lane nil end)
+                           end))))))
+    (when target (goto-char target) t)))
+
 (defun org-chronicle-view-refresh ()
   "Recompute the current timeline view."
   (interactive)
