@@ -505,11 +505,13 @@
   | PeriodO | era / =TOPICS= vocabulary (JSON-LD) | later (topic work) |
   | Pleiades | ancient places | gated on fuzzy-dates track |
 
-* Status and what to work on next (updated 2026-06-19)
+* Status and what to work on next (updated 2026-06-22)
 
-  *Knowledge-graph track.*  Phases 0–3 shipped in full; Phase 4 (bulk
-  import) shipped its core slices (events / people / foundings, through
-  v0.9.0 — see [[#phase-4]]).  What remains on this track:
+  *Current release: v0.10.0.*
+
+  *Knowledge-graph track (unchanged since 2026-06-19).*  Phases 0–3 shipped
+  in full; Phase 4 (bulk import) shipped its core slices (events / people /
+  foundings, through v0.9.0 — see [[#phase-4]]).  What remains on this track:
 
   - *Phase 5 — multi-source cross-check* ([[#phase-5]]): DBpedia/YAGO
     cross-check and conflict-as-signal.  The =org-chronicle-dbpedia.el= slot
@@ -534,6 +536,15 @@
   tracked follow-ups remain on it: model name-adoption onset as an STN
   constraint (design §4.2 — currently bridged by the legacy violation path),
   and add an automated test for the report rendering.
+
+  Separately, the timeline *view* itself gained interactive UX in v0.10.0
+  (2026-06-22): lane management in the swimlane buffer (=+= expand the event
+  at point into lanes, =a= add an arbitrary lane, =-= remove, =D= copy the
+  view as a =chronicle= dblock, =C-x r m= bookmark/restore the query) and
+  lane reordering (=<= / =>= move the lane at point, with point following).
+  These help an author browse and shape the data substrate; they are
+  complementary to, but distinct from, the six continuity themes below, which
+  remain the open authoring work.
 
   *Recommended next.*  On the authoring track, the cheap independent wins are
   the read-only analyses — *coverage / gap* ("what is not yet dramatized")
