@@ -926,7 +926,11 @@ PAIRS is a list of (NAME . DOMAIN) candidates; the user picks any subset
     (if id
         (org-chronicle--remove-lanes (list id))
       (let* ((ids (org-chronicle--current-lane-identities org-chronicle--view-args))
-             (alist (mapcar (lambda (i) (cons (cdr i) i)) ids))
+             (alist (mapcar (lambda (i)
+                              (cons (org-chronicle--format-candidate
+                                     (cons (cdr i) (car i)))
+                                    i))
+                            ids))
              (chosen (completing-read-multiple
                       "Remove lanes: " (mapcar #'car alist) nil t)))
         (org-chronicle--remove-lanes
