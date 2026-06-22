@@ -797,6 +797,25 @@ assumed already canonical."
           (mapcar (lambda (n) (cons n 'location)) (org-chronicle--known-locations))
           (mapcar (lambda (n) (cons n 'topic)) (org-chronicle--known-topics))))
 
+(defun org-chronicle--domain-label (domain)
+  "Return a reader-friendly label for lane DOMAIN.
+`people' is shown as \"person\", `location' as \"place\", and `topic'
+as \"topic\"."
+  (pcase domain
+    ('people "person")
+    ('location "place")
+    ('topic "topic")))
+
+(defun org-chronicle--format-candidate (pair)
+  "Return a domain-tagged completion string for PAIR.
+PAIR is a (NAME . DOMAIN) cons; the result is \"NAME [DOMAIN-LABEL]\"."
+  (format "%s [%s]" (car pair) (org-chronicle--domain-label (cdr pair))))
+
+(defun org-chronicle--candidate-alist (pairs)
+  "Return an alist mapping each PAIR's display string to the PAIR.
+Order follows PAIRS.  See `org-chronicle--format-candidate'."
+  (mapcar (lambda (pr) (cons (org-chronicle--format-candidate pr) pr)) pairs))
+
 ;;;###autoload
 (cl-defun org-chronicle-timeline (&key people locations topics truth from until
                                        (mode :collapse)

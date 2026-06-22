@@ -1741,5 +1741,23 @@ Buffer-modified-p must stay nil throughout."
     (should (equal (org-chronicle--known-pairs)
                    '(("Ada" . people) ("London" . location) ("war" . topic))))))
 
+(ert-deftest org-chronicle-test-domain-label ()
+  "Domains render with reader-friendly labels."
+  (should (equal (org-chronicle--domain-label 'people) "person"))
+  (should (equal (org-chronicle--domain-label 'location) "place"))
+  (should (equal (org-chronicle--domain-label 'topic) "topic")))
+
+(ert-deftest org-chronicle-test-format-candidate ()
+  "A candidate shows its name and domain tag."
+  (should (equal (org-chronicle--format-candidate '("London" . location))
+                 "London [place]")))
+
+(ert-deftest org-chronicle-test-candidate-alist ()
+  "The alist maps display strings back to their pairs, in order."
+  (should (equal (org-chronicle--candidate-alist
+                  '(("Ada" . people) ("London" . location)))
+                 '(("Ada [person]" . ("Ada" . people))
+                   ("London [place]" . ("London" . location))))))
+
 (provide 'org-chronicle-tests)
 ;;; org-chronicle-tests.el ends here
