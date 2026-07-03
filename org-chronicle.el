@@ -2963,6 +2963,53 @@ Stores an id link to the heading via `org-store-link'."
   (let ((target (org-chronicle--read-reference)))
     (org-set-property "EVENT" (format "[[id:%s]]" (car target)))))
 
+(defconst org-chronicle--entity-domains
+  '(("person" "PEOPLE"   org-chronicle--known-people    org-chronicle-person list)
+    ("place"  "LOCATION" org-chronicle--known-locations org-chronicle-place  single)
+    ("topic"  "TOPICS"   org-chronicle--known-topics    org-chronicle-topic  list))
+  "Entity domains addable to an event via `org-chronicle-add-to-event'.
+Each entry is (LABEL PROPERTY KNOWN-FN CATEGORY CARDINALITY).  CARDINALITY
+is `list' (multi-value: append and de-duplicate) or `single' (replace the
+existing value after confirmation).")
+
+;;;###autoload
+(defun org-chronicle-add-to-event ()
+  "Add a person, place, or topic to the event heading at point.
+Prompt for the domain, then for a value with completion against that
+domain's known entities.  People and topics are appended to their
+multi-value property, skipping duplicates; a location replaces the
+existing one after confirmation.  Runs `org-chronicle-normalize'
+afterward.  Signal a `user-error' if no value is given."
+  (interactive)
+  (org-back-to-heading t)
+  (let* ((label (completing-read "Add: "
+                                 (mapcar #'car org-chronicle--entity-domains)
+                                 nil t))
+         (spec (assoc label org-chronicle--entity-domains))
+         (prop (nth 1 spec))
+         (category (nth 3 spec))
+         (name (org-chronicle--read-one-name
+                (format "%s: " (capitalize label))
+                (funcall (nth 2 spec)) category)))
+    (unless name (user-error "A name is required"))
+    (if (eq (nth 4 spec) 'list)
+        (let ((vals (org-chronicle--split (org-entry-get nil prop))))
+          (if (member name vals)
+              (message "%s already lists %s" prop name)
+            (org-set-property prop (org-chronicle--join (append vals (list name))))
+            (org-chronicle-normalize)
+            (message "Added %s to %s" name prop)))
+      (let ((existing (org-entry-get nil prop)))
+        (cond
+         ((equal existing name)
+          (message "%s already set to %s" prop name))
+         ((and existing (not (string-blank-p existing))
+               (not (y-or-n-p (format "Replace %s %S with %S? " prop existing name))))
+          (user-error "Kept existing %s" prop))
+         (t (org-set-property prop name)
+            (org-chronicle-normalize)
+            (message "Set %s to %s" prop name)))))))
+
 ;;;###autoload
 (defun org-chronicle-add-constraint (kind)
   "Add an :AFTER: or :BEFORE: ordering constraint to the heading at point.

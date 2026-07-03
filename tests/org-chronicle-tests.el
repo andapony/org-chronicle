@@ -870,6 +870,72 @@ global root differs."
   (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "")))
     (should (null (org-chronicle--read-one-name "Person: " '("Jane Ash") 'org-chronicle-person)))))
 
+(defmacro org-chronicle-test--add-to-event (domain value &rest body)
+  "Run `org-chronicle-add-to-event' choosing DOMAIN then VALUE, then BODY.
+Point must already be on the target heading."
+  (declare (indent 2))
+  `(cl-letf (((symbol-function 'completing-read)
+              (lambda (prompt &rest _)
+                (if (string-prefix-p "Add:" prompt) ,domain ,value)))
+             ((symbol-function 'org-chronicle-normalize) #'ignore))
+     (org-chronicle-add-to-event)
+     ,@body))
+
+(ert-deftest org-chronicle-test-add-to-event-person ()
+  "Adding a person appends to PEOPLE."
+  (org-chronicle-test--with-org
+      "* Meeting\n:PROPERTIES:\n:DATE: [2024-03-01]\n:PEOPLE: Jane Ash\n:END:\n"
+    (org-chronicle-test--add-to-event "person" "Tom Rourke"
+      (should (equal (org-entry-get nil "PEOPLE") "Jane Ash; Tom Rourke")))))
+
+(ert-deftest org-chronicle-test-add-to-event-person-dedupe ()
+  "Adding a person already present is a no-op."
+  (org-chronicle-test--with-org
+      "* Meeting\n:PROPERTIES:\n:DATE: [2024-03-01]\n:PEOPLE: Jane Ash\n:END:\n"
+    (org-chronicle-test--add-to-event "person" "Jane Ash"
+      (should (equal (org-entry-get nil "PEOPLE") "Jane Ash")))))
+
+(ert-deftest org-chronicle-test-add-to-event-topic ()
+  "Adding a topic appends to TOPICS when none exist yet."
+  (org-chronicle-test--with-org
+      "* Meeting\n:PROPERTIES:\n:DATE: [2024-03-01]\n:END:\n"
+    (org-chronicle-test--add-to-event "topic" "shipping"
+      (should (equal (org-entry-get nil "TOPICS") "shipping")))))
+
+(ert-deftest org-chronicle-test-add-to-event-location-empty ()
+  "Adding a place sets LOCATION when empty."
+  (org-chronicle-test--with-org
+      "* Meeting\n:PROPERTIES:\n:DATE: [2024-03-01]\n:END:\n"
+    (org-chronicle-test--add-to-event "place" "Vicksburg"
+      (should (equal (org-entry-get nil "LOCATION") "Vicksburg")))))
+
+(ert-deftest org-chronicle-test-add-to-event-location-replace-yes ()
+  "Confirming replaces an existing LOCATION."
+  (org-chronicle-test--with-org
+      "* Meeting\n:PROPERTIES:\n:DATE: [2024-03-01]\n:LOCATION: Cairo\n:END:\n"
+    (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
+      (org-chronicle-test--add-to-event "place" "Vicksburg"
+        (should (equal (org-entry-get nil "LOCATION") "Vicksburg"))))))
+
+(ert-deftest org-chronicle-test-add-to-event-location-replace-no ()
+  "Declining keeps the existing LOCATION and signals a user-error."
+  (org-chronicle-test--with-org
+      "* Meeting\n:PROPERTIES:\n:DATE: [2024-03-01]\n:LOCATION: Cairo\n:END:\n"
+    (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) nil)))
+      (should-error
+       (cl-letf (((symbol-function 'completing-read)
+                  (lambda (prompt &rest _)
+                    (if (string-prefix-p "Add:" prompt) "place" "Vicksburg"))))
+         (org-chronicle-add-to-event))
+       :type 'user-error)
+      (should (equal (org-entry-get nil "LOCATION") "Cairo")))))
+
+(ert-deftest org-chronicle-test-add-to-event-blank ()
+  "A blank value signals a user-error."
+  (org-chronicle-test--with-org
+      "* Meeting\n:PROPERTIES:\n:DATE: [2024-03-01]\n:END:\n"
+    (should-error (org-chronicle-test--add-to-event "person" "") :type 'user-error)))
+
 (ert-deftest org-chronicle-test-life-event-title ()
   (should (equal (org-chronicle--life-event-title "birth" '("Grant") nil) "Birth of Grant"))
   (should (equal (org-chronicle--life-event-title "death" '("Grant") nil) "Death of Grant"))
