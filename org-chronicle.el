@@ -1266,15 +1266,21 @@ mean no filter (every truth) when the entry is blank or \"all\"."
                         (cons org-chronicle--all-lanes-token choices)))))
     (unless (or (null v) (member org-chronicle--all-lanes-token v)) v)))
 
+(defun org-chronicle--read-one-name (prompt candidates category)
+  "Read a single name with PROMPT, completing over CANDIDATES in CATEGORY.
+New names not among CANDIDATES are accepted.  Return the chosen name, or
+nil when the entry is blank."
+  (let ((name (completing-read
+               prompt
+               (org-chronicle--completion-table candidates category)
+               nil nil)))
+    (and (not (string-blank-p name)) name)))
 
 (defun org-chronicle--read-location ()
   "Read a single location with completion; return nil when blank."
-  (let ((loc (completing-read
-              "Location (blank to skip): "
-              (org-chronicle--completion-table
-               (org-chronicle--known-locations) 'org-chronicle-place)
-              nil nil)))
-    (and (not (string-blank-p loc)) loc)))
+  (org-chronicle--read-one-name
+   "Location (blank to skip): "
+   (org-chronicle--known-locations) 'org-chronicle-place))
 
 (defun org-chronicle--read-date (prompt)
   "Read a required date string with PROMPT; signal a `user-error' if blank."

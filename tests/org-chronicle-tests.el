@@ -862,6 +862,14 @@ global root differs."
   (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "1863-07-04")))
     (should (equal (org-chronicle--read-date "Date: ") "1863-07-04"))))
 
+(ert-deftest org-chronicle-test-read-one-name ()
+  "`org-chronicle--read-one-name' returns the pick, or nil when blank."
+  (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "Jane Ash")))
+    (should (equal (org-chronicle--read-one-name "Person: " '("Jane Ash") 'org-chronicle-person)
+                   "Jane Ash")))
+  (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "")))
+    (should (null (org-chronicle--read-one-name "Person: " '("Jane Ash") 'org-chronicle-person)))))
+
 (ert-deftest org-chronicle-test-life-event-title ()
   (should (equal (org-chronicle--life-event-title "birth" '("Grant") nil) "Birth of Grant"))
   (should (equal (org-chronicle--life-event-title "death" '("Grant") nil) "Death of Grant"))
