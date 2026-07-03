@@ -149,6 +149,13 @@ template body:
     "%(org-chronicle-capture)" :empty-lines 1))
 #+end_src
 
+To edit an event that already exists, put point on its heading and run
+=M-x org-chronicle-add-to-event=.  It asks for a domain (person, place,
+or topic) and then a value, completing against that domain's known
+entities.  People and topics are appended to their multi-value property
+(duplicates skipped); a location replaces the existing one after
+confirmation.  The event is re-normalized afterward.
+
 * Life events
 
 Births, deaths, marriages, and name changes are first-class timeline
@@ -159,6 +166,36 @@ birthplace/deathplace, and spouse are derived from these events, falling
 back to the =:BORN:= / =:DIED:= / =:BIRTHPLACE:= / =:DEATHPLACE:= / =:SPOUSE:=
 properties when no event exists.  =org-chronicle-add-person= offers to
 create a birth event after filing the person.
+
+* Entities
+
+People, places, and groups can be promoted to *entity headings* that
+carry aliases, existence spans, and kinship — the anchors the swimlane
+view and anachronism lint cross-reference.  Create them directly:
+
+- =M-x org-chronicle-add-person= :: file a person into
+  =org-chronicle-people-file=; prompts for aliases, birth, death, and
+  group membership, and offers to capture a birth life event.
+- =M-x org-chronicle-add-place= :: file a place into
+  =org-chronicle-places-file=; prompts for an optional build/raze span.
+- =M-x org-chronicle-add-group= :: file a group into
+  =org-chronicle-people-file=.
+
+Each refuses to create a duplicate of an existing entity without
+confirmation.  (Topics are entities too; see [[*Topics][Topics]].
+Real historical subjects can instead be imported from an external
+source; see [[*Importing from external sources][Importing from external
+sources]].)
+
+To turn a name already written in your prose into a person entity, put
+point on it and run =M-x org-chronicle-promote=: it seeds the new
+entity's =ALIASES= with the literal text you promoted and prompts for the
+canonical name.
+
+=M-x org-chronicle-lint= checks the whole timeline for anachronisms,
+reporting every event that falls outside a participant's or place's
+existence span.  (For scene-level continuity of your prose, see
+[[*Writing: scenes & continuity][Writing: scenes & continuity]].)
 
 * Topics
 
@@ -261,51 +298,46 @@ chronicle event whose =SOURCES= cite a given book.  Run on a reading-list
 entry it uses that entry's citekey; elsewhere it prompts.  The results
 open in a read-only buffer — =RET= jumps to a citing event, =q= quits.
 
-* Wikidata integration
+* Importing from external sources
 
-The optional =org-chronicle-wikidata= module fetches vitals, kinship
-relations, and curated life events for real historical figures from
-Wikidata and proposes them as opt-in changes to your chronicle.  Load it
-with:
+The optional =org-chronicle-sources= module fetches vitals, kinship
+relations, existence spans, and curated events for real historical
+subjects from a linked-data source and proposes them as opt-in changes to
+your chronicle.  Two sources are built in — *Wikidata* (the default) and
+*FactGrid* — chosen with =org-chronicle-default-source= (=wikidata= or
+=factgrid=).  Load the module with:
 
 #+begin_src emacs-lisp
-(require 'org-chronicle-wikidata)
+(require 'org-chronicle-sources)
 #+end_src
 
-Both commands require network access to Wikidata: =wbsearchentities= (the
-MediaWiki API) for name search and the Wikidata SPARQL Query Service for
+The public commands are autoloaded, so an installed package needs no
+explicit =require=.  Every command needs network access to the chosen
+source: its MediaWiki API for name search and its SPARQL endpoint for the
 record fetch.
 
-** =org-chronicle-wikidata-import=
+Imported headings are filed into dedicated files, each defaulting to a
+path under =org-chronicle-root=:
 
-=M-x org-chronicle-wikidata-import= imports a person's Wikidata data into
-the chronicle.
+- =org-chronicle-sources-events-file= :: imported events (default
+  =imported/events.org=).
+- =org-chronicle-sources-people-file= / =org-chronicle-sources-places-file=
+  / =org-chronicle-sources-groups-file= :: bulk-imported person, place,
+  and group entities.
+- =org-chronicle-sources-bulk-limit= :: cap on the number of rows a bulk
+  query returns (default =500=).
 
-*Resolution.* When the heading already has a =WIKIDATA= property the
-stored QID is reused immediately.  Otherwise the command opens a prompt
-seeded with the heading name; pasting a bare QID (e.g. =Q7259=) or a full
-Wikidata URL short-circuits the network search.  Entering a plain name
-queries =wbsearchentities= and presents candidates for selection with
-=completing-read=.
+All imported files are created on demand and scanned like any other
+chronicle file, so imported items appear interleaved with your authored
+ones on the timeline.
 
-*Resolve-or-create.* The command can be invoked in three situations: (1)
-point on a =KIND: person= entity heading — the existing entity is enriched
-in place; (2) point on a =PARENTS= or =SPOUSE= property line — the first
-name in that value seeds the search, a minimal person entity is written to
-the people file without interactive prompts, and then it is enriched from
-Wikidata; (3) point on any other heading — a minimal person entity is
-written to the people file and enriched.  In all cases the entity is saved
-to its file before returning.
+** Reviewing proposed changes
 
-*Fetch and review.* The resolved QID is used to run three SPARQL queries
-(vitals, spouses, positions held) against the Wikidata Query Service.
-The results are mapped to a proposed change set covering entity properties
-(=BORN=, =DIED=, =BIRTHPLACE=, =DEATHPLACE=, =PARENTS=, =SPOUSE=,
-=ALIASES=, =WIKIDATA=) and timeline events (birth, death, marriages, and
-curated position events).  A =*Wikidata Import*= buffer opens listing
-each proposed change with its current selection state:
+Every import opens an =*Import Review*= buffer listing each proposed
+change with its current selection state:
 
 - =TAB= toggles a row selected / deselected.
+- =c= clears the selection (deselects every row).
 - =RET= applies the selected set and closes the buffer.
 - =q= cancels without writing anything.
 
@@ -315,45 +347,90 @@ your copy, or that conflict with a value you have, are shown but left
 unselected, so a re-import never overwrites anything without an explicit
 choice.
 
+** =org-chronicle-import= — one subject
+
+=M-x org-chronicle-import= imports a single subject's data into the
+chronicle, resolving or creating the entity at point.
+
+*Resolution.* When the heading already carries the source's key property
+(e.g. =WIKIDATA=) the stored id is reused immediately.  Otherwise the
+command opens a prompt seeded with the heading name; pasting a bare id
+(e.g. =Q7259=) or a full item URL short-circuits the network search, and a
+plain name queries the source's search API and presents candidates for
+selection with =completing-read=.
+
+*Resolve-or-create.* The command can be invoked in three situations: (1)
+point on a =KIND: person= entity heading — the existing entity is enriched
+in place; (2) point on a =PARENTS= or =SPOUSE= property line — the first
+name in that value seeds the search, a minimal person entity is written to
+the people file without interactive prompts, and then it is enriched; (3)
+point on any other heading — a minimal person entity is written to the
+people file and enriched.  In all cases the entity is saved to its file
+before returning.
+
+*Fetch and review.* The resolved id runs SPARQL queries (vitals, spouses,
+positions held) against the source endpoint.  The results are mapped to a
+proposed change set covering entity properties (=BORN=, =DIED=,
+=BIRTHPLACE=, =DEATHPLACE=, =PARENTS=, =SPOUSE=, =ALIASES=, and the
+source-key property such as =WIKIDATA=) and timeline events (birth, death,
+marriages, and curated position events), presented in the review buffer
+described above.
+
 *What gets written.* Applied entity changes are written as properties on
 the heading (in place, so a re-import refreshes rather than duplicates).
-Applied event changes are written to the imported-events file
-(=org-chronicle-wikidata-file=, default =imported/events.org= under the
-root; created on demand and scanned like any other chronicle file, so its
-events appear interleaved with your authored ones on the timeline).  Each
-imported event carries an =IMPORT-KEY= identifying the real-world event
-independently of its source, so re-running an import updates the keyed
-heading in place instead of appending a duplicate.  Every imported
+Applied event changes are written to =org-chronicle-sources-events-file=.
+Each imported event carries an =IMPORT-KEY= identifying the real-world
+event independently of its source, so re-running an import updates the
+keyed heading in place instead of appending a duplicate.  Every imported
 property and event is marked =TRUTH: historical= and records a =SOURCES=
-link to the Wikidata item URL; the QID is stored in a =WIKIDATA= property
-for future reconciliation.
+link to the source item URL; the source id is stored in its key property
+(e.g. =WIKIDATA=) for future reconciliation.
 
-** =org-chronicle-wikidata-reconcile=
+** =org-chronicle-reconcile= — pull upstream drift
 
-=M-x org-chronicle-wikidata-reconcile= re-queries the Wikidata item
-stored in the heading's =WIKIDATA= property and presents only the changes
-that have drifted from your local copy.  Drift covers both entity
-properties and imported events: a property or event that is missing
-locally (new), or whose value has changed upstream (conflict) — for an
-event, a changed date or place — is shown as an opt-in pull, while items
-that already match are suppressed.  Imported events are matched by their
-=IMPORT-KEY=, so a pulled conflict updates the existing event heading in
-place rather than duplicating it.  The same review buffer is used; each
-row shows whether the change is new or a conflict, and nothing is
-overwritten without explicit selection.  (Events that have been *removed*
-upstream are not yet detected.)
+=M-x org-chronicle-reconcile= re-queries the source item linked from the
+heading and presents only the changes that have drifted from your local
+copy.  Drift covers both entity properties and imported events: a property
+or event that is missing locally (new), or whose value has changed
+upstream (conflict) — for an event, a changed date or place — is shown as
+an opt-in pull, while items that already match are suppressed.  Imported
+events are matched by their =IMPORT-KEY=, so a pulled conflict updates the
+existing event heading in place rather than duplicating it.  The same
+review buffer is used; each row shows whether the change is new or a
+conflict, and nothing is overwritten without explicit selection.  When
+several source keys are present on the heading it prompts for which to
+reconcile.  (Events that have been *removed* upstream are not yet
+detected.)
 
-The command requires a =WIKIDATA= property on the heading; if none is
-present it directs you to run =org-chronicle-wikidata-import= first.
+** Bulk import
+
+Three commands import many related items at once.  Each prompts for the
+source, a scope, and a from/until year range, then opens the same
+=*Import Review*= buffer:
+
+- =M-x org-chronicle-import-events= :: events located at a place within
+  the year range.
+- =M-x org-chronicle-import-people= :: people connected to an anchor
+  entity by a relation — lived or worked in a place, born in a place,
+  member of a group, or participant in an event — optionally filtered by
+  occupation.
+- =M-x org-chronicle-import-foundings= :: places and groups founded or
+  built within a place and year range, together with their founding
+  events.
+
+=M-x org-chronicle-add-entity-from-source= adds a single named entity of a
+chosen kind (person, place, or group) from the source; interactively the
+name and kind default to the entity heading at point, the active region,
+or a prompt.
 
 ** Places and groups
 
 Import and reconcile work for =place= and =group= entities, not just people.  On a
 heading carrying =KIND: place= or =KIND: group=, the commands fill the entity's
 existence span — =BUILT= / =RAZED= for places, =FOUNDED= / =DISBANDED= for groups —
-from Wikidata's inception property (=P571=) and dissolved property (=P576=), together
-with =ALIASES=.  Creating a new entity from the Wikidata import flow prompts for the
-kind before filing the heading.  These spans are what give the anachronism lint real
+from the source's inception property (Wikidata's =P571=) and dissolved property
+(=P576=), together with =ALIASES=.  =org-chronicle-add-entity-from-source= prompts for
+the kind before filing the heading.  These spans are what give the anachronism lint real
 bounds to check fiction against: a scene set before a building was built or after a
 group disbanded is flagged the same way as a scene that misplaces a person's lifespan.
 
